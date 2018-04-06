@@ -14,7 +14,7 @@ setup(
     name     = 'asap_stereo',
     version  = version,
     packages = ['asap_stereo'],
-    license  = 'MIT',
+    license  = 'GNU-GPLv3+',
     description = 'A CLI interface to asp_scripts',
     long_description = readme,
     # Author details
@@ -53,7 +53,7 @@ setup(
 
     classifiers=[
         'Natural Language :: English',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
         'Intended Audience :: Developers',
