@@ -36,10 +36,10 @@ fi
 
 ##########################################
 # begin calling commands
-echo "Start ctx_pipeline_part_one $(date)"
+echo "Start ctx_pipeline_part_two $(date)"
 
 step1 $1 $2
 
 # done
 ##########################################
-echo "End   ctx_pipeline_part_one $(date)"
+echo "End   ctx_pipeline_part_two $(date)"
