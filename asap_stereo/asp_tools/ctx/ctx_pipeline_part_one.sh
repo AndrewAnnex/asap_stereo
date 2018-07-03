@@ -46,8 +46,9 @@ function step4() {
 
 print_usage (){
     echo ""
-    echo "Usage: $0 <stereo.default> <productIDs.lis> <pedr_list.lis>"
+    echo "Usage: $0 <stereo.default> !stereo.default! <productIDs.lis> <pedr_list.lis>"
     echo " Where <stereo.default> is the name and absolute path to the stereo.default file to be used by the stereo command."
+    echo " Where !stereo.default! is an optional 2nd stereo.default file to use for the 2nd dem generation stage (likely with higher quality specs)"
     echo " Where <productIDs.lis> is a file containing a list of the IDs of the CTX products to be processed."
     echo " Where <pedr_list.lis> is a file containing a list of the MOLA PEDR binary files to search through, including absolute path."
     echo "       <pedr_list.lis> itself should should be specified using the absolute path to its location."
@@ -63,7 +64,7 @@ print_usage (){
 # 3 is pedr_list file
 
 ### Check for the correct number of args and hope for the best ###
-if [[ $# != 3 ]] ; then
+if [[ $# < 3 ]] || [[ $# > 4 ]] ; then
     # print usage message and exit
     print_usage
     exit 0
@@ -73,13 +74,32 @@ fi
 # begin calling commands
 echo "Start ctx_pipeline_part_one $(date)"
 
-step1 $2
+### check if we are given two stereo files
 
-step2 $1 $2
+if [[ $# == 3 ]] ; then
 
-step3 $1 $2
+    step1 $2
 
-step4 $3
+    step2 $1 $2
+
+    step3 $1 $2
+
+    step4 $3
+
+fi
+if [[ $# == 4 ]] ; then
+
+    echo "Using two stereo conf files..."
+
+    step1 $3
+
+    step2 $1 $3
+
+    step3 $2 $3
+
+    step4 $4
+
+fi
 
 # done
 ##########################################

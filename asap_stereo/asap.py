@@ -23,9 +23,12 @@ class ASAP(object):
         self.https = https
 
     @staticmethod
-    def _ctx_step_one(stereo: str, ids: str, pedr_list: str) -> None:
+    def _ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
         old_ctx_one = Command('ctx_pipeline_part_one.sh')
-        old_ctx_one(stereo, ids, pedr_list, _fg=True)
+        if stereo2:
+            old_ctx_one(stereo, stereo2, ids, pedr_list, _fg=True)
+        else:
+            old_ctx_one(stereo, ids, pedr_list, _fg=True)
 
     @staticmethod
     def _ctx_step_two(stereodirs: str, max_disp: int) -> None:
@@ -90,9 +93,9 @@ class ASAP(object):
             moody.ODE(self.https).ctx_edr(one)
             moody.ODE(self.https).ctx_edr(two)
 
-    def ctx_two(self, stereo: str, pedr_list: str, cwd: Optional[str] = None) -> None:
+    def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         with cd(cwd):
-            self._ctx_step_one(stereo, './pair.lis', pedr_list)
+            self._ctx_step_one(stereo, './pair.lis', pedr_list, stereo2=stereo2)
 
     def ctx_three(self, max_disp, cwd: Optional[str] = None) -> None:
         with cd(cwd):
