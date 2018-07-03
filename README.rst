@@ -35,23 +35,26 @@ like the once produced from CTX.
 For CTX:
 --------
 1. `asap ctx-one PRODUCTID PRODUCTID`
-where "PRODUCTID" are the product ids you want to process
+   where "PRODUCTID" are the product ids you want to process
 2. `asap ctx-two STEREO_CONF PEDR_LIST`
-where "STEREO_CONF" is the absolute path to your stereo.conf file,
-"PEDR_LIST" is a file that contains the absolute paths for all of the MOLA PEDR files.
+   where "STEREO_CONF" is the absolute path to your stereo.conf file,
+   "PEDR_LIST" is a file that contains the absolute paths for all of the MOLA PEDR files.
 3. `asap ctx-three MAX_DISP`
- where "MAX_DISP" is the maximum allowable displacement
-in meters that you find between MOLA and the `dem` folder products from step two.
+   where "MAX_DISP" is the maximum allowable displacement
+   in meters that you find between MOLA and the `dem` folder products from step two.
+
+Final products are located in the `dem_align` folder.
 
 For HiRISE:
 -----------
 1. `asap hirise-one PRODUCTID PRODUCTID`
-where "PRODUCTID" are the product ids you want to process
+   where "PRODUCTID" are the product ids you want to process
 2. `asap hirise-two STEREO_CONF`
-where "STEREO_CONF" is the absolute path to your stereo.conf file
+   where "STEREO_CONF" is the absolute path to your stereo.conf file
 3. `asap ctx-three MAX_DISP REF_DEM`
-where "MAX_DISP" is the maximum allowable displacement
-in meters that you find between MOLA and the `dem` folder products from step two.
-and "REF_DEM" is the absolute path to the whatever non-geoid corrected DEM you want to align to HiRISE.
-For CTX processed above it will be the "1-DEM.tif" file in the "dem_align" final products from the last step.
+   where "MAX_DISP" is the maximum allowable displacement
+   in meters that you find between MOLA and the `dem` folder products from step two.
+   and "REF_DEM" is the absolute path to the whatever non-geoid corrected DEM you want to align to HiRISE.
+   For CTX processed above it will be the "1-DEM.tif" file in the "dem_align" final products from the last step.
 
+Final products are located in the `dem_align` folder.
