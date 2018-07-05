@@ -126,8 +126,8 @@ for i in $( cat stereodirs.lis ); do
     # cd into the directory containing the stereopair i
     cd $i || exit 1
 
-    # extract the proj4 string from one of the map-projected image cubes and store it in a variable (we'll need it later for point2dem)
-    proj=$(awk '{print("gdalsrsinfo -o proj4 "$1".map.cub")}' stereopair.lis | sh | sed 's/'\''//g')
+    # extract the proj4 string from one of the image cubes using asap and store it in a variable (we'll need it later for point2dem)
+    proj=$(awk '{print("asap get-srs-info "$1".lev1eo.cub")}' stereopair.lis | sh | sed 's/'\''//g') || exit 1
 
     # cd into the results directory for stereopair $i
     cd results_ba/ || exit 1
@@ -258,8 +258,8 @@ done
 for i in $( cat stereodirs.lis ); do
     # cd into the directory containing the stereopair i
     cd $i || exit 1
-    # extract the proj4 string from one of the map-projected image cubes and store it in a variable (we'll need it later for point2dem)
-    proj=$(awk '{print("gdalsrsinfo -o proj4 "$1".map.cub")}' stereopair.lis | sh | sed 's/'\''//g')
+    # extract the proj4 string from one of the image cubes using asap and store it in a variable (we'll need it later for point2dem)
+    proj=$(awk '{print("asap get-srs-info "$1".lev1eo.cub")}' stereopair.lis | sh | sed 's/'\''//g') || exit 1
     # cd into the results directory for stereopair $i
     cd results_map_ba/ || exit 1
     # run point2dem with orthoimage and intersection error image outputs. no hole filling

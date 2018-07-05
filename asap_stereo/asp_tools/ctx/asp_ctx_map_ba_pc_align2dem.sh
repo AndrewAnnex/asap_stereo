@@ -80,8 +80,8 @@ echo "Start asp_ctx_map_ba_pc_align2dem $(date)"
 for i in $( cat ${dirs} ); do
     echo Working on $i
     cd $i || exit 1
-    # extract the proj4 string from one of the map-projected image cubes and store it in a variable (we'll need it later for point2dem)
-    proj=$(awk '{print("gdalsrsinfo -o proj4 "$1".map.cub")}' stereopair.lis | sh | sed 's/'\''//g') || exit 1
+    # extract the proj4 string from one of the image cubes using asap and store it in a variable (we'll need it later for point2dem)
+    proj=$(awk '{print("asap get-srs-info "$1".lev1eo.cub")}' stereopair.lis | sh | sed 's/'\''//g') || exit 1
 
     # Move down into the results directory for stereopair $i
     cd ./results_map_ba || exit 1

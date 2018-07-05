@@ -3,9 +3,6 @@ set -x
 # Summary:
 # Script to take Level 1eo CTX stereopairs, run them through NASA Ames stereo Pipeline.
 # The script uses ASP's bundle_adjust tool to perform bundle adjustment on each stereopair separately.
-# The script also runs ASP's cam2map4stereo.py on the input cubes, but the resulting map-projected cubes are only used as a convenient source of ideal projection information;
-#  they're not actually used for stereo matching.  (This is a legacy of a much erlier version of the code and now is merely a lazy workaround for generating sensible map projection
-#  information that is used later. This should really be done with a few calls to ISIS3's `camrange`. )
 # This script is capable of processing many stereopairs in a single run and uses GNU parallel
 #  to improve the efficiency of the processing and reduce total wall time.
 
@@ -128,25 +125,6 @@ awk '{print("cp -n "$2"*.lev1eo.cub "$3)}' stereopairs.lis | sh
 if hash scontrol 2>/dev/null; then
     scontrol show hostname $SLURM_NODELIST | tr ' ' '\n' > nodelist.lis
 fi
-#######################################################
-######
-## Use GNU parallel to run many instances of cam2map4stereo.py at once and project the images of each stereopair into a common projection
-# Define a function that GNU parallel will call to run cam2map4stereo.py
-function cam2map4stereo() {
-    cd $3 || exit 1
-    cam2map4stereo.py $1.lev1eo.cub $2.lev1eo.cub
-}
-# export the function so GNU parallel can use it
-export -f cam2map4stereo
-# Run the function using parallel
-cat stereopairs.lis | parallel --colsep ' ' --joblog parallel_cam2map4stereo.log cam2map4stereo
-if [ $? -ne 0 ]
-then
-    echo "Failure running cam2map4stereo at $(date)"
-    exit 1
-else
-    echo "Success running cam2map4stereo at $(date)"
-fi
 
 ##  Run ALL stereo in series for each stereopair using `parallel_stereo`
 # This is not the most resource efficient way of doing this but it's a hell of a lot more efficient compared to using plain `stereo` in series
@@ -228,8 +206,8 @@ done
 for i in $( cat stereodirs.lis ); do
     # cd into the directory containing the stereopair i
     cd $i || exit 1
-    # extract the proj4 string from one of the map-projected image cubes and store it in a variable (we'll need it later for point2dem)
-    proj=$(awk '{print("gdalsrsinfo -o proj4 "$1".map.cub")}' stereopair.lis | sh | sed 's/'\''//g')
+    # extract the proj4 string from one of the image cubes using asap and store it in a variable (we'll need it later for point2dem)
+    proj=$(awk '{print("asap get-srs-info "$1".lev1eo.cub")}' stereopair.lis | sh | sed 's/'\''//g') || exit 1
 
     # cd into the results directory for stereopair $i
     cd results_ba/ || exit 1

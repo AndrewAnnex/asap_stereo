@@ -90,12 +90,12 @@ parallel_pedr_bin4pc_align (){
     cp $pedr_list ./
     pedr_list=$(basename $pedr_list)
     # Get the name of the first map-projected cube listed in stereopairs.lis
-    cube=${1}.map.cub
+    cube=${1}.lev1eo.cub
     # # Get the bounding coordinates for the cube named above
-    minlong=$(getkey from=${cube} grpname=Mapping keyword=MinimumLongitude)
-    maxlat=$(getkey from=${cube} grpname=Mapping keyword=MaximumLatitude)
-    maxlong=$(getkey from=${cube} grpname=Mapping keyword=MaximumLongitude)
-    minlat=$(getkey from=${cube} grpname=Mapping keyword=MinimumLatitude)
+    minlong=$(asap get-map-info ${cube} MinimumLongitude)
+    maxlat=$(asap get-map-info ${cube} MaximumLatitude)
+    maxlong=$(asap get-map-info ${cube} MaximumLongitude)
+    minlat=$(asap get-map-info ${cube} MinimumLatitude)
     ##########################################################
     # Build a PEDR2TAB.PRM file for pedr2tab
     ##########################################################
@@ -134,8 +134,8 @@ parallel_pedr_bin4pc_align (){
     sed -e 's/^ \+//' -e 's/ \+/,/g' ${3}_pedr.asc | awk -F, 'NR > 2 {print($1","$2","($5 - 3396190)","$1","$2","$10)}' | sed 's/,/\t/g' > ${3}_pedr.tab
     inputTAB=${3}_pedr.tab
 
-    # extract the proj4 string from one of the map-projected image cubes and store it in a variable (we'll need it later for proj)
-    projstr=$(gdalsrsinfo -o proj4 $cube | sed 's/'\''//g')
+    # extract the proj4 string from one of the image cubes using asap and store it in a variable (we'll need it later for proj)
+    projstr=$(asap get-srs-info $cube | sed 's/'\''//g')
     echo $projstr
     echo "#Latitude,Longitude,Datum_Elevation,Easting,Northing,Orbit" > ${3}_pedr4align.csv
     proj $projstr $inputTAB | sed 's/\t/,/g' | awk -F, '{print($5","$4","$3","$1","$2","$6)}' >> ${3}_pedr4align.csv
