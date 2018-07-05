@@ -2,8 +2,9 @@ import fire
 from sh import Command
 from contextlib import contextmanager
 import os
-from typing import Optional
+from typing import Optional, Dict
 import moody
+import re
 
 
 @contextmanager
@@ -15,6 +16,15 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
+
+def isis3_to_dict(instr: str)-> Dict:
+    groups = re.findall(r'Group([\S\s]*?)End_Group', instr)
+    out = {}
+    for group in groups:
+        lines = [x.replace('=', '').split() for x in group.split('\\n')]
+        group_name = lines[0][0]
+        out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
+    return out
 
 
 class ASAP(object):
@@ -121,6 +131,17 @@ class ASAP(object):
     def hirise_three(self, max_disp, ref_dem, cwd: Optional[str] = None) -> None:
         with cd(cwd):
             self._hirise_step_two('./stereodirs.lis', max_disp, ref_dem)
+
+    @staticmethod
+    def get_srs_info(img):
+        camrange = Command('camrange')
+        out = str(camrange(f'from={img}').stdout)
+        out_dict = isis3_to_dict(out)
+        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
+        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+        return proj4str
+
+
 
 
 def main():
