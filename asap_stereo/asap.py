@@ -46,9 +46,9 @@ class ASAP(object):
             old_ctx_one(stereo, ids, pedr_list, _fg=True)
 
     @staticmethod
-    def _ctx_step_two(stereodirs: str, max_disp: int) -> None:
+    def _ctx_step_two(stereodirs: str, max_disp: int, demgsd: float) -> None:
         old_ctx_two = Command('ctx_pipeline_part_two.sh')
-        old_ctx_two(stereodirs, max_disp, _fg=True)
+        old_ctx_two(stereodirs, max_disp, demgsd, _fg=True)
 
     @staticmethod
     def _hirise_step_one(stereo: str, ids: str) -> None:
@@ -56,9 +56,9 @@ class ASAP(object):
         old_hirise_one(stereo, ids, _fg=True)
 
     @staticmethod
-    def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str) -> None:
+    def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
-        old_hirise_two(stereodirs, max_disp, ref_dem, _fg=True)
+        old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
     def get_full_ctx_id(self, pid):
         res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
@@ -112,9 +112,9 @@ class ASAP(object):
         with cd(cwd):
             self._ctx_step_one(stereo, './pair.lis', pedr_list, stereo2=stereo2)
 
-    def ctx_three(self, max_disp, cwd: Optional[str] = None) -> None:
+    def ctx_three(self, max_disp, demgsd: float = 24, cwd: Optional[str] = None) -> None:
         with cd(cwd):
-            self._ctx_step_two('./stereodirs.lis', max_disp)
+            self._ctx_step_two('./stereodirs.lis', max_disp, demgsd)
 
     def hirise_one(self, one, two, cwd: Optional[str] = None) -> None:
         from pathlib import Path
@@ -133,9 +133,9 @@ class ASAP(object):
         with cd(cwd):
                self._hirise_step_one(stereo, './pair.lis')
 
-    def hirise_three(self, max_disp, ref_dem, cwd: Optional[str] = None) -> None:
+    def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, cwd: Optional[str] = None) -> None:
         with cd(cwd):
-            self._hirise_step_two('./stereodirs.lis', max_disp, ref_dem)
+            self._hirise_step_two('./stereodirs.lis', max_disp, ref_dem, demgsd, imggsd)
 
     @staticmethod
     def get_srs_info(img)-> str:
