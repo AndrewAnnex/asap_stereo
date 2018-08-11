@@ -107,7 +107,7 @@ for i in $( cat ${dirs} ); do
 
     # Run pc_align on the HiRISE point cloud using the specified CTX point cloud as the reference.
     # Note that the HiRISE point cloud is listed before the CTX point cloud because pc_align runs faster on point clouds when the denser source is listed first
-    pc_align --max-displacement $maxd --threads 16 $i-PC.tif $refdem --save-inv-transform --datum D_MARS -o dem_align/${i}_align
+    pc_align --highest-accuracy --max-displacement $maxd --threads 16 $i-PC.tif $refdem --save-inv-transform --datum D_MARS -o dem_align/${i}_align
     if [ $? -ne 0 ]
     then
         echo "Failure running pc_align of HiRISE to $refdem at $(date)"

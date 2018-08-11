@@ -120,8 +120,12 @@ for i in $( cat stereodirs.lis ); do
     echo "Begin parallel_stereo on $i at $(date)"
     cd $i || { echo "could not cd into $i"; exit 1; }
     # Store the names of the HiRISE cubes in variables
+    Lmos=$(awk '{print($1".mos_hijitreged.norm.cub"' stereopair.lis)
+    Rmos=$(awk '{print($2".mos_hijitreged.norm.cub"' stereopair.lis)
     Lmap=$(awk '{print($1"_RED.map.cub")}' stereopair.lis)
     Rmap=$(awk '{print($2"_RED.map.cub")}' stereopair.lis)
+    Lmosmap=$(awk '{print($1".mos_hijitreged.norm.map.cub"' stereopair.lis)
+    Rmosmap=$(awk '{print($2".mos_hijitreged.norm.map.cub"' stereopair.lis)
     Ladj=$(awk '{print($1"_RED.map.adjust")}' stereopair.lis)
     Radj=$(awk '{print($2"_RED.map.adjust")}' stereopair.lis)
 

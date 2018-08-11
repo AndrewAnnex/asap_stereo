@@ -1,10 +1,11 @@
 import fire
-from sh import Command
+from sh import Command, cat
 from contextlib import contextmanager
 import os
 from typing import Optional, Dict
 import moody
 import re
+from pathlib import Path
 
 
 @contextmanager
@@ -51,9 +52,15 @@ class ASAP(object):
         old_ctx_two(stereodirs, max_disp, demgsd, _fg=True)
 
     @staticmethod
-    def _hirise_step_one(stereo: str, ids: str) -> None:
-        old_hirise_one = Command('hirise_pipeline_part_one.sh')
-        old_hirise_one(stereo, ids, _fg=True)
+    def _hirise_step_one(stereo: str, ids: str, force=False) -> None:
+        step_one = Command(f'asp_hirise_prep.sh -p {ids}')
+        step_two = Command(f'asp_hirise_map2dem.sh -s {stereo} -p {ids}')
+        # check if cub files exist in directory
+        left, right, both = cat('./stereopair.lis').split(' ')
+        if not Path(f'./{both}/{left}.map.cub').exists() or force:
+            step_one(_fg=True)
+        # then run step two
+        step_two(_fg=True)
 
     @staticmethod
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
@@ -129,9 +136,9 @@ class ASAP(object):
             with cd(two):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
 
-    def hirise_two(self, stereo, cwd: Optional[str] = None) -> None:
+    def hirise_two(self, stereo, cwd: Optional[str] = None, **kwargs) -> None:
         with cd(cwd):
-               self._hirise_step_one(stereo, './pair.lis')
+               self._hirise_step_one(stereo, './pair.lis', **kwargs)
 
     def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, cwd: Optional[str] = None) -> None:
         with cd(cwd):
