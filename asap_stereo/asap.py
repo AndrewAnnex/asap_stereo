@@ -58,9 +58,9 @@ class ASAP(object):
         # check if cub files exist in directory
         left, right, both = cat('./stereopairs.lis').split(' ')
         if not Path(f'./{both}/{left}.map.cub').exists() or force:
-            step_one(f'-p {ids}', _fg=True)
+            step_one('-p', ids, _fg=True)
         # then run step two
-        step_two(f'-s {stereo} -p {ids}', _fg=True)
+        step_two('-s', stereo, '-p', ids, _fg=True)
 
     @staticmethod
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
