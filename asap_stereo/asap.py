@@ -53,14 +53,14 @@ class ASAP(object):
 
     @staticmethod
     def _hirise_step_one(stereo: str, ids: str, force=False) -> None:
-        step_one = Command(f'asp_hirise_prep.sh -p {ids}')
-        step_two = Command(f'asp_hirise_map2dem.sh -s {stereo} -p {ids}')
+        step_one = Command('asp_hirise_prep.sh')
+        step_two = Command('asp_hirise_map2dem.sh')
         # check if cub files exist in directory
         left, right, both = cat('./stereopair.lis').split(' ')
         if not Path(f'./{both}/{left}.map.cub').exists() or force:
-            step_one(_fg=True)
+            step_one(f'-p {ids}', _fg=True)
         # then run step two
-        step_two(_fg=True)
+        step_two(f'-s {stereo} -p {ids}', _fg=True)
 
     @staticmethod
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
