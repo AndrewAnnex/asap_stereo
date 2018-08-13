@@ -56,9 +56,12 @@ class ASAP(object):
         step_one = Command('asp_hirise_prep.sh')
         step_two = Command('asp_hirise_map2dem.sh')
         # check if cub files exist in directory
-        left, right, both = cat('./stereopairs.lis').split(' ')
-        if not Path(f'./{both}/{left}.map.cub').exists() or force:
+        if not Path('./stereopairs.lis').exists():
             step_one('-p', ids, _fg=True)
+        else:
+            left, right, both = cat('./stereopairs.lis').strip().split(' ')
+            if not Path(f'./{both}/{left}.map.cub').exists() or force:
+                step_one('-p', ids, _fg=True)
         # then run step two
         step_two('-s', stereo, '-p', ids, _fg=True)
 
