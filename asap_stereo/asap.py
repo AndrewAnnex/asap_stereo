@@ -1,5 +1,6 @@
 import fire
-from sh import Command, cat
+import sh
+from sh import Command
 from contextlib import contextmanager
 import os
 from typing import Optional, Dict
@@ -59,9 +60,12 @@ class ASAP(object):
         if not Path('./stereopairs.lis').exists():
             step_one('-p', ids, _fg=True)
         else:
-            left, right, both = cat('./stereopairs.lis').strip().split(' ')
+            left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
             if not Path(f'./{both}/{left}.map.cub').exists() or force:
                 step_one('-p', ids, _fg=True)
+        # Run BA unless adjust/ba folder exists, do run if force
+        if not Path('./{both}/adjust/').exists() or force:
+            ASAP.ba_hirise()
         # then run step two
         step_two('-s', stereo, '-p', ids, _fg=True)
 
@@ -69,6 +73,15 @@ class ASAP(object):
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
+
+    @staticmethod
+    def ba_hirise(): # TODO: kwargs for BA?
+        ba = Command('bundle_adjust')
+        left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
+        with cd(Path('./'+both)):
+            sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
+            ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
+            sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     def get_full_ctx_id(self, pid):
         res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
