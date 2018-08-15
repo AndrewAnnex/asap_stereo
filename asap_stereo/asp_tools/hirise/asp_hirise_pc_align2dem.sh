@@ -29,7 +29,7 @@ if [[ $# = 0 ]] || [[ "$1" != "-"* ]] ; then
     print_usage
     exit
 elif  [[ "$1" = "-"* ]]; then  # Else use getopts to parse flags that may have been set
-    while getopts ":d:m:r:s:" opt; do
+    while getopts ":d:m:r:s:i:" opt; do
         case $opt in
           d)
               if [ ! -e "$OPTARG" ]; then
