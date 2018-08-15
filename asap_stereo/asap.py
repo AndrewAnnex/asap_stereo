@@ -35,6 +35,18 @@ def get_cam_info(img)-> Dict:
     return out_dict
 
 
+class CommonSteps(object):
+
+    def __init__(self):
+        self.ba = Command('bundle_adjust')
+
+    @staticmethod
+    def parse_stereopairs(self):
+        return sh.cat('./stereopairs.lis').strip().split(' ')
+
+
+
+
 class CTX(object):
 
     def __init__(self, https=False):
@@ -75,6 +87,7 @@ class HiRISE(object):
 
     def __init__(self, https=False):
         self.https = https
+        self.cs = CommonSteps()
 
     def get_hirise_emission_angle(self, pid):
         return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
@@ -114,6 +127,13 @@ class HiRISE(object):
 
     def step_four(self):
         pass
+
+    def step_five(self):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('./' + both)):
+            sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
+            sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
 
 class ASAP(object):
@@ -170,15 +190,6 @@ class ASAP(object):
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
-
-    @staticmethod
-    def ba_hirise(): # TODO: kwargs for BA?
-        ba = Command('bundle_adjust')
-        left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
-        with cd(Path('./'+both)):
-            sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
-            sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
 
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
