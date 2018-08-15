@@ -34,10 +34,107 @@ def get_cam_info(img)-> Dict:
     out_dict = isis3_to_dict(out)
     return out_dict
 
+
+class CTX(object):
+
+    def __init__(self, https=False):
+        self.https = https
+
+    def get_full_ctx_id(self, pid):
+        res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
+        return res.split('=')[1].split('&')[0]
+
+    def get_ctx_emission_angle(self, pid):
+        return float(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'Emission_angle'))
+
+    def get_ctx_order(self, one, two):
+        em_one = self.get_ctx_emission_angle(one)
+        em_two = self.get_ctx_emission_angle(two)
+        if em_one <= em_two:
+            return one, two
+        else:
+            return two, one
+
+    def generate_ctx_pair_list(self, one, two):
+        order = self.get_ctx_order(one, two)
+        full_ids = [self.get_full_ctx_id(pid) for pid in order]
+        with open('pair.lis', 'w', encoding='utf') as o:
+            for pid in full_ids:
+                o.write(pid)
+                o.write('\n')
+
+    def ctx_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
+        with cd(cwd):
+            self.generate_ctx_pair_list(one, two)
+            # download files
+            moody.ODE(self.https).ctx_edr(one)
+            moody.ODE(self.https).ctx_edr(two)
+
+
+class HiRISE(object):
+
+    def __init__(self, https=False):
+        self.https = https
+
+    def get_hirise_emission_angle(self, pid):
+        return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
+
+    def get_hirise_order(self, one, two):
+        em_one = self.get_hirise_emission_angle(one)
+        em_two = self.get_hirise_emission_angle(two)
+        if em_one <= em_two:
+            return one, two
+        else:
+            return two, one
+
+    def generate_hirise_pair_list(self, one, two):
+        order = self.get_hirise_order(one, two)
+        with open('pair.lis', 'w', encoding='utf') as o:
+            for pid in order:
+                o.write(pid)
+                o.write('\n')
+
+    def step_one(self, one, two, cwd: Optional[str] = None):
+        with cd(cwd):
+            self.generate_hirise_pair_list(one, two)
+            # download files
+            Path(one).mkdir(exist_ok=True)
+            with cd(one):
+                moody.ODE(self.https).hirise_edr(f'{one}_R*')
+
+            Path(two).mkdir(exist_ok=True)
+            with cd(two):
+                moody.ODE(self.https).hirise_edr(f'{two}_R*')
+
+    def step_two(self):
+        pass
+
+    def step_three(self):
+        pass
+
+    def step_four(self):
+        pass
+
+
 class ASAP(object):
 
     def __init__(self, https=False):
         self.https = https
+        self.hirise = HiRISE(self.https)
+        self.ctx = CTX(self.https)
+
+    @staticmethod
+    def get_srs_info(img)-> str:
+        out_dict = get_cam_info(img)
+        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
+        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+        return proj4str
+
+    @staticmethod
+    def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
+        out_dict = get_cam_info(img)
+        return out_dict[group][key]
+
 
     @staticmethod
     def _ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
@@ -83,53 +180,6 @@ class ASAP(object):
             ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
-    def get_full_ctx_id(self, pid):
-        res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
-        return res.split('=')[1].split('&')[0]
-
-    def get_ctx_emission_angle(self, pid):
-        return float(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'Emission_angle'))
-
-    def get_hirise_emission_angle(self, pid):
-        return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
-
-    def get_ctx_order(self, one, two):
-        em_one = self.get_ctx_emission_angle(one)
-        em_two = self.get_ctx_emission_angle(two)
-        if em_one <= em_two:
-            return one, two
-        else:
-            return two, one
-
-    def get_hirise_order(self, one, two):
-        em_one = self.get_hirise_emission_angle(one)
-        em_two = self.get_hirise_emission_angle(two)
-        if em_one <= em_two:
-            return one, two
-        else:
-            return two, one
-
-    def generate_ctx_pair_list(self, one, two):
-        order = self.get_ctx_order(one, two)
-        full_ids = [self.get_full_ctx_id(pid) for pid in order]
-        with open('pair.lis', 'w', encoding='utf') as o:
-            for pid in full_ids:
-                o.write(pid)
-                o.write('\n')
-
-    def generate_hirise_pair_list(self, one, two):
-        order = self.get_hirise_order(one, two)
-        with open('pair.lis', 'w', encoding='utf') as o:
-            for pid in order:
-                o.write(pid)
-                o.write('\n')
-
-    def ctx_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
-        with cd(cwd):
-            self.generate_ctx_pair_list(one, two)
-            # download files
-            moody.ODE(self.https).ctx_edr(one)
-            moody.ODE(self.https).ctx_edr(two)
 
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         with cd(cwd):
@@ -139,19 +189,6 @@ class ASAP(object):
         with cd(cwd):
             self._ctx_step_two('./stereodirs.lis', max_disp, demgsd)
 
-    def hirise_one(self, one, two, cwd: Optional[str] = None) -> None:
-        from pathlib import Path
-        with cd(cwd):
-            self.generate_hirise_pair_list(one, two)
-            # download files
-            Path(one).mkdir(exist_ok=True)
-            with cd(one):
-                moody.ODE(self.https).hirise_edr(f'{one}_R*')
-
-            Path(two).mkdir(exist_ok=True)
-            with cd(two):
-                moody.ODE(self.https).hirise_edr(f'{two}_R*')
-
     def hirise_two(self, stereo, cwd: Optional[str] = None, **kwargs) -> None:
         with cd(cwd):
                self._hirise_step_one(stereo, './pair.lis', **kwargs)
@@ -160,17 +197,6 @@ class ASAP(object):
         with cd(cwd):
             self._hirise_step_two('./stereodirs.lis', max_disp, ref_dem, demgsd, imggsd)
 
-    @staticmethod
-    def get_srs_info(img)-> str:
-        out_dict = get_cam_info(img)
-        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
-        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
-        return proj4str
-
-    @staticmethod
-    def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
-        out_dict = get_cam_info(img)
-        return out_dict[group][key]
 
 
 
