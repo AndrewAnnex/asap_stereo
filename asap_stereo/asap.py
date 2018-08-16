@@ -44,15 +44,31 @@ def get_cam_info(img)-> Dict:
 class CommonSteps(object):
 
     def __init__(self):
-        self.ba = Command('bundle_adjust')
+        self.ba = Command('bundle_adjust').bake(_fg=True)
+        self.parallel_stereo = Command('parallel_stereo').bake(_fg=True)
+        self.point2dem = Command('point2dem').bake(_fg=True)
+        self.pc_align = Command('pc_align').bake('--highest-accruacy', '--save-inv-transform', _fg=True)
+        self.dem_geoid = Command('dem_geoid').bake(_fg=True)
+
+    @staticmethod
+    def get_srs_info(img)-> str:
+        out_dict = get_cam_info(img)
+        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
+        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+        return proj4str
+
+    @staticmethod
+    def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
+        out_dict = get_cam_info(img)
+        return out_dict[group][key]
 
     @staticmethod
     def parse_stereopairs():
         return sh.cat('./stereopairs.lis').strip().split(' ')
 
     @staticmethod
-    def create_stereopairs_lis(): #TODO: make sure you replace $prods with the hardcoded file name
-        sh.Command("""awk '{printf "%s ", $0}!(NR % 2){printf "\n"}' $prods | awk '{print($1" "$2" "$1"_"$2)}' > stereopairs.lis""")()
+    def create_stereopairs_lis():
+        sh.Command("""awk '{printf "%s ", $0}!(NR % 2){printf "\n"}' ./pair.lis | awk '{print($1" "$2" "$1"_"$2)}' > stereopairs.lis""")()
 
     @staticmethod
     def create_stereodirs_lis():
@@ -186,12 +202,69 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
         print('Finished cam2map4stereo on images')
 
-    def step_six(self):
+    def step_six(self, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('./' + both)):
+        with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', 16, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
+
+    def step_seven(self, stereo_conf, processes=2, threads_multiprocess=8, threads_singleprocess=16, bundle_adjust_prefix='adjust/ba'):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('.') / both):
+            self.cs.parallel_stereo('--processes'            , processes,
+                                    '--threads-singleprocess', threads_singleprocess,
+                                    '--threads-multiprocesss', threads_multiprocess,
+                                    '--stop-point'           , 4,
+                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
+                                    '-s'                     , Path(stereo_conf).absolute(),
+                                    f'results/{both}'        ,
+                                    '--bundle-adjust-prefix' , bundle_adjust_prefix)
+
+    def step_eight(self, stereo_conf, processes=16, threads_multiprocess=8, threads_singleprocess=16, bundle_adjust_prefix='adjust/ba'):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('.') / both):
+            self.cs.parallel_stereo('--processes'            , processes,
+                                    '--threads-singleprocess', threads_singleprocess,
+                                    '--threads-multiprocesss', threads_multiprocess,
+                                    '--entry-point'           , 4,
+                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
+                                    '-s'                     , Path(stereo_conf).absolute(),
+                                    f'results/{both}'        ,
+                                    '--bundle-adjust-prefix' , bundle_adjust_prefix)
+
+    def step_nine(self, mpp=2):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('.') / both / 'results'):
+            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
+            self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
+                              '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}')
+
+    def step_ten(self, maxd, refdem):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('.') / both):
+            with cd('results'):
+                self.cs.pc_align('--mac-displacement', maxd, '--threads', 16, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
+
+    def step_eleven(self, gsd, just_ortho=False):
+        left, right, both = self.cs.parse_stereopairs()
+        gsd_postfix = str(float(gsd)).replace('.','_')
+
+        add_params = []
+        if just_ortho:
+            add_params.append('--no-dem')
+
+        with cd(Path('.') / both / 'results'):
+            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
+            with cd('dem_align'):
+                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', f'{both}_align-trans_reference.tif',
+                                  '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
+
+    def step_twelve(self):
+        left, right, both = self.cs.parse_stereopairs()
+        with cd(Path('.') / both / 'results' / 'dem_align'):
+            file = next(Path('.').glob('-DEM.tif'))
+            self.cs.dem_geoid(file, '-o', f'{file.stem}')
 
 
 class ASAP(object):
@@ -200,19 +273,6 @@ class ASAP(object):
         self.https = https
         self.hirise = HiRISE(self.https)
         self.ctx = CTX(self.https)
-
-    @staticmethod
-    def get_srs_info(img)-> str:
-        out_dict = get_cam_info(img)
-        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
-        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
-        return proj4str
-
-    @staticmethod
-    def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
-        out_dict = get_cam_info(img)
-        return out_dict[group][key]
-
 
     @staticmethod
     def _ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
@@ -249,7 +309,6 @@ class ASAP(object):
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
-
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         with cd(cwd):
             self._ctx_step_one(stereo, './pair.lis', pedr_list, stereo2=stereo2)
@@ -258,15 +317,24 @@ class ASAP(object):
         with cd(cwd):
             self._ctx_step_two('./stereodirs.lis', max_disp, demgsd)
 
+    def hirise_one(self, left, right):
+        self.hirise.step_one(left, right)
+
     def hirise_two(self, stereo, cwd: Optional[str] = None, **kwargs) -> None:
-        with cd(cwd):
-               self._hirise_step_one(stereo, './pair.lis', **kwargs)
+        self.hirise.step_two()
+        self.hirise.step_three()
+        self.hirise.step_four()
+        self.hirise.step_five()
+        self.hirise.step_six()
+        self.hirise.step_seven(stereo)
+        self.hirise.step_eight(stereo)
+        self.hirise.step_nine()
 
     def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, cwd: Optional[str] = None) -> None:
-        with cd(cwd):
-            self._hirise_step_two('./stereodirs.lis', max_disp, ref_dem, demgsd, imggsd)
-
-
+        self.hirise.step_ten(max_disp, ref_dem)
+        self.hirise.step_eleven(demgsd)
+        self.hirise.step_twelve()
+        self.hirise.step_eleven(imggsd, just_ortho=True)
 
 
 
