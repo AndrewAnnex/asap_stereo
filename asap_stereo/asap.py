@@ -7,7 +7,13 @@ from typing import Optional, Dict
 import moody
 import re
 from pathlib import Path
+from threading import Semaphore
 
+
+pool = Semaphore(16)
+
+def done(cmd, success, exit_code):
+    pool.release()
 
 @contextmanager
 def cd(newdir):
@@ -41,10 +47,24 @@ class CommonSteps(object):
         self.ba = Command('bundle_adjust')
 
     @staticmethod
-    def parse_stereopairs(self):
+    def parse_stereopairs():
         return sh.cat('./stereopairs.lis').strip().split(' ')
 
+    @staticmethod
+    def create_stereopairs_lis(): #TODO: make sure you replace $prods with the hardcoded file name
+        sh.Command("""awk '{printf "%s ", $0}!(NR % 2){printf "\n"}' $prods | awk '{print($1" "$2" "$1"_"$2)}' > stereopairs.lis""")()
 
+    @staticmethod
+    def create_stereodirs_lis():
+        sh.Command("""awk '{print($3)}' stereopairs.lis > stereodirs.lis""")()
+
+    @staticmethod
+    def create_sterodirs():
+        Path(sh.cat('./stereodirs.lis').strip()).mkdir(exist_ok=True)
+
+    @staticmethod
+    def create_stereopair_lis():
+        sh.Command("""awk '{print $1" "$2 >$3"/stereopair.lis"}' stereopairs.lis""")()
 
 
 class CTX(object):
@@ -120,15 +140,53 @@ class HiRISE(object):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
 
     def step_two(self):
-        pass
+        self.cs.create_stereopairs_lis()
+        self.cs.create_stereodirs_lis()
+        self.cs.create_sterodirs()
+        self.cs.create_stereopair_lis()
 
     def step_three(self):
-        pass
+        """
+        Run hiedr2mosic on all the data
+        :return:
+        """
+        hiedr = sh.Command('hiedr2moasic.py')
+
+        def hiedr2mosaic(*im):
+            # hiedr2moasic is given a glob of tifs
+            pool.acquire()
+            return hiedr(*im, _bg=True, _done=done)
+
+        left, right, both = self.cs.parse_stereopairs()
+        procs = []
+        with cd(Path(left)):
+            procs.append(hiedr2mosaic(Path('./').glob('*.IMG')))
+        with cd(Path(right)):
+            procs.append(hiedr2mosaic(Path('./').glob('*.IMG')))
+        _ = [p.wait() for p in procs]
+        print('Finished hiedr2mosaic on images')
 
     def step_four(self):
-        pass
+        left, right, both = self.cs.parse_stereopairs()
+        sh.mv(next(Path(f'./{left}/').glob(f'{left}*.mos_hijitreged.norm.cub')), both)
+        sh.mv(next(Path(f'./{right}/').glob(f'{right}*.mos_hijitreged.norm.cub')), both)
 
     def step_five(self):
+        cam2map = sh.Command('cam2map4stereo.py')
+
+        def par_cam2map(im):
+            pool.acquire()
+            return cam2map(im, _bg=True, _done=done)
+
+        left, right, both = self.cs.parse_stereopairs()
+        procs = []
+        with cd(both):
+            procs.append(par_cam2map(next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))))
+            procs.append(par_cam2map(next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))))
+        _ = [p.wait() for p in procs]
+        print('Finished cam2map4stereo on images')
+
+    def step_six(self):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path('./' + both)):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
