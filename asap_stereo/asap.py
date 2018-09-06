@@ -80,7 +80,7 @@ class ASAP(object):
         left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
         with cd(Path('./'+both)):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
+            ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', 'adjust/ba', '--threads', 16, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     def get_full_ctx_id(self, pid):

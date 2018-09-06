@@ -129,17 +129,10 @@ for i in $( cat stereodirs.lis ); do
     Ladj=$(awk '{print($1"_RED.map.adjust")}' stereopair.lis)
     Radj=$(awk '{print($2"_RED.map.adjust")}' stereopair.lis)
 
-    # Run ASP's bundle_adjust on the given stereopair
-    echo "Begin bundle_adjust on \"$i\" at $(date)"
-    bundle_adjust $Lmap $Rmap -o adjust/ba --threads 16
-    # TODO verify the bundle adjustment file exists as bundle_adjust does not return a non zero return code
     if [[ $? -ne 0 ]] || [[ ! -e "adjust/ba-${Ladj}" ]] || [[ ! -e "adjust/ba-${Radj}" ]]; then
-        echo "Failure running bundle_adjust of $i at $(date)"
+        echo "No bundle adjust output found! at $(date)"
         exit 1
-    else
-        echo "Success running bundle_adjust of $i at $(date)"
     fi
-    echo "Finished bundle_adjust on \"$i\" at $(date)"
 
     # Note that we specify ../nodelist.lis as the file containing the list of hostnames for `parallel_stereo` to use
     # You may wish to edit out the --nodes-list argument if running this script in a non-SLURM environment
