@@ -56,11 +56,12 @@ class ASAP(object):
     def _hirise_step_one(stereo: str, ids: str, force=False) -> None:
         step_one = Command('asp_hirise_prep.sh')
         step_two = Command('asp_hirise_map2dem.sh')
-        # check if cub files exist in directory
+        # check if stereopairs exists, if not run step one
         if not Path('./stereopairs.lis').exists():
             step_one('-p', ids, _fg=True)
         else:
             left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
+            # if one of the .map.cub files exist we don't need to re run step 1
             if not Path(f'./{both}/{left}.map.cub').exists() or force:
                 step_one('-p', ids, _fg=True)
         # Run BA unless adjust/ba folder exists, do run if force
@@ -154,7 +155,7 @@ class ASAP(object):
 
     def hirise_two(self, stereo, cwd: Optional[str] = None, **kwargs) -> None:
         with cd(cwd):
-               self._hirise_step_one(stereo, './pair.lis', **kwargs)
+            self._hirise_step_one(stereo, './pair.lis', **kwargs)
 
     def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, cwd: Optional[str] = None) -> None:
         with cd(cwd):
