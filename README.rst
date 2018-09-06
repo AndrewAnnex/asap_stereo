@@ -55,7 +55,7 @@ For HiRISE:
    where "PRODUCTID" are the product ids you want to process
 2. `asap hirise-two STEREO_CONF`
    where "STEREO_CONF" is the absolute path to your stereo.conf file
-3. `asap ctx-three MAX_DISP REF_DEM`
+3. `asap hirise-three MAX_DISP REF_DEM`
    where "MAX_DISP" is the maximum allowable displacement
    in meters that you find between MOLA and the `dem` folder products from step two.
    To find a value for the displacement, load the `PRODUCTID_PRODUCTID/results/dem/PRODUCTID_PRODUCTID-DEM.tif` file into
