@@ -121,9 +121,10 @@ class CTX(object):
 
 class HiRISE(object):
 
-    def __init__(self, https=False):
+    def __init__(self, https=False, threads=16):
         self.https = https
         self.cs = CommonSteps()
+        self.threads = threads
 
     def get_hirise_emission_angle(self, pid):
         return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
@@ -206,7 +207,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', '{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', 16, _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     def step_seven(self, stereo_conf, processes=2, threads_multiprocess=8, threads_singleprocess=16, bundle_adjust_prefix='adjust/ba'):
@@ -244,7 +245,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path('.') / both):
             with cd('results'):
-                self.cs.pc_align('--mac-displacement', maxd, '--threads', 16, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
+                self.cs.pc_align('--mac-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
 
     def step_eleven(self, gsd, just_ortho=False):
         left, right, both = self.cs.parse_stereopairs()
@@ -286,23 +287,6 @@ class ASAP(object):
     def _ctx_step_two(stereodirs: str, max_disp: int, demgsd: float) -> None:
         old_ctx_two = Command('ctx_pipeline_part_two.sh')
         old_ctx_two(stereodirs, max_disp, demgsd, _fg=True)
-
-    @staticmethod
-    def _hirise_step_one(stereo: str, ids: str, force=False) -> None:
-        step_one = Command('asp_hirise_prep.sh')
-        step_two = Command('asp_hirise_map2dem.sh')
-        # check if cub files exist in directory
-        if not Path('./stereopairs.lis').exists():
-            step_one('-p', ids, _fg=True)
-        else:
-            left, right, both = sh.cat('./stereopairs.lis').strip().split(' ')
-            if not Path(f'./{both}/{left}.map.cub').exists() or force:
-                step_one('-p', ids, _fg=True)
-        # Run BA unless adjust/ba folder exists, do run if force
-        if not Path('./{both}/adjust/').exists() or force:
-            ASAP.ba_hirise()
-        # then run step two
-        step_two('-s', stereo, '-p', ids, _fg=True)
 
     @staticmethod
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
