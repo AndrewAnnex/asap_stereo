@@ -57,7 +57,7 @@ class ASAP(object):
         step_one = Command('asp_hirise_prep.sh')
         step_two = Command('asp_hirise_map2dem.sh')
         # check if stereopairs exists, if not run step one
-        if not Path('./stereopairs.lis').exists() or force:
+        if not Path(Path.cwd() / 'stereopairs.lis').exists() or force:
             if not force:
                 print("stereopairs.lis was not found, rerunning hirise_prep")
             else:
