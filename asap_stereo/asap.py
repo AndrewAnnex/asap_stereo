@@ -68,11 +68,15 @@ class CommonSteps(object):
 
     @staticmethod
     def create_stereopairs_lis():
-        sh.Command("""awk '{printf "%s ", $0}!(NR % 2){printf "\n"}' ./pair.lis | awk '{print($1" "$2" "$1"_"$2)}' > stereopairs.lis""")()
+        left, right, _ = sh.cat('./pair.lis').split('\n')
+        with open('./stereopairs.lis', 'w') as out:
+            out.write(f'{left} {right} {left}_{right}')
 
     @staticmethod
     def create_stereodirs_lis():
-        sh.Command("""awk '{print($3)}' stereopairs.lis > stereodirs.lis""")()
+        with open('./stereodirs.lis', 'w') as out:
+            _, _, left_right = CommonSteps.parse_stereopairs()
+            out.write(left_right)
 
     @staticmethod
     def create_sterodirs():
@@ -80,7 +84,9 @@ class CommonSteps(object):
 
     @staticmethod
     def create_stereopair_lis():
-        sh.Command("""awk '{print $1" "$2 >$3"/stereopair.lis"}' stereopairs.lis""")()
+        left, right, left_right = CommonSteps.parse_stereopairs()
+        with open(f'./{left_right}/stereopair.lis', 'w') as out:
+            out.write(f'{left} {right}')
 
 
 class CTX(object):
@@ -274,6 +280,7 @@ class ASAP(object):
         self.https = https
         self.hirise = HiRISE(self.https)
         self.ctx = CTX(self.https)
+        self.common = CommonSteps()
 
     @staticmethod
     def _ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
