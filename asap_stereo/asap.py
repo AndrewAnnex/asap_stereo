@@ -206,15 +206,16 @@ class HiRISE(object):
     def step_five(self):
         cam2map = sh.Command('cam2map4stereo.py')
 
-        def par_cam2map(im):
+        def par_cam2map(left_im, right_im):
             pool.acquire()
-            return cam2map(im, _bg=True, _done=done)
+            return cam2map(left_im, right_im, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
         with cd(both):
-            procs.append(par_cam2map(next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))))
-            procs.append(par_cam2map(next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))))
+            left_im  = next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))
+            right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
+            procs.append(par_cam2map(left_im, right_im))
         _ = [p.wait() for p in procs]
         print('Finished cam2map4stereo on images')
 
