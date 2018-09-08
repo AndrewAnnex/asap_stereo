@@ -173,7 +173,7 @@ class HiRISE(object):
         Run hiedr2mosic on all the data
         :return:
         """
-        hiedr = sh.Command('hiedr2moasic.py')
+        hiedr = sh.Command('hiedr2mosaic.py')
 
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
