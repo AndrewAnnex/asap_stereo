@@ -183,9 +183,9 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         procs = []
         with cd(Path(left)):
-            procs.append(hiedr2mosaic(Path('./').glob('*.IMG')))
+            procs.append(hiedr2mosaic(*list(Path('./').glob('*.IMG'))))
         with cd(Path(right)):
-            procs.append(hiedr2mosaic(Path('./').glob('*.IMG')))
+            procs.append(hiedr2mosaic(*list(Path('./').glob('*.IMG'))))
         _ = [p.wait() for p in procs]
         print('Finished hiedr2mosaic on images')
 
