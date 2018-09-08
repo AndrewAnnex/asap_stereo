@@ -9,8 +9,17 @@ import re
 from pathlib import Path
 from threading import Semaphore
 
+cores = os.cpu_count()
+if not cores:
+    cores = 16
 
-pool = Semaphore(16)
+_threads_singleprocess = cores # 24, 16
+_threads_multiprocess  = _threads_singleprocess // 2 # 12, 8
+_processes             = _threads_multiprocess // 4 # 3, 2
+
+
+
+pool = Semaphore(cores)
 
 def done(cmd, success, exit_code):
     pool.release()
@@ -127,7 +136,7 @@ class CTX(object):
 
 class HiRISE(object):
 
-    def __init__(self, https=False, threads=16):
+    def __init__(self, https=False, threads=cores):
         self.https = https
         self.cs = CommonSteps()
         self.threads = threads
@@ -178,7 +187,7 @@ class HiRISE(object):
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
             pool.acquire()
-            return hiedr(*im, _bg=True, _done=done)
+            return hiedr(*im, '--threads', self.threads, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
@@ -213,10 +222,10 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
-    def step_seven(self, stereo_conf, processes=2, threads_multiprocess=8, threads_singleprocess=16, bundle_adjust_prefix='adjust/ba'):
+    def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path('.') / both):
             self.cs.parallel_stereo('--processes'            , processes,
@@ -228,13 +237,13 @@ class HiRISE(object):
                                     f'results/{both}'        ,
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
-    def step_eight(self, stereo_conf, processes=16, threads_multiprocess=8, threads_singleprocess=16, bundle_adjust_prefix='adjust/ba'):
+    def step_eight(self, stereo_conf, processes=cores, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path('.') / both):
             self.cs.parallel_stereo('--processes'            , processes,
                                     '--threads-singleprocess', threads_singleprocess,
                                     '--threads-multiprocesss', threads_multiprocess,
-                                    '--entry-point'           , 4,
+                                    '--entry-point'          , 4,
                                     f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
                                     '-s'                     , Path(stereo_conf).absolute(),
                                     f'results/{both}'        ,
