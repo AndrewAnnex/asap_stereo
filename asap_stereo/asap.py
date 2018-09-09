@@ -52,12 +52,30 @@ def get_cam_info(img)-> Dict:
 
 class CommonSteps(object):
 
+    @staticmethod
+    def par_do(func, calls):
+        procs = []
+
+        def do(thiscall):
+            pool.acquire()
+            return func(thiscall)
+
+        for call in calls:
+            procs.append(do(call))
+
+        return [p.wait() for p in procs]
+
     def __init__(self):
-        self.ba = Command('bundle_adjust').bake(_fg=True)
+        self.ba          = Command('bundle_adjust').bake(_fg=True)
         self.parallel_stereo = Command('parallel_stereo').bake(_fg=True)
-        self.point2dem = Command('point2dem').bake(_fg=True)
-        self.pc_align = Command('pc_align').bake('--highest-accruacy', '--save-inv-transform', _fg=True)
-        self.dem_geoid = Command('dem_geoid').bake(_fg=True)
+        self.point2dem   = Command('point2dem').bake(_fg=True)
+        self.pc_align    = Command('pc_align').bake('--highest-accruacy', '--save-inv-transform', _fg=True)
+        self.dem_geoid   = Command('dem_geoid').bake(_fg=True)
+        self.mroctx2isis = Command('mroctx2isis').bake(_fg=True)
+        self.spiceinit   = Command('spiceinit').bake(_fg=True)
+        self.spicefit    = Command('spicefit').bake(_fg=True)
+        self.ctxcal      = Command('ctxcal').bake(_fg=True)
+        self.ctxevenodd  = Command('ctxevenodd').bake(_fg=True)
 
     @staticmethod
     def get_srs_info(img)-> str:
@@ -101,6 +119,7 @@ class CommonSteps(object):
 class CTX(object):
 
     def __init__(self, https=False):
+        self.cs = CommonSteps()
         self.https = https
 
     def get_full_ctx_id(self, pid):
@@ -132,6 +151,21 @@ class CTX(object):
             # download files
             moody.ODE(self.https).ctx_edr(one)
             moody.ODE(self.https).ctx_edr(two)
+
+    def step_two(self):
+        imgs = list(Path.cwd().glob('*.IMG|*.img'))
+        self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        cubs = list(Path.cwd().glob('*.cub'))
+        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}' for c in cubs])
+        self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
+        self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
+        lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
+        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
+        for cub in cubs:
+            cub.unlink()
+        for lc in lev1cubs:
+            lc.unlink()
+
 
 
 class HiRISE(object):
@@ -223,7 +257,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', '--max-iterations', 20, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
