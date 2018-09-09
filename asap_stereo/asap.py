@@ -253,11 +253,11 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
         print('Finished cam2map4stereo on images')
 
-    def step_six(self, bundle_adjust_prefix='adjust/ba'):
+    def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=20):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', '--max-iterations', 20, _fg=True)
+            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', '--max-iterations', max_iterations, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
@@ -288,14 +288,14 @@ class HiRISE(object):
 
     def step_nine(self, mpp=2):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('.') / both / 'results'):
+        with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}')
 
     def step_ten(self, maxd, refdem):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('.') / both):
+        with cd(Path.cwd() / both):
             with cd('results'):
                 self.cs.pc_align('--mac-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
 
@@ -307,7 +307,7 @@ class HiRISE(object):
         if just_ortho:
             add_params.append('--no-dem')
 
-        with cd(Path('.') / both / 'results'):
+        with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             with cd('dem_align'):
                 self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', f'{both}_align-trans_reference.tif',
@@ -315,7 +315,7 @@ class HiRISE(object):
 
     def step_twelve(self):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('.') / both / 'results' / 'dem_align'):
+        with cd(Path.cwd() / both / 'results' / 'dem_align'):
             file = next(Path('.').glob('-DEM.tif'))
             self.cs.dem_geoid(file, '-o', f'{file.stem}')
 
