@@ -265,7 +265,7 @@ class HiRISE(object):
         with cd(Path('.') / both):
             self.cs.parallel_stereo('--processes'            , processes,
                                     '--threads-singleprocess', threads_singleprocess,
-                                    '--threads-multiprocesss', threads_multiprocess,
+                                    '--threads-multiprocess' , threads_multiprocess,
                                     '--stop-point'           , 4,
                                     f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
                                     '-s'                     , Path(stereo_conf).absolute(),
@@ -277,7 +277,7 @@ class HiRISE(object):
         with cd(Path('.') / both):
             self.cs.parallel_stereo('--processes'            , processes,
                                     '--threads-singleprocess', threads_singleprocess,
-                                    '--threads-multiprocesss', threads_multiprocess,
+                                    '--threads-multiprocess' , threads_multiprocess,
                                     '--entry-point'          , 4,
                                     f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
                                     '-s'                     , Path(stereo_conf).absolute(),
