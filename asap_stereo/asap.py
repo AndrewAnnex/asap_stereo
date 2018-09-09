@@ -268,8 +268,8 @@ class HiRISE(object):
                                     '--threads-singleprocess', threads_singleprocess,
                                     '--threads-multiprocess' , threads_multiprocess,
                                     '--stop-point'           , 4,
-                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
-                                    ' -s'                     , Path(stereo_conf).absolute(),
+                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub',
+                                    '-s'                     , Path(stereo_conf).absolute(),
                                     f'results/{both}'        ,
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
@@ -281,8 +281,8 @@ class HiRISE(object):
                                     '--threads-singleprocess', threads_singleprocess,
                                     '--threads-multiprocess' , threads_multiprocess,
                                     '--entry-point'          , 4,
-                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub'
-                                    ' -s'                     , Path(stereo_conf).absolute(),
+                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub',
+                                    '-s'                     , Path(stereo_conf).absolute(),
                                     f'results/{both}'        ,
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
