@@ -262,7 +262,8 @@ class HiRISE(object):
 
     def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('.') / both):
+        assert both is not None
+        with cd(Path.cwd() / both):
             self.cs.parallel_stereo('--processes'            , processes,
                                     '--threads-singleprocess', threads_singleprocess,
                                     '--threads-multiprocess' , threads_multiprocess,
@@ -274,7 +275,8 @@ class HiRISE(object):
 
     def step_eight(self, stereo_conf, processes=cores, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path('.') / both):
+        assert both is not None
+        with cd(Path.cwd() / both):
             self.cs.parallel_stereo('--processes'            , processes,
                                     '--threads-singleprocess', threads_singleprocess,
                                     '--threads-multiprocess' , threads_multiprocess,
