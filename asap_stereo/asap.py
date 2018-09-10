@@ -87,7 +87,7 @@ class CommonSteps(object):
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
             proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
-        return str(proj4str).rstrip('\n')
+        return str(proj4str).rstrip('\n\' ').lstrip('\'')
 
     @staticmethod
     def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
@@ -294,7 +294,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
-            self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
+            self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}')
 
     def step_ten(self, maxd, refdem):
