@@ -44,12 +44,6 @@ def isis3_to_dict(instr: str)-> Dict:
         out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
     return out
 
-def get_cam_info(img)-> Dict:
-    camrange = Command('camrange')
-    out = str(camrange(f'from={img}').stdout)
-    out_dict = isis3_to_dict(out)
-    return out_dict
-
 
 class CommonSteps(object):
 
@@ -79,15 +73,25 @@ class CommonSteps(object):
         self.ctxevenodd  = Command('ctxevenodd').bake(_fg=True)
 
     @staticmethod
+    def get_cam_info(img) -> Dict:
+        camrange = Command('camrange')
+        out = str(camrange(f'from={img}').stdout)
+        out_dict = isis3_to_dict(out)
+        return out_dict
+
+    @staticmethod
     def get_srs_info(img)-> str:
-        out_dict = get_cam_info(img)
-        lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
-        proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+        proj4str = sh.gdalsrsinfo(img, o='proj4')
+        if len(proj4str) <= 10: # arbitrary length picked here
+            print('could not retrieve proj4 string using gdal, falling back to isis3 camrange function')
+            out_dict = CommonSteps.get_cam_info(img)
+            lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
+            proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
         return proj4str
 
     @staticmethod
     def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
-        out_dict = get_cam_info(img)
+        out_dict = CommonSteps.get_cam_info(img)
         return out_dict[group][key]
 
     @staticmethod
