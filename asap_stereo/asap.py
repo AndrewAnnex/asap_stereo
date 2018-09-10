@@ -87,7 +87,7 @@ class CommonSteps(object):
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
             proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
-        return str(proj4str)
+        return str(proj4str).rstrip('\n')
 
     @staticmethod
     def get_map_info(img, key: str, group='UniversalGroundRange')-> str:
@@ -170,7 +170,6 @@ class CTX(object):
             cub.unlink()
         for lc in lev1cubs:
             lc.unlink()
-
 
 
 class HiRISE(object):
