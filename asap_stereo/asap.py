@@ -30,6 +30,7 @@ def cd(newdir):
     try:
         if newdir:
             os.chdir(newdir)
+            print(f'cd {newdir}', flush=True)
         yield
     finally:
         os.chdir(prevdir)
