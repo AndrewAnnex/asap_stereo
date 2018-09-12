@@ -83,8 +83,8 @@ fi
 # we assume we have hyperthreading so the cores should
 # just be half the thread count
 export num_threads_asp=`getconf _NPROCESSORS_ONLN`
-export num_cores_asp=`$(($num_threads_asp / 2))`
-export num_procs_asp=`$(($num_cores_asp / 4))`
+export num_cores_asp=$((num_threads_asp / 2 ))
+export num_procs_asp=$((num_cores_asp / 4 ))
 #######################################################
 
 ## Release the Kracken!

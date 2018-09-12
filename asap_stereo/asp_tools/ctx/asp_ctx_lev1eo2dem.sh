@@ -93,8 +93,8 @@ fi
 # we assume we have hyperthreading so the cores should
 # just be half the thread count
 export num_threads_asp=`getconf _NPROCESSORS_ONLN`
-export num_cores_asp=`$(($num_threads_asp / 2))`
-export num_procs_asp=`$(($num_cores_asp / 4))`
+export num_cores_asp=$((num_threads_asp / 2 ))
+export num_procs_asp=$((num_cores_asp / 4 ))
 #######################################################
 
 ######
@@ -174,7 +174,7 @@ for i in $( cat stereodirs.lis ); do
             echo "Success running parallel_stereo Step 1 of $i at $(date)"
         fi
         # attempt to optimize parallel_stereo for running on 16-core machines for Steps 2 (refinement) and 3 (filtering)
-        parallel_stereo --nodes-list=../nodelist.lis --processes 2 --threads-multiprocess 8 --threads-singleprocess 16 --entry-point 2 --stop-point 4 $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
+        parallel_stereo --nodes-list=../nodelist.lis --processes ${num_procs_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} --entry-point 2 --stop-point 4 $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
         if [ $? -ne 0 ]
         then
             echo "Failure running parallel_stereo Step 2 & 3 of $i at $(date)"
