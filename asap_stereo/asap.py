@@ -352,6 +352,9 @@ class ASAP(object):
     def get_srs_info(self, img)-> str:
         return self.common.get_srs_info(img)
 
+    def get_map_info(self, img, key: str, group='UniversalGroundRange')-> str:
+        return self.common.get_map_info(img, key, group=group)
+
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
             self.ctx.ctx_one(left, right)
