@@ -78,6 +78,15 @@ fi
 
 # If we've made it this far, commandline args look sane and specified file exists
 
+#######################################################
+# figure out the number of cores/threads the pc has
+# we assume we have hyperthreading so the cores should
+# just be half the thread count
+export num_threads_asp=`getconf _NPROCESSORS_ONLN`
+export num_cores_asp=`$(($num_threads_asp / 2))`
+export num_procs_asp=`$(($num_cores_asp / 4))`
+#######################################################
+
 ## Release the Kracken!
 
 echo "Start asp_ctx_map_ba_pc_align2dem $(date)"
@@ -92,7 +101,7 @@ for i in $( cat ${dirs} ); do
     cd ./results_map_ba || exit 1
     # run pc_align and send the output to a new subdirectory called dem_align
     echo "Running pc_align..."
-    pc_align --num-iterations 2000 --threads 16 --max-displacement $maxd --highest-accuracy ${i}_map_ba-PC.tif ../${i}_pedr4align.csv --datum D_MARS --save-inv-trans -o dem_align/${i}_map_ba_align
+    pc_align --num-iterations 2000 --threads ${num_threads_asp} --max-displacement $maxd --highest-accuracy ${i}_map_ba-PC.tif ../${i}_pedr4align.csv --datum D_MARS --save-inv-trans -o dem_align/${i}_map_ba_align
     if [ $? -ne 0 ]
     then
         echo "Failure running pc_align of CTX $i to $refdem at $(date)"
@@ -106,7 +115,7 @@ for i in $( cat ${dirs} ); do
     mkdir -p logs
 
     # Create  DEM, ortho, normalized DEM, errorimage, no hole filling
-    point2dem --threads 16 --t_srs "${proj}" -r mars --nodata -32767 -s ${demgsd} ${i}_map_ba_align-trans_reference.tif --orthoimage -n --errorimage ../${i}_map_ba-L.tif -o ${i}_map_ba_align_${dempostfix}
+    point2dem --threads ${num_threads_asp} --t_srs "${proj}" -r mars --nodata -32767 -s ${demgsd} ${i}_map_ba_align-trans_reference.tif --orthoimage -n --errorimage ../${i}_map_ba-L.tif -o ${i}_map_ba_align_${dempostfix}
     if [ $? -ne 0 ]
     then
         echo "Failure running point2dem at ${demgsd}m/p for $i at $(date)"
@@ -117,7 +126,7 @@ for i in $( cat ${dirs} ); do
     mv *-log-* ./logs
 
     # Run dem_geoid on the align'd DEM so that the elevation values are comparable to MOLA products
-    dem_geoid --threads 16 ${i}_map_ba_align_${dempostfix}-DEM.tif -o ${i}_map_ba_align_${dempostfix}-DEM
+    dem_geoid --threads ${num_threads_asp} ${i}_map_ba_align_${dempostfix}-DEM.tif -o ${i}_map_ba_align_${dempostfix}-DEM
     if [ $? -ne 0 ]
     then
         echo "Failure running dem_geoid for $i at $(date)"
@@ -140,7 +149,7 @@ for i in $( cat ${dirs} ); do
 
     mv *-log-* ./logs
     # Create 6 m/px ortho, no hole-filling, no DEM
-    point2dem --threads 16 --t_srs "${proj}" -r mars --nodata -32767 -s 6 ${i}_map_ba_align-trans_reference.tif --orthoimage ../${i}_map_ba-L.tif -o ${i}_map_ba_align_6 --no-dem
+    point2dem --threads ${num_threads_asp} --t_srs "${proj}" -r mars --nodata -32767 -s 6 ${i}_map_ba_align-trans_reference.tif --orthoimage ../${i}_map_ba-L.tif -o ${i}_map_ba_align_6 --no-dem
     if [ $? -ne 0 ]
     then
         echo "Failure running point2dem at 6m/p for $i at $(date)"

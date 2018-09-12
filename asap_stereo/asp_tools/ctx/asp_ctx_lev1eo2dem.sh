@@ -88,6 +88,15 @@ if ! hash pds2isis 2>/dev/null; then
     fi
 fi
 
+#######################################################
+# figure out the number of cores/threads the pc has
+# we assume we have hyperthreading so the cores should
+# just be half the thread count
+export num_threads_asp=`getconf _NPROCESSORS_ONLN`
+export num_cores_asp=`$(($num_threads_asp / 2))`
+export num_procs_asp=`$(($num_cores_asp / 4))`
+#######################################################
+
 ######
 echo "Start asp_ctx_lev1eo2dem $(date)"
 #######################################################
@@ -184,7 +193,7 @@ for i in $( cat stereodirs.lis ); do
         fi
 
     else
-        parallel_stereo --processes 2 --threads-multiprocess 8 --threads-singleprocess 16 $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
+        parallel_stereo --processes ${num_procs_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
         if [ $? -ne 0 ]
         then
             echo "Failure running parallel_stereo of $i at $(date)"
@@ -212,7 +221,7 @@ for i in $( cat stereodirs.lis ); do
     # cd into the results directory for stereopair $i
     cd results_ba/ || exit 1
     # run point2dem with orthoimage and intersection error image outputs. no hole filling
-    point2dem --threads 16 --t_srs "${proj}" -r mars --nodata -32767 -s 24 -n --errorimage ${i}_ba-PC.tif --orthoimage ${i}_ba-L.tif -o dem/${i}_ba
+    point2dem --threads ${num_threads_asp} --t_srs "${proj}" -r mars --nodata -32767 -s 24 -n --errorimage ${i}_ba-PC.tif --orthoimage ${i}_ba-L.tif -o dem/${i}_ba
     if [ $? -ne 0 ]
     then
         echo "Failure running point2dem at 24m/p for $i at $(date)"

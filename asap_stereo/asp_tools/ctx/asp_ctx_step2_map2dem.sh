@@ -120,6 +120,15 @@ if hash scontrol 2>/dev/null; then
 fi
 #######################################################
 
+#######################################################
+# figure out the number of cores/threads the pc has
+# we assume we have hyperthreading so the cores should
+# just be half the thread count
+export num_threads_asp=`getconf _NPROCESSORS_ONLN`
+export num_cores_asp=`$(($num_threads_asp / 2))`
+export num_procs_asp=`$(($num_cores_asp / 4))`
+#######################################################
+
 # Create low-resolution DEMs from point clouds created during earlier run
 # loop through the directories listed in stereodirs.lis and run point2dem, image footprint and hillshade generation
 for i in $( cat stereodirs.lis ); do
@@ -132,7 +141,7 @@ for i in $( cat stereodirs.lis ); do
     # cd into the results directory for stereopair $i
     cd results_ba/ || exit 1
     # run point2dem to create 100 m/px DEM with 50 px hole-filling
-    point2dem --threads 16 --t_srs "${proj}" -r mars --nodata -32767 -s 100 --dem-hole-fill-len 50 ${i}_ba-PC.tif -o dem/${i}_ba_100_fill50
+    point2dem --threads ${num_threads_asp} --t_srs "${proj}" -r mars --nodata -32767 -s 100 --dem-hole-fill-len 50 ${i}_ba-PC.tif -o dem/${i}_ba_100_fill50
     if [ $? -ne 0 ]
     then
         echo "Failure running point2dem at 100m/p for $i at $(date)"
@@ -227,7 +236,7 @@ for i in $( cat stereodirs.lis ); do
         fi
     else
         # for single node environment
-        parallel_stereo -t isis --processes 2 --threads-multiprocess 8 --threads-singleprocess 16 --stop-point 4 $Lmap $Rmap $Lcam $Rcam -s ${config} results_map_ba/${i}_map_ba --bundle-adjust-prefix adjust/ba $refdem
+        parallel_stereo -t isis --processes ${num_procs_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} --stop-point 4 $Lmap $Rmap $Lcam $Rcam -s ${config} results_map_ba/${i}_map_ba --bundle-adjust-prefix adjust/ba $refdem
         if [ $? -ne 0 ]
         then
             echo "Failure running parallel_stereo Steps 1-3 of $i at $(date)"
@@ -236,7 +245,7 @@ for i in $( cat stereodirs.lis ); do
             echo "Success running parallel_stereo Steps 1-3 of $i at $(date)"
         fi
         # finish Stage 4 with a lot more processes for speed
-        parallel_stereo -t isis --entry-point 4 --processes 8 --threads-multiprocess 8 --threads-singleprocess 16 $Lmap $Rmap $Lcam $Rcam -s ${config} results_map_ba/${i}_map_ba --bundle-adjust-prefix adjust/ba $refdem
+        parallel_stereo -t isis --entry-point 4 --processes ${num_threads_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} $Lmap $Rmap $Lcam $Rcam -s ${config} results_map_ba/${i}_map_ba --bundle-adjust-prefix adjust/ba $refdem
         if [ $? -ne 0 ]
         then
             echo "Failure running parallel_stereo Step 4 of $i at $(date)"
@@ -263,7 +272,7 @@ for i in $( cat stereodirs.lis ); do
     # cd into the results directory for stereopair $i
     cd results_map_ba/ || exit 1
     # run point2dem with orthoimage and intersection error image outputs. no hole filling
-    point2dem --threads 16 --t_srs "${proj}" -r mars --nodata -32767 -s 24 ${i}_map_ba-PC.tif --orthoimage -n --errorimage ${i}_map_ba-L.tif -o dem/${i}_map_ba
+    point2dem --threads ${num_threads_asp} --t_srs "${proj}" -r mars --nodata -32767 -s 24 ${i}_map_ba-PC.tif --orthoimage -n --errorimage ${i}_map_ba-L.tif -o dem/${i}_map_ba
     if [ $? -ne 0 ]
     then
         echo "Failure running point2dem at 24m/p for $i at $(date)"

@@ -350,6 +350,10 @@ class ASAP(object):
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
+    def ctx_one(self, left, right, cwd: Optional[str] = None):
+        with cd(cwd):
+            self.ctx.ctx_one(left, right)
+
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         with cd(cwd):
             self._ctx_step_one(stereo, './pair.lis', pedr_list, stereo2=stereo2)
