@@ -350,6 +350,9 @@ class ASAP(object):
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
+    def get_srs_info(self, img)-> str:
+        return self.common.get_srs_info(img)
+
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
             self.ctx.ctx_one(left, right)
