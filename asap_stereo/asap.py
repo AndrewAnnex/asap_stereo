@@ -83,7 +83,6 @@ class CommonSteps(object):
     def get_srs_info(img)-> str:
         proj4str = sh.gdalsrsinfo(img, o='proj4')
         if len(proj4str) <= 10: # arbitrary length picked here
-            print('could not retrieve proj4 string using gdal, falling back to isis3 camrange function')
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
             proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
