@@ -330,6 +330,8 @@ class ASAP(object):
         self.hirise = HiRISE(self.https)
         self.ctx = CTX(self.https)
         self.common = CommonSteps()
+        self.get_srs_info = self.common.get_srs_info
+        self.get_map_info = self.common.get_map_info
 
     @staticmethod
     def _ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
@@ -348,12 +350,6 @@ class ASAP(object):
     def _hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
-
-    def get_srs_info(self, img)-> str:
-        return self.common.get_srs_info(img)
-
-    def get_map_info(self, img, key: str, group='UniversalGroundRange')-> str:
-        return self.common.get_map_info(img, key, group=group)
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
