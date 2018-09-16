@@ -50,13 +50,13 @@ def rich_logger(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = datetime.datetime.now()
-        print(f'Start of: {func.__name__}, at: {start_time.isoformat(" ")}', flush=True)
+        print(f'Started : {func.__name__}, at: {start_time.isoformat(" ")}', flush=True)
         #
         v = func(*args, **kwargs)
         #
         end_time = datetime.datetime.now()
         duration = end_time - start_time
-        print(f'End of: {func.__name__}, at: {end_time.isoformat(" ")}, duration: {str(duration)}', flush=True)
+        print(f'Finished: {func.__name__}, at: {end_time.isoformat(" ")}, duration: {str(duration)}', flush=True)
         return v
     return wrapper
 
