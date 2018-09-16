@@ -2,7 +2,9 @@ import fire
 import sh
 from sh import Command
 from contextlib import contextmanager
+import functools
 import os
+import datetime
 from typing import Optional, Dict
 import moody
 import re
@@ -43,6 +45,20 @@ def isis3_to_dict(instr: str)-> Dict:
         group_name = lines[0][0]
         out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
     return out
+
+def rich_logger(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = datetime.datetime.now()
+        print(f'Start of: {func.__name__}, at: {start_time.isoformat(" ")}', flush=True)
+        #
+        v = func(*args, **kwargs)
+        #
+        end_time = datetime.datetime.now()
+        duration = end_time - start_time
+        print(f'End of: {func.__name__}, at: {end_time.isoformat(" ")}, duration: {str(duration)}', flush=True)
+        return v
+    return wrapper
 
 
 class CommonSteps(object):
@@ -149,6 +165,7 @@ class CTX(object):
                 o.write(pid)
                 o.write('\n')
 
+    @rich_logger
     def ctx_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
         with cd(cwd):
             self.generate_ctx_pair_list(one, two)
@@ -156,6 +173,7 @@ class CTX(object):
             moody.ODE(self.https).ctx_edr(one)
             moody.ODE(self.https).ctx_edr(two)
 
+    @rich_logger
     def step_two(self):
         imgs = list(Path.cwd().glob('*.IMG|*.img'))
         self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
@@ -196,6 +214,7 @@ class HiRISE(object):
                 o.write(pid)
                 o.write('\n')
 
+    @rich_logger
     def step_one(self, one, two, cwd: Optional[str] = None):
         with cd(cwd):
             self.generate_hirise_pair_list(one, two)
@@ -214,6 +233,7 @@ class HiRISE(object):
         self.cs.create_sterodirs()
         self.cs.create_stereopair_lis()
 
+    @rich_logger
     def step_three(self):
         """
         Run hiedr2mosic on all the data
@@ -240,6 +260,7 @@ class HiRISE(object):
         sh.mv(next(Path(f'./{left}/').glob(f'{left}*.mos_hijitreged.norm.cub')), both)
         sh.mv(next(Path(f'./{right}/').glob(f'{right}*.mos_hijitreged.norm.cub')), both)
 
+    @rich_logger
     def step_five(self):
         cam2map = sh.Command('cam2map4stereo.py')
 
@@ -256,6 +277,7 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
         print('Finished cam2map4stereo on images')
 
+    @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=20):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
@@ -263,6 +285,7 @@ class HiRISE(object):
             self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', '--max-iterations', max_iterations, _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
+    @rich_logger
     def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
@@ -276,6 +299,7 @@ class HiRISE(object):
                                     f'results/{both}'        ,
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
+    @rich_logger
     def step_eight(self, stereo_conf, processes=cores, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
@@ -289,6 +313,7 @@ class HiRISE(object):
                                     f'results/{both}'        ,
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
+    @rich_logger
     def step_nine(self, mpp=2):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results'):
@@ -296,12 +321,14 @@ class HiRISE(object):
             self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}')
 
+    @rich_logger
     def step_ten(self, maxd, refdem):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
                 self.cs.pc_align('--mac-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
 
+    @rich_logger
     def step_eleven(self, gsd, just_ortho=False):
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(gsd)).replace('.','_')
@@ -316,6 +343,7 @@ class HiRISE(object):
                 self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', f'{both}_align-trans_reference.tif',
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
+    @rich_logger
     def step_twelve(self):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / 'dem_align'):
