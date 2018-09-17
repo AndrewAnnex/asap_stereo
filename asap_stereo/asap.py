@@ -80,7 +80,7 @@ class CommonSteps(object):
         self.ba          = Command('bundle_adjust').bake(_fg=True)
         self.parallel_stereo = Command('parallel_stereo').bake(_fg=True)
         self.point2dem   = Command('point2dem').bake(_fg=True)
-        self.pc_align    = Command('pc_align').bake('--highest-accruacy', '--save-inv-transform', _fg=True)
+        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _fg=True)
         self.dem_geoid   = Command('dem_geoid').bake(_fg=True)
         self.mroctx2isis = Command('mroctx2isis').bake(_fg=True)
         self.spiceinit   = Command('spiceinit').bake(_fg=True)
@@ -326,7 +326,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
-                self.cs.pc_align('--mac-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
+                self.cs.pc_align('--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
 
     @rich_logger
     def step_eleven(self, gsd, just_ortho=False):
