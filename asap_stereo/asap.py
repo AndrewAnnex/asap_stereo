@@ -347,7 +347,7 @@ class HiRISE(object):
     def step_twelve(self):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / 'dem_align'):
-            file = next(Path('.').glob('-DEM.tif'))
+            file = next(Path.cwd().glob('*-DEM.tif'))
             self.cs.dem_geoid(file, '-o', f'{file.stem}')
 
 
