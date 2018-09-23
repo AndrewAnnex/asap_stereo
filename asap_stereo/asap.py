@@ -323,11 +323,14 @@ class HiRISE(object):
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}_{mpp_postfix}')
 
     @rich_logger
-    def step_ten(self, maxd, refdem):
+    def step_ten(self, maxd, refdem, initial_transform=None):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
-                self.cs.pc_align('--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align')
+                args = ['--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align']
+                if initial_transform:
+                    args = ['--initial-transform', initial_transform, *args]
+                self.cs.pc_align(*args)
 
     @rich_logger
     def step_eleven(self, gsd, just_ortho=False):
