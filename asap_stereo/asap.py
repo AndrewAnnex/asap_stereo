@@ -316,10 +316,11 @@ class HiRISE(object):
     @rich_logger
     def step_nine(self, mpp=2):
         left, right, both = self.cs.parse_stereopairs()
+        mpp_postfix = str(float(mpp)).replace('.', '_')
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
-                              '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}')
+                              '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}_{mpp_postfix}')
 
     @rich_logger
     def step_ten(self, maxd, refdem):
