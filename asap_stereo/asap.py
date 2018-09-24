@@ -333,7 +333,7 @@ class HiRISE(object):
                 self.cs.pc_align(*args)
 
     @rich_logger
-    def step_eleven(self, gsd, just_ortho=False):
+    def step_eleven(self, gsd, just_ortho=False, output_folder='dem_align'):
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(gsd)).replace('.','_')
 
@@ -343,14 +343,14 @@ class HiRISE(object):
 
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
-            with cd('dem_align'):
+            with cd(output_folder):
                 self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', f'{both}_align-trans_reference.tif',
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
     @rich_logger
-    def step_twelve(self):
+    def step_twelve(self, output_folder='dem_align'):
         left, right, both = self.cs.parse_stereopairs()
-        with cd(Path.cwd() / both / 'results' / 'dem_align'):
+        with cd(Path.cwd() / both / 'results' / output_folder):
             file = next(Path.cwd().glob('*-DEM.tif'))
             self.cs.dem_geoid(file, '-o', f'{file.stem}')
 
