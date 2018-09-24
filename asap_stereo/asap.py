@@ -10,6 +10,7 @@ import moody
 import re
 from pathlib import Path
 from threading import Semaphore
+import math
 
 cores = os.cpu_count()
 if not cores:
@@ -323,7 +324,7 @@ class HiRISE(object):
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}_{mpp_postfix}')
 
     @rich_logger
-    def step_ten(self, maxd, refdem, initial_transform=None):
+    def step_ten(self, maxd, refdem, initial_transform=None, **kwargs):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
@@ -333,7 +334,7 @@ class HiRISE(object):
                 self.cs.pc_align(*args)
 
     @rich_logger
-    def step_eleven(self, gsd, just_ortho=False, output_folder='dem_align'):
+    def step_eleven(self, gsd=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(gsd)).replace('.','_')
 
@@ -344,11 +345,12 @@ class HiRISE(object):
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             with cd(output_folder):
-                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', f'{both}_align-trans_reference.tif',
+                point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
+                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', str(point_cloud.name),
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
     @rich_logger
-    def step_twelve(self, output_folder='dem_align'):
+    def step_twelve(self, output_folder='dem_align', **kwargs):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / output_folder):
             file = next(Path.cwd().glob('*-DEM.tif'))
@@ -396,23 +398,52 @@ class ASAP(object):
             self._ctx_step_two('./stereodirs.lis', max_disp, demgsd)
 
     def hirise_one(self, left, right):
+        """
+        Download the EDR data from the PDS, requires two HiRISE Id's
+        (order left vs right does not matter)
+        :param left: HiRISE Id
+        :param right: HiRISE Id
+        """
         self.hirise.step_one(left, right)
 
-    def hirise_two(self, stereo, cwd: Optional[str] = None, **kwargs) -> None:
+    def hirise_two(self, stereo, mpp=2, bundle_adjust_prefix='adjust/ba', max_iterations=20) -> None:
+        """
+        Run various calibration steps then:
+        bundle adjust, produce DEM, render low res version for inspection
+        This will take a while (sometimes over a day), use nohup!
+        :param stereo:
+        :param mpp:
+        :param bundle_adjust_prefix:
+        :param max_iterations:
+        :return:
+        """
         self.hirise.step_two()
         self.hirise.step_three()
         self.hirise.step_four()
         self.hirise.step_five()
-        self.hirise.step_six()
+        self.hirise.step_six(bundle_adjust_prefix=bundle_adjust_prefix, max_iterations=max_iterations)
         self.hirise.step_seven(stereo)
         self.hirise.step_eight(stereo)
-        self.hirise.step_nine()
+        self.hirise.step_nine(mpp=mpp)
 
-    def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, cwd: Optional[str] = None) -> None:
-        self.hirise.step_ten(max_disp, ref_dem)
-        self.hirise.step_eleven(demgsd)
-        self.hirise.step_twelve()
-        self.hirise.step_eleven(imggsd, just_ortho=True)
+    def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, **kwargs) -> None:
+        """
+        Given estimate of max disparity between reference elevation model
+        and HiRISE output, run point cloud alignment and
+        produce the final DEM/ORTHO data products.
+        :param max_disp: Disparity in meters
+        :param ref_dem: absolute path the reference dem
+        :param demgsd: GSD of final Dem, default is 1 mpp
+        :param imggsd: GSD of full res image
+        :return:
+        """
+        self.hirise.step_ten(max_disp, ref_dem, **kwargs)
+        self.hirise.step_eleven(gsd=demgsd, **kwargs)
+        self.hirise.step_twelve(**kwargs)
+        # if user wants a second image with same res as step
+        # eleven don't bother as prior call to eleven did the work
+        if not math.isclose(imggsd, demgsd):
+            self.hirise.step_eleven(gsd=imggsd, just_ortho=True)
 
 
 
