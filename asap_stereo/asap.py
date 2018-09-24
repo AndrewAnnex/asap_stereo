@@ -217,6 +217,13 @@ class HiRISE(object):
 
     @rich_logger
     def step_one(self, one, two, cwd: Optional[str] = None):
+        """
+        Download two HiRISE images worth of EDR files to two folders
+        :param one:
+        :param two:
+        :param cwd:
+        :return:
+        """
         with cd(cwd):
             self.generate_hirise_pair_list(one, two)
             # download files
@@ -229,6 +236,10 @@ class HiRISE(object):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
 
     def step_two(self):
+        """
+        Create various files with info for later steps
+        :return:
+        """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
         self.cs.create_sterodirs()
@@ -257,12 +268,20 @@ class HiRISE(object):
         print('Finished hiedr2mosaic on images')
 
     def step_four(self):
+        """
+        Move the hiedr2mosaic output to the location needed for cam2map4stereo
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         sh.mv(next(Path(f'./{left}/').glob(f'{left}*.mos_hijitreged.norm.cub')), both)
         sh.mv(next(Path(f'./{right}/').glob(f'{right}*.mos_hijitreged.norm.cub')), both)
 
     @rich_logger
     def step_five(self):
+        """
+        Run cam2map4stereo on the data
+        :return:
+        """
         cam2map = sh.Command('cam2map4stereo.py')
 
         def par_cam2map(left_im, right_im):
@@ -280,6 +299,12 @@ class HiRISE(object):
 
     @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=20):
+        """
+        Run bundle adjustment on the HiRISE map projected data
+        :param bundle_adjust_prefix:
+        :param max_iterations:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
@@ -288,6 +313,9 @@ class HiRISE(object):
 
     @rich_logger
     def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
+        """
+        Run first part of parallel_stereo
+        """
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
@@ -302,6 +330,15 @@ class HiRISE(object):
 
     @rich_logger
     def step_eight(self, stereo_conf, processes=cores, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
+        """
+        Run second part of parallel_stereo, stereo is completed after this step
+        :param stereo_conf:
+        :param processes:
+        :param threads_multiprocess:
+        :param threads_singleprocess:
+        :param bundle_adjust_prefix:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
@@ -316,6 +353,11 @@ class HiRISE(object):
 
     @rich_logger
     def step_nine(self, mpp=2):
+        """
+        Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
+        :param mpp:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = str(float(mpp)).replace('.', '_')
         with cd(Path.cwd() / both / 'results'):
@@ -325,6 +367,15 @@ class HiRISE(object):
 
     @rich_logger
     def step_ten(self, maxd, refdem, initial_transform=None, **kwargs):
+        """
+        Run pc_align using provided max disparity and reference dem
+        optionally accept an initial transform
+        :param maxd:
+        :param refdem:
+        :param initial_transform:
+        :param kwargs:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
@@ -335,6 +386,14 @@ class HiRISE(object):
 
     @rich_logger
     def step_eleven(self, gsd=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
+        """
+        Run point2dem on the aligned output to produce final science ready products
+        :param gsd:
+        :param just_ortho:
+        :param output_folder:
+        :param kwargs:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(gsd)).replace('.','_')
 
@@ -351,6 +410,12 @@ class HiRISE(object):
 
     @rich_logger
     def step_twelve(self, output_folder='dem_align', **kwargs):
+        """
+        Run geoid adjustment on dem for final science ready product
+        :param output_folder:
+        :param kwargs:
+        :return:
+        """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / output_folder):
             file = next(Path.cwd().glob('*-DEM.tif'))
