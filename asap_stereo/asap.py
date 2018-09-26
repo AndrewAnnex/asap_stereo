@@ -412,17 +412,17 @@ class HiRISE(object):
                 self.cs.pc_align(*args)
 
     @rich_logger
-    def step_eleven(self, gsd=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
+    def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
         """
         Run point2dem on the aligned output to produce final science ready products
-        :param gsd:
+        :param mpp:
         :param just_ortho:
         :param output_folder:
         :param kwargs:
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
-        gsd_postfix = str(float(gsd)).replace('.','_')
+        gsd_postfix = str(float(mpp)).replace('.', '_')
 
         add_params = []
         if just_ortho:
@@ -433,13 +433,13 @@ class HiRISE(object):
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
-            if gsd < true_gsd*3 and not just_ortho:
+            if mpp < true_gsd*3 and not just_ortho:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})",
                               category=RuntimeWarning)
 
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, str(point_cloud.name),
+                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, str(point_cloud.name),
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
     @rich_logger
@@ -537,12 +537,12 @@ class ASAP(object):
         :return:
         """
         self.hirise.step_ten(max_disp, ref_dem, **kwargs)
-        self.hirise.step_eleven(gsd=demgsd, **kwargs)
+        self.hirise.step_eleven(mpp=demgsd, **kwargs)
         self.hirise.step_twelve(**kwargs)
         # if user wants a second image with same res as step
         # eleven don't bother as prior call to eleven did the work
         if not math.isclose(imggsd, demgsd):
-            self.hirise.step_eleven(gsd=imggsd, just_ortho=True)
+            self.hirise.step_eleven(mpp=imggsd, just_ortho=True)
 
 
 
