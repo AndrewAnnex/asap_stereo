@@ -12,6 +12,7 @@ from pathlib import Path
 from threading import Semaphore
 import math
 import json
+import warnings
 
 cores = os.cpu_count()
 if not cores:
@@ -383,6 +384,10 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = str(float(mpp)).replace('.', '_')
         with cd(Path.cwd() / both / 'results'):
+            true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
+            if mpp < true_gsd*3:
+                warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})", category=RuntimeWarning)
+
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
                               '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}_{mpp_postfix}')
@@ -422,12 +427,19 @@ class HiRISE(object):
         add_params = []
         if just_ortho:
             add_params.append('--no-dem')
+        else:
+            add_params.extend(['-n', '--errorimage',])
 
         with cd(Path.cwd() / both / 'results'):
             proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
+            true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
+            if gsd < true_gsd*3 and not just_ortho:
+                warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})",
+                              category=RuntimeWarning)
+
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, '-n', '--errorimage', str(point_cloud.name),
+                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', gsd, str(point_cloud.name),
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
     @rich_logger
