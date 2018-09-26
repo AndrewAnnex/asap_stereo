@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from threading import Semaphore
 import math
+import json
 
 cores = os.cpu_count()
 if not cores:
@@ -95,6 +96,27 @@ class CommonSteps(object):
         out = str(camrange(f'from={img}').stdout)
         out_dict = isis3_to_dict(out)
         return out_dict
+
+    @staticmethod
+    def get_image_gsd(img, opinion='lower')-> float:
+        gdalinfocmd = Command('gdalinfo').bake('-json')
+        gdal_info = json.loads(str(gdalinfocmd(img)))
+        if "geoTransform" in gdal_info:
+            transform = gdal_info["geoTransform"]
+            res1, res2  = math.fabs(transform[1]), math.fabs(transform[-1])
+        else:
+            cam_info = CommonSteps.get_cam_info(img)
+            if "PixelResolution" not in cam_info:
+                raise RuntimeError("Could not find pixel size for input using gdal or camrange. Check if image is valid.")
+            res1, res2 = math.fabs(cam_info["PixelResolution"]["Lowest"]), math.fabs(cam_info["PixelResolution"]["Highest"])
+        if opinion.lower() == 'lower':
+            return min(res1, res2)
+        elif opinion.lower() == 'higher':
+            return max(res1, res2)
+        elif opinion.lower() == 'average':
+            return (res1+res2)/2
+        else:
+            raise RuntimeError(f'Opinion {opinion} is not valid, must be "lower" or "higher" or "average".')
 
     @staticmethod
     def get_srs_info(img)-> str:
