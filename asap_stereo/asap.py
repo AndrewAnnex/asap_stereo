@@ -375,22 +375,56 @@ class HiRISE(object):
                                     '--bundle-adjust-prefix' , bundle_adjust_prefix)
 
     @rich_logger
-    def step_nine(self, mpp=2):
+    def step_nine(self, mpp=2, just_dem=False):
         """
         Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
+        :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = str(float(mpp)).replace('.', '_')
+        add_params = []
+        if not just_dem:
+            add_params.extend(['-n', '--errorimage', '--orthoimage', f'{both}-L.tif'])
+
         with cd(Path.cwd() / both / 'results'):
             true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
+            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             if mpp < true_gsd*3:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})", category=RuntimeWarning)
 
-            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
-            self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, '-n', '--errorimage', f'{both}-PC.tif',
-                              '--orthoimage', f'{both}-L.tif', '-o', f'dem/{both}_{mpp_postfix}')
+            self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767,
+                              '-s', mpp, f'{both}-PC.tif', '-o', f'dem/{both}_{mpp_postfix}')
+
+    @rich_logger
+    def pre_step_ten(self, refdem):
+        """
+        Automates the procedure to use ipmatch on hillshades of downsampled HiRISE DEM
+        to find an initial transform
+        :param refdem:
+        :param kwargs:
+        :return:
+        """
+        left, right, both = self.cs.parse_stereopairs()
+        refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
+        # create the lower resolution hirise dem to match the refdem gsd
+        self.step_nine(mpp=refdem_mpp, just_dem=True)
+        # use the image in a call to pc_align with hillshades
+        #TODO: auto crop the reference dem to be around hirise more closely
+
+        with cd(Path.cwd() / both / 'results'):
+            lr_hirise_dem = Path.cwd() / 'dem' / '{both}_{refdem_mpp}-DEM.tif'
+
+            self.cs.pc_align('--initial-transform-from-hillshading', '"similarity"',
+                             '--save-inv-transform', '--max-displacement', -1,
+                             '--num-iterations', 0, lr_hirise_dem, refdem,
+                             '--datum', 'D_MARS', '-o', 'hillshade_align/out')
+            # done! log out to user that can use the transform
+        out_dir = Path.cwd() / both / 'results' / 'hillshade_align'
+        print(f"Completed Pre step nine, view output in {str(out_dir)}", flush=True)
+        print(f"Use transform: 'hillshade_align/out-transform.txt'", flush=True)
+        print("as initial_transform argument in step ten", flush=True)
 
     @rich_logger
     def step_ten(self, maxd, refdem, initial_transform=None, **kwargs):
@@ -406,7 +440,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             with cd('results'):
-                args = ['--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align']
+                args = ['--highest-accuracy', '--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align']
                 if initial_transform:
                     args = ['--initial-transform', initial_transform, *args]
                 self.cs.pc_align(*args)
