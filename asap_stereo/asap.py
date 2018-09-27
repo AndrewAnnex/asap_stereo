@@ -321,7 +321,7 @@ class HiRISE(object):
         print('Finished cam2map4stereo on images')
 
     @rich_logger
-    def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=20):
+    def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=30):
         """
         Run bundle adjustment on the HiRISE map projected data
         :param bundle_adjust_prefix:
@@ -415,7 +415,6 @@ class HiRISE(object):
 
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / '{both}_{refdem_mpp}-DEM.tif'
-
             self.cs.pc_align('--initial-transform-from-hillshading', '"similarity"',
                              '--save-inv-transform', '--max-displacement', -1,
                              '--num-iterations', 0, lr_hirise_dem, refdem,
