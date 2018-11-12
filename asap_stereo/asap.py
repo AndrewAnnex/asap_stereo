@@ -414,10 +414,10 @@ class HiRISE(object):
         #TODO: auto crop the reference dem to be around hirise more closely
 
         with cd(Path.cwd() / both / 'results'):
-            lr_hirise_dem = Path.cwd() / 'dem' / '{both}_{refdem_mpp}-DEM.tif'
-            self.cs.pc_align('--initial-transform-from-hillshading', '"similarity"',
-                             '--save-inv-transform', '--max-displacement', -1,
-                             '--num-iterations', 0, lr_hirise_dem, refdem,
+            lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp}-DEM.tif'
+            self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
+                             '--initial-transform-from-hillshading', '\"similarity\"',
+                              lr_hirise_dem, refdem,
                              '--datum', 'D_MARS', '-o', 'hillshade_align/out')
             # done! log out to user that can use the transform
         out_dir = Path.cwd() / both / 'results' / 'hillshade_align'
