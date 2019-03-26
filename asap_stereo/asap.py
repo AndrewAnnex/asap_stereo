@@ -420,7 +420,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            args = kwargs_to_args({**defaults, **kwargs})
+            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
                                     '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
@@ -441,7 +441,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            args = kwargs_to_args({**defaults, **kwargs})
+            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
                                     '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
@@ -491,9 +491,8 @@ class HiRISE(object):
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp}-DEM.tif'
             cmd_res = self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
-                             '--initial-transform-from-hillshading', '\"similarity\"',
-                              lr_hirise_dem, refdem,
-                             '--datum', 'D_MARS', '-o', 'hillshade_align/out')
+                             '--initial-transform-from-hillshading', '\"similarity\"', '--datum', 'D_MARS',
+                              lr_hirise_dem, refdem, '-o', 'hillshade_align/out')
             # done! log out to user that can use the transform
         out_dir = Path.cwd() / both / 'results' / 'hillshade_align'
         print(f"Completed Pre step nine, view output in {str(out_dir)}", flush=True)
@@ -502,25 +501,27 @@ class HiRISE(object):
         return cmd_res
 
     @rich_logger
-    def step_ten(self, maxd, refdem, initial_transform=None, **kwargs):
+    def step_ten(self, maxd, refdem, **kwargs):
         """
         PC Align HiRISE
 
         Run pc_align using provided max disparity and reference dem
-        optionally accept an initial transform
+        optionally accept an initial transform via kwargs
         :param maxd:
         :param refdem:
-        :param initial_transform:
         :param kwargs:
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
+        defaults = {
+            '--threads': self.threads,
+            '--datum'  : 'D_MARS',
+            '--max-displacement': maxd,
+        }
         with cd(Path.cwd() / both):
             with cd('results'):
-                args = ['--highest-accuracy', '--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align']
-                if initial_transform:
-                    args = ['--initial-transform', initial_transform, *args]
-                return self.cs.pc_align(*args)
+                args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+                return self.cs.pc_align('--highest-accuracy', *args, f'{both}-PC.tif', refdem, '-o', f'dem_align/{both}_align')
 
     @rich_logger
     def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
@@ -549,7 +550,6 @@ class HiRISE(object):
             if mpp < true_gsd*3 and not just_ortho:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})",
                               category=RuntimeWarning)
-
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
                 return self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, str(point_cloud.name),
