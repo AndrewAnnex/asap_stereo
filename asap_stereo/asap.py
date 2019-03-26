@@ -5,7 +5,8 @@ from contextlib import contextmanager
 import functools
 import os
 import datetime
-from typing import Optional, Dict
+import itertools
+from typing import Optional, Dict, List
 import moody
 import re
 from pathlib import Path
@@ -39,6 +40,17 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
+
+def kwargs_to_args(kwargs: Dict)-> List:
+    keys = []
+    # ensure keys start with '--' for asp scripts
+    for key in kwargs.keys():
+        key = str(key)
+        if not key.startswith('--'):
+            keys.append(f'--{key}')
+        else:
+            keys.append(key)
+    return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x]
 
 def isis3_to_dict(instr: str)-> Dict:
     groups = re.findall(r'Group([\S\s]*?)End_Group', instr)
@@ -321,38 +333,48 @@ class HiRISE(object):
         print('Finished cam2map4stereo on images')
 
     @rich_logger
-    def step_six(self, bundle_adjust_prefix='adjust/ba', max_iterations=30):
+    def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Run bundle adjustment on the HiRISE map projected data
         :param bundle_adjust_prefix:
         :param max_iterations:
         :return:
         """
+        defaults = {
+            '--threads': self.threads,
+            '--datum': 'D_MARS',
+            '--max-iterations': 30
+        }
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, '--threads', self.threads, '--datum', 'D_MARS', '--max-iterations', max_iterations, _fg=True)
+            context = defaults.copy()
+            context.update(kwargs)
+            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *kwargs_to_args(context), _fg=True)
             sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     @rich_logger
-    def step_seven(self, stereo_conf, processes=_processes, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
+    def step_seven(self, stereo_conf, **kwargs):
         """
         Run first part of parallel_stereo
         """
+        defaults = {
+            '--processes': _processes,
+            '--threads-singleprocess': _threads_singleprocess,
+            '--threads-multiprocess': _threads_multiprocess,
+            '--stop-point': 4,
+            '--bundle-adjust-prefix': 'adjust/ba'
+        }
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            self.cs.parallel_stereo('--processes'            , processes,
-                                    '--threads-singleprocess', threads_singleprocess,
-                                    '--threads-multiprocess' , threads_multiprocess,
-                                    '--stop-point'           , 4,
-                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub',
-                                    '-s'                     , Path(stereo_conf).absolute(),
-                                    f'results/{both}'        ,
-                                    '--bundle-adjust-prefix' , bundle_adjust_prefix)
+            context = defaults.copy()
+            context.update(kwargs)
+            self.cs.parallel_stereo(*kwargs_to_args(context), f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+                                    '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
     @rich_logger
-    def step_eight(self, stereo_conf, processes=cores, threads_multiprocess=_threads_multiprocess, threads_singleprocess=_threads_singleprocess, bundle_adjust_prefix='adjust/ba'):
+    def step_eight(self, stereo_conf, **kwargs):
         """
         Run second part of parallel_stereo, stereo is completed after this step
         :param stereo_conf:
@@ -362,17 +384,22 @@ class HiRISE(object):
         :param bundle_adjust_prefix:
         :return:
         """
+        defaults = {
+            '--processes'            : _processes,
+            '--threads-singleprocess': _threads_singleprocess,
+            '--threads-multiprocess' : _threads_multiprocess,
+            '--entry-point'          : 4,
+            '--bundle-adjust-prefix' : 'adjust/ba'
+        }
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            self.cs.parallel_stereo('--processes'            , processes,
-                                    '--threads-singleprocess', threads_singleprocess,
-                                    '--threads-multiprocess' , threads_multiprocess,
-                                    '--entry-point'          , 4,
-                                    f'{left}_RED.map.cub'    , f'{right}_RED.map.cub',
-                                    '-s'                     , Path(stereo_conf).absolute(),
-                                    f'results/{both}'        ,
-                                    '--bundle-adjust-prefix' , bundle_adjust_prefix)
+            context = defaults.copy()
+            context.update(kwargs)
+            self.cs.parallel_stereo(*kwargs_to_args(context),
+                                    f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+                                    '-s', Path(stereo_conf).absolute(),
+                                    f'results/{both}')
 
     @rich_logger
     def step_nine(self, mpp=2, just_dem=False):
