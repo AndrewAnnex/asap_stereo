@@ -370,7 +370,6 @@ class HiRISE(object):
         with cd(Path.cwd() / both):
             #sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            print(args)
             return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
             ##sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
