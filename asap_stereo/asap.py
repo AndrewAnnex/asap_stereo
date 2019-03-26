@@ -52,7 +52,11 @@ def cmd_to_string(command: sh.RunningCommand):
 def clean_kwargs(kwargs: Dict)-> Dict:
     cleaned = {}
     for key in kwargs.keys():
-        cleaned[key.replace('_', '-')] = kwargs[key]
+        new_key = str(key)
+        if not key.startswith('--'):
+            new_key = f'--{key}'
+        new_key = new_key.replace('_', '-')
+        cleaned[new_key] = kwargs[key]
     return cleaned
 
 def kwargs_to_args(kwargs: Dict)-> List:
@@ -366,6 +370,7 @@ class HiRISE(object):
         with cd(Path.cwd() / both):
             #sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            print(args)
             return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
             ##sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
