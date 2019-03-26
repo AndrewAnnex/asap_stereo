@@ -49,11 +49,18 @@ def cmd_to_string(command: sh.RunningCommand):
     """
     return  " ".join((_.decode("utf-8") for _ in command.cmd))
 
+def clean_kwargs(kwargs: Dict)-> Dict:
+    cleaned = {}
+    for key in kwargs.keys():
+        cleaned[key.replace('_', '-')] = kwargs[key]
+    return cleaned
+
 def kwargs_to_args(kwargs: Dict)-> List:
     keys = []
     # ensure keys start with '--' for asp scripts
     for key in kwargs.keys():
         key = str(key)
+        key = key.replace('_', '-')
         if not key.startswith('--'):
             keys.append(f'--{key}')
         else:
@@ -358,7 +365,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             #sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            args = kwargs_to_args({**defaults, **kwargs})
+            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
             ##sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
