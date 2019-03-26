@@ -84,15 +84,20 @@ def rich_logger(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = datetime.datetime.now()
-        print(f'Started : {func.__name__}, at: {start_time.isoformat(" ")}', flush=True)
+        # grab the first doc line for the pretty name, make sure all functions have docs!
+        pretty_name = func.__doc__.splitlines()[0]
+        print(f"""Started : {func.__name__}({pretty_name}), at: {start_time.isoformat(" ")}""", flush=True)
         #
         v = func(*args, **kwargs)
-        if v is not None and isinstance(v, sh.RunningCommand):
-            print(f'Ran Command: {cmd_to_string(v)}', flush=True)
+        if v is not None:
+            try:
+                print(f'Ran Command: {cmd_to_string(v)}', flush=True)
+            except BaseException:
+                pass
         #
         end_time = datetime.datetime.now()
         duration = end_time - start_time
-        print(f'Finished: {func.__name__}, at: {end_time.isoformat(" ")}, duration: {str(duration)}', flush=True)
+        print(f"""Finished: {func.__name__}({pretty_name}), at: {end_time.isoformat(" ")}, duration: {str(duration)}""", flush=True)
         return v
     return wrapper
 
@@ -224,6 +229,14 @@ class CTX(object):
 
     @rich_logger
     def ctx_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
+        """
+        Download CTX EDRs
+
+        :param one:
+        :param two:
+        :param cwd:
+        :return:
+        """
         with cd(cwd):
             self.generate_ctx_pair_list(one, two)
             # download files
@@ -232,6 +245,11 @@ class CTX(object):
 
     @rich_logger
     def step_two(self):
+        """
+        ISIS3 CTX preprocessing
+
+        :return:
+        """
         imgs = list(Path.cwd().glob('*.IMG|*.img'))
         self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
@@ -274,6 +292,8 @@ class HiRISE(object):
     @rich_logger
     def step_one(self, one, two, cwd: Optional[str] = None):
         """
+        Download HiRISE EDRs
+
         Download two HiRISE images worth of EDR files to two folders
         :param one:
         :param two:
@@ -291,8 +311,11 @@ class HiRISE(object):
             with cd(two):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
 
+    @rich_logger
     def step_two(self):
         """
+        Metadata init
+
         Create various files with info for later steps
         :return:
         """
@@ -304,7 +327,9 @@ class HiRISE(object):
     @rich_logger
     def step_three(self):
         """
-        Run hiedr2mosic on all the data
+        Hiedr2mosaic preprocessing
+
+        Run hiedr2mosaic on all the data
         :return:
         """
         hiedr = sh.Command('hiedr2mosaic.py')
@@ -323,8 +348,11 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
         print('Finished hiedr2mosaic on images')
 
+    @rich_logger
     def step_four(self):
         """
+        Move hieder2mosaic files
+
         Move the hiedr2mosaic output to the location needed for cam2map4stereo
         :return:
         """
@@ -335,6 +363,8 @@ class HiRISE(object):
     @rich_logger
     def step_five(self):
         """
+        Cam2map4Stereo
+
         Run cam2map4stereo on the data
         :return:
         """
@@ -354,8 +384,10 @@ class HiRISE(object):
         sh.echo('Finished cam2map4stereo on images', _fg=True)
 
     @rich_logger
-    def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs):
+    def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
+        Bundle Adjust HiRISE
+
         Run bundle adjustment on the HiRISE map projected data
         :param bundle_adjust_prefix:
         :param max_iterations:
@@ -368,14 +400,14 @@ class HiRISE(object):
         }
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
-            #sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
-            ##sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     @rich_logger
     def step_seven(self, stereo_conf, **kwargs):
         """
+        Parallel Stereo Part 1
+
         Run first part of parallel_stereo
         """
         defaults = {
@@ -389,19 +421,15 @@ class HiRISE(object):
         assert both is not None
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **kwargs})
-            self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+            return self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
                                     '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
     @rich_logger
     def step_eight(self, stereo_conf, **kwargs):
         """
+        Parallel Stereo Part 2
+
         Run second part of parallel_stereo, stereo is completed after this step
-        :param stereo_conf:
-        :param processes:
-        :param threads_multiprocess:
-        :param threads_singleprocess:
-        :param bundle_adjust_prefix:
-        :return:
         """
         defaults = {
             '--processes'            : _processes,
@@ -414,13 +442,14 @@ class HiRISE(object):
         assert both is not None
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **kwargs})
-            self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
-                                    '-s', Path(stereo_conf).absolute(),
-                                    f'results/{both}')
+            return self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+                                    '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
     @rich_logger
     def step_nine(self, mpp=2, just_dem=False):
         """
+        Produce preview DEMs/Orthos
+
         Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
@@ -438,12 +467,14 @@ class HiRISE(object):
             if mpp < true_gsd*3:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})", category=RuntimeWarning)
 
-            self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767,
+            return self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767,
                               '-s', mpp, f'{both}-PC.tif', '-o', f'dem/{both}_{mpp_postfix}')
 
     @rich_logger
     def pre_step_ten(self, refdem):
         """
+        Hillshade Align before PC Align
+
         Automates the procedure to use ipmatch on hillshades of downsampled HiRISE DEM
         to find an initial transform
         :param refdem:
@@ -455,11 +486,11 @@ class HiRISE(object):
         # create the lower resolution hirise dem to match the refdem gsd
         self.step_nine(mpp=refdem_mpp, just_dem=True)
         # use the image in a call to pc_align with hillshades
-        #TODO: auto crop the reference dem to be around hirise more closely
-
+        #TODO: auto crop the reference dem to be around hirise more closely\
+        cmd_res = None
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp}-DEM.tif'
-            self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
+            cmd_res = self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
                              '--initial-transform-from-hillshading', '\"similarity\"',
                               lr_hirise_dem, refdem,
                              '--datum', 'D_MARS', '-o', 'hillshade_align/out')
@@ -468,10 +499,13 @@ class HiRISE(object):
         print(f"Completed Pre step nine, view output in {str(out_dir)}", flush=True)
         print(f"Use transform: 'hillshade_align/out-transform.txt'", flush=True)
         print("as initial_transform argument in step ten", flush=True)
+        return cmd_res
 
     @rich_logger
     def step_ten(self, maxd, refdem, initial_transform=None, **kwargs):
         """
+        PC Align HiRISE
+
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform
         :param maxd:
@@ -486,11 +520,13 @@ class HiRISE(object):
                 args = ['--highest-accuracy', '--max-displacement', maxd, '--threads', self.threads, f'{both}-PC.tif', refdem, '--datum', 'D_MARS', '-o', f'dem_align/{both}_align']
                 if initial_transform:
                     args = ['--initial-transform', initial_transform, *args]
-                self.cs.pc_align(*args)
+                return self.cs.pc_align(*args)
 
     @rich_logger
     def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
         """
+        Produce final DEMs/Orthos
+
         Run point2dem on the aligned output to produce final science ready products
         :param mpp:
         :param just_ortho:
@@ -516,12 +552,14 @@ class HiRISE(object):
 
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, str(point_cloud.name),
+                return self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, str(point_cloud.name),
                                   '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
 
     @rich_logger
     def step_twelve(self, output_folder='dem_align', **kwargs):
         """
+        Adjust DEM to geoid
+
         Run geoid adjustment on dem for final science ready product
         :param output_folder:
         :param kwargs:
@@ -530,7 +568,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / output_folder):
             file = next(Path.cwd().glob('*-DEM.tif'))
-            self.cs.dem_geoid(file, '-o', f'{file.stem}')
+            return self.cs.dem_geoid(file, '-o', f'{file.stem}')
 
 
 class ASAP(object):
