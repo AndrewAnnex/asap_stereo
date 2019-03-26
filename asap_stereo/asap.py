@@ -41,6 +41,14 @@ def cd(newdir):
     finally:
         os.chdir(prevdir)
 
+def cmd_to_string(command: sh.RunningCommand):
+    """
+    Converts the running command into a single string of the full command call for easier logging
+    :param command:
+    :return:
+    """
+    return  " ".join((_.decode("utf-8") for _ in command.cmd))
+
 def kwargs_to_args(kwargs: Dict)-> List:
     keys = []
     # ensure keys start with '--' for asp scripts
@@ -68,6 +76,8 @@ def rich_logger(func):
         print(f'Started : {func.__name__}, at: {start_time.isoformat(" ")}', flush=True)
         #
         v = func(*args, **kwargs)
+        if v is not None and isinstance(v, sh.RunningCommand):
+            print(f'Ran Command: {cmd_to_string(v)}', flush=True)
         #
         end_time = datetime.datetime.now()
         duration = end_time - start_time
@@ -330,7 +340,7 @@ class HiRISE(object):
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
             procs.append(par_cam2map(left_im, right_im))
         _ = [p.wait() for p in procs]
-        print('Finished cam2map4stereo on images')
+        sh.echo('Finished cam2map4stereo on images', _fg=True)
 
     @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs):
@@ -347,11 +357,10 @@ class HiRISE(object):
         }
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
-            sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
-            context = defaults.copy()
-            context.update(kwargs)
-            self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *kwargs_to_args(context), _fg=True)
-            sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
+            #sh.echo(f"Begin bundle_adjust at {sh.date()}", _fg=True)
+            args = kwargs_to_args({**defaults, **kwargs})
+            return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
+            ##sh.echo(f"End   bundle_adjust at {sh.date()}", _fg=True)
 
     @rich_logger
     def step_seven(self, stereo_conf, **kwargs):
@@ -368,9 +377,8 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            context = defaults.copy()
-            context.update(kwargs)
-            self.cs.parallel_stereo(*kwargs_to_args(context), f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+            args = kwargs_to_args({**defaults, **kwargs})
+            self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
                                     '-s', Path(stereo_conf).absolute(), f'results/{both}')
 
     @rich_logger
@@ -394,10 +402,8 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         assert both is not None
         with cd(Path.cwd() / both):
-            context = defaults.copy()
-            context.update(kwargs)
-            self.cs.parallel_stereo(*kwargs_to_args(context),
-                                    f'{left}_RED.map.cub', f'{right}_RED.map.cub',
+            args = kwargs_to_args({**defaults, **kwargs})
+            self.cs.parallel_stereo(*args, f'{left}_RED.map.cub', f'{right}_RED.map.cub',
                                     '-s', Path(stereo_conf).absolute(),
                                     f'results/{both}')
 
