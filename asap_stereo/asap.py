@@ -4,6 +4,7 @@ from sh import Command
 from contextlib import contextmanager
 import functools
 import os
+import sys
 import datetime
 import itertools
 from typing import Optional, Dict, List
@@ -89,11 +90,8 @@ def rich_logger(func):
         print(f"""Started : {func.__name__}({pretty_name}), at: {start_time.isoformat(" ")}""", flush=True)
         #
         v = func(*args, **kwargs)
-        if v is not None:
-            try:
-                print(f'Ran Command: {cmd_to_string(v)}', flush=True)
-            except BaseException:
-                pass
+        if v is not None and isinstance(v, sh.RunningCommand):
+            print(f'Ran Command: {cmd_to_string(v)}', flush=True)
         #
         end_time = datetime.datetime.now()
         duration = end_time - start_time
@@ -118,16 +116,16 @@ class CommonSteps(object):
         return [p.wait() for p in procs]
 
     def __init__(self):
-        self.ba          = Command('bundle_adjust').bake(_fg=True)
-        self.parallel_stereo = Command('parallel_stereo').bake(_fg=True)
-        self.point2dem   = Command('point2dem').bake(_fg=True)
-        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _fg=True)
-        self.dem_geoid   = Command('dem_geoid').bake(_fg=True)
-        self.mroctx2isis = Command('mroctx2isis').bake(_fg=True)
-        self.spiceinit   = Command('spiceinit').bake(_fg=True)
-        self.spicefit    = Command('spicefit').bake(_fg=True)
-        self.ctxcal      = Command('ctxcal').bake(_fg=True)
-        self.ctxevenodd  = Command('ctxevenodd').bake(_fg=True)
+        self.ba          = Command('bundle_adjust').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.parallel_stereo = Command('parallel_stereo').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.point2dem   = Command('point2dem').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.dem_geoid   = Command('dem_geoid').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.mroctx2isis = Command('mroctx2isis').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.spiceinit   = Command('spiceinit').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.spicefit    = Command('spicefit').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.ctxcal      = Command('ctxcal').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.ctxevenodd  = Command('ctxevenodd').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -381,7 +379,7 @@ class HiRISE(object):
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
             procs.append(par_cam2map(left_im, right_im))
         _ = [p.wait() for p in procs]
-        sh.echo('Finished cam2map4stereo on images', _fg=True)
+        sh.echo('Finished cam2map4stereo on images')
 
     @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
@@ -401,7 +399,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args, _fg=True)
+            return self.cs.ba(f'{left}_RED.map.cub', f'{right}_RED.map.cub', '-o', bundle_adjust_prefix, *args)
 
     @rich_logger
     def step_seven(self, stereo_conf, **kwargs):
