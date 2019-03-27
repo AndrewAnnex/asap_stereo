@@ -41,6 +41,7 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
+        print(f'cd {prevdir}', flush=True)
 
 def cmd_to_string(command: sh.RunningCommand):
     """
@@ -85,18 +86,30 @@ def rich_logger(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = datetime.datetime.now()
-        # grab the first doc line for the pretty name, make sure all functions have docs!
-        pretty_name = func.__doc__.splitlines()[0]
-        print(f"""Started : {func.__name__}({pretty_name}), at: {start_time.isoformat(" ")}""", flush=True)
-        #
-        v = func(*args, **kwargs)
-        if v is not None and isinstance(v, sh.RunningCommand):
-            print(f'Ran Command: {cmd_to_string(v)}', flush=True)
-        #
+        # grab the function name first
+        func_name = func.__name__
+        # check if we are running a sh/bash command or a normal python function
+        if '/bin/' not in func_name:
+            # grab the first doc line for the pretty name, make sure all functions have docs!
+            pretty_name = func.__doc__.splitlines()[0]
+            # generate the name line
+            name_line = f'{func_name}({pretty_name})'
+        else:
+            # else we have a bash command and won't have a pretty name
+            name_line = func_name
+        # log out the start line with the name line and start time
+        print(f"""# Started : {name_line}, at: {start_time.isoformat(" ")}""", flush=True)
+        # call the function and get the return
+        ret = func(*args, **kwargs)
+        # if we had a running command log out the call
+        if ret is not None and isinstance(ret, sh.RunningCommand):
+            print(f'# Ran Command: {cmd_to_string(ret)}', flush=True)
+        # else just get the time duraton
         end_time = datetime.datetime.now()
         duration = end_time - start_time
-        print(f"""Finished: {func.__name__}({pretty_name}), at: {end_time.isoformat(" ")}, duration: {str(duration)}""", flush=True)
-        return v
+        # log out the execution time
+        print(f"""# Finished: {name_line}, at: {end_time.isoformat(" ")}, duration: {str(duration)}""", flush=True)
+        # no return at this point
     return wrapper
 
 
@@ -116,16 +129,16 @@ class CommonSteps(object):
         return [p.wait() for p in procs]
 
     def __init__(self):
-        self.ba          = Command('bundle_adjust').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.parallel_stereo = Command('parallel_stereo').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.point2dem   = Command('point2dem').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.dem_geoid   = Command('dem_geoid').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.mroctx2isis = Command('mroctx2isis').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.spiceinit   = Command('spiceinit').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.spicefit    = Command('spicefit').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.ctxcal      = Command('ctxcal').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
-        self.ctxevenodd  = Command('ctxevenodd').bake(_in=sys.stdin, _out=sys.stdout, _err=sys.stderr)
+        self.ba          = Command('bundle_adjust').bake(_out=sys.stdout, _err=sys.stderr)
+        self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
+        self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
+        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
+        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
+        self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
+        self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
+        self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
+        self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr)
+        self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -519,7 +532,7 @@ class HiRISE(object):
         with cd(Path.cwd() / both):
             with cd('results'):
                 args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-                return self.cs.pc_align('--highest-accuracy', *args, f'{both}-PC.tif', refdem, '-o', f'dem_align/{both}_align')
+                return self.cs.pc_align(*args, f'{both}-PC.tif', refdem, '-o', f'dem_align/{both}_align')
 
     @rich_logger
     def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
