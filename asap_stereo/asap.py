@@ -91,14 +91,14 @@ def rich_logger(func):
         # check if we are running a sh/bash command or a normal python function
         if '/bin/' not in func_name:
             # grab the first doc line for the pretty name, make sure all functions have docs!
-            pretty_name = func.__doc__.splitlines()[0]
+            pretty_name = func.__doc__.splitlines()[1].strip()
             # generate the name line
-            name_line = f'{func_name}({pretty_name})'
+            name_line = f'{func_name} ({pretty_name})'
         else:
             # else we have a bash command and won't have a pretty name
             name_line = func_name
         # log out the start line with the name line and start time
-        print(f"""# Started : {name_line}, at: {start_time.isoformat(" ")}""", flush=True)
+        print(f"""# Started: {name_line}, at: {start_time.isoformat(" ")}""", flush=True)
         # call the function and get the return
         ret = func(*args, **kwargs)
         # if we had a running command log out the call
@@ -129,7 +129,6 @@ class CommonSteps(object):
         return [p.wait() for p in procs]
 
     def __init__(self):
-        self.ba          = Command('bundle_adjust').bake(_out=sys.stdout, _err=sys.stderr)
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
@@ -139,6 +138,17 @@ class CommonSteps(object):
         self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
         self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr)
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
+        try:
+            # try to use parallel bundle adjustment
+            self.ba = Command('parallel_bundle_adjust').bake(
+                '--threads-singleprocess', _threads_singleprocess,
+                '--threads-multiprocess', _threads_multiprocess
+            )
+        except sh.CommandNotFound:
+            # if not fall back to regular bundle adjust
+            self.ba = Command('bundle_adjust')
+        finally:
+            self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -357,7 +367,6 @@ class HiRISE(object):
         with cd(Path(right)):
             procs.append(hiedr2mosaic(*list(Path('./').glob('*.IMG'))))
         _ = [p.wait() for p in procs]
-        print('Finished hiedr2mosaic on images')
 
     @rich_logger
     def step_four(self):
@@ -392,7 +401,6 @@ class HiRISE(object):
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
             procs.append(par_cam2map(left_im, right_im))
         _ = [p.wait() for p in procs]
-        sh.echo('Finished cam2map4stereo on images')
 
     @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
@@ -405,7 +413,6 @@ class HiRISE(object):
         :return:
         """
         defaults = {
-            '--threads': self.threads,
             '--datum': 'D_MARS',
             '--max-iterations': 30
         }
