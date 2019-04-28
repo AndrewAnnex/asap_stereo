@@ -388,19 +388,27 @@ class HiRISE(object):
         Run cam2map4stereo on the data
         :return:
         """
-        cam2map = sh.Command('cam2map4stereo.py')
+        cam2map = sh.Command('cam2map')
+        cam2map4stereo = sh.Command('cam2map4stereo.py')
 
-        def par_cam2map(left_im, right_im):
+        def par_cam2map(argstring):
             pool.acquire()
-            return cam2map(left_im, right_im, _bg=True, _done=done)
+            return cam2map(argstring, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
-        procs = []
         with cd(both):
             left_im  = next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
-            procs.append(par_cam2map(left_im, right_im))
-        _ = [p.wait() for p in procs]
+            response = str(cam2map4stereo('-n', left_im, right_im))
+            left_cam2map_call, right_cam2map_call = response.split('\n')[-4:-2]
+            # double check to make sure we got the right lines, maybe replace above with regex sometime
+            if 'cam2map from=' not in left_cam2map_call or 'cam2map from=' not in right_cam2map_call:
+                raise RuntimeError(f'Got bad call responses for cam2map from cam2map4stereo.py, \n see left_cam2map_call: {left_cam2map_call}, right_cam2map_call: {right_cam2map_call}')
+            # we are good now, call the cam2map simultaneously
+            left_cam2map_call  =  left_cam2map_call.strip('cam2map ')
+            right_cam2map_call = right_cam2map_call.strip('cam2map ')
+            procs = [par_cam2map(left_cam2map_call), par_cam2map(right_cam2map_call)]
+            _ = [p.wait() for p in procs]
 
     @rich_logger
     def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
