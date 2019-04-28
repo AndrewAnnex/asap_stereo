@@ -414,7 +414,7 @@ class HiRISE(object):
         """
         defaults = {
             '--datum': 'D_MARS',
-            '--max-iterations': 30
+            '--max-iterations': 50
         }
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both):
@@ -638,7 +638,7 @@ class ASAP(object):
         """
         self.hirise.step_one(left, right)
 
-    def hirise_two(self, stereo, mpp=2, bundle_adjust_prefix='adjust/ba', max_iterations=20) -> None:
+    def hirise_two(self, stereo, mpp=2, bundle_adjust_prefix='adjust/ba', max_iterations=50) -> None:
         """
         Run various calibration steps then:
         bundle adjust, produce DEM, render low res version for inspection
