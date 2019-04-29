@@ -393,7 +393,7 @@ class HiRISE(object):
 
         def par_cam2map(argstring):
             pool.acquire()
-            return cam2map(argstring, _bg=True, _done=done)
+            return cam2map(argstring.split(' '), _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         with cd(both):
@@ -401,6 +401,8 @@ class HiRISE(object):
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
             response = str(cam2map4stereo('-n', left_im, right_im))
             left_cam2map_call, right_cam2map_call = response.split('\n')[-4:-2]
+            print(left_cam2map_call, flush=True)
+            print(right_cam2map_call, flush=True)
             # double check to make sure we got the right lines, maybe replace above with regex sometime
             if 'cam2map from=' not in left_cam2map_call or 'cam2map from=' not in right_cam2map_call:
                 raise RuntimeError(f'Got bad call responses for cam2map from cam2map4stereo.py, \n see left_cam2map_call: {left_cam2map_call}, right_cam2map_call: {right_cam2map_call}')
@@ -458,7 +460,7 @@ class HiRISE(object):
         Run second part of parallel_stereo, stereo is completed after this step
         """
         defaults = {
-            '--processes'            : _processes,
+            '--processes'            : _threads_singleprocess, # use more cores for triangulation!
             '--threads-singleprocess': _threads_singleprocess,
             '--threads-multiprocess' : _threads_multiprocess,
             '--entry-point'          : 4,
