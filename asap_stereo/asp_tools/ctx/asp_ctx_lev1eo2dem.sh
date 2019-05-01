@@ -193,13 +193,22 @@ for i in $( cat stereodirs.lis ); do
         fi
 
     else
-        parallel_stereo --processes ${num_procs_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
+        parallel_stereo --processes ${num_procs_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} --stop-point 4 $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
         if [ $? -ne 0 ]
         then
-            echo "Failure running parallel_stereo of $i at $(date)"
+            echo "Failure running parallel_stereo Step 1 of $i at $(date)"
             exit 1
         else
-            echo "Success running parallel_stereo of $i at $(date)"
+            echo "Success running parallel_stereo Step 1 of $i at $(date)"
+        fi
+        # Run Triangulation step will as many threads as possible as it can run n processes
+        parallel_stereo  --entry-point 4 --processes ${num_threads_asp} --threads-multiprocess ${num_cores_asp} --threads-singleprocess ${num_threads_asp} $L $R -s ${config} results_ba/${i}_ba --bundle-adjust-prefix adjust/ba
+        if [ $? -ne 0 ]
+        then
+            echo "Failure running parallel_stereo Step 2 of $i at $(date)"
+            exit 1
+        else
+            echo "Success running parallel_stereo Step 2 of $i at $(date)"
         fi
     fi
 
