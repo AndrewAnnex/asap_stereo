@@ -40,7 +40,8 @@ setup(
         'asap_stereo/asp_tools/hirise/asp_hirise_prep.sh',
         'asap_stereo/asp_tools/hirise/hirise_pipeline_part_two.sh',
         'asap_stereo/asp_tools/hirise/asp_hirise_pc_align2dem.sh',
-        'asap_stereo/asp_tools/hirise/hirise_pipeline_part_one.sh'
+        'asap_stereo/asp_tools/hirise/hirise_pipeline_part_one.sh',
+        'asap_stereo/asp_tools/hirise/pedr_bin4pc_align_hirise.sh',
     ],
 
     entry_points={
