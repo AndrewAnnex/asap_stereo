@@ -514,16 +514,16 @@ class HiRISE(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
+        refdem_mpp_postfix = str(float(refdem_mpp)).replace('.', '_')
         # create the lower resolution hirise dem to match the refdem gsd gdal_translate -r cubic -tr 18 18 ESP_057456_1890_ESP_057245_1890_2_0-DEM.tif gdal_18_0.tif
         self.step_nine(mpp=refdem_mpp, just_dem=True)
-        refdem_mpp_postfix = str(float(refdem_mpp)).replace('.', '_')
         # use the image in a call to pc_align with hillshades
         #TODO: auto crop the reference dem to be around hirise more closely\
         cmd_res = None
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp_postfix}-DEM.tif'
             cmd_res = self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
-                             '--initial-transform-from-hillshading', '\"similarity\"', '--datum', 'D_MARS',
+                             '--initial-transform-from-hillshading', 'similarity', '--datum', 'D_MARS',
                               lr_hirise_dem, refdem, '-o', 'hillshade_align/out')
             # done! log out to user that can use the transform
         out_dir = Path.cwd() / both / 'results' / 'hillshade_align'
