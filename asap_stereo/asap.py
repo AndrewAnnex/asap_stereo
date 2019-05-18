@@ -224,9 +224,10 @@ class CommonSteps(object):
 
 class CTX(object):
 
-    def __init__(self, https=False):
+    def __init__(self, https=False, datum="D_MARS"):
         self.cs = CommonSteps()
         self.https = https
+        self.datum = datum
 
     def get_full_ctx_id(self, pid):
         res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
@@ -290,10 +291,11 @@ class CTX(object):
 
 class HiRISE(object):
 
-    def __init__(self, https=False, threads=cores):
+    def __init__(self, https=False, threads=cores, datum="D_MARS"):
         self.https = https
         self.cs = CommonSteps()
         self.threads = threads
+        self.datum = datum
 
     def get_hirise_emission_angle(self, pid):
         return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
@@ -426,7 +428,7 @@ class HiRISE(object):
         :return:
         """
         defaults = {
-            '--datum': 'D_MARS',
+            '--datum': self.datum,
             '--max-iterations': 50
         }
         left, right, both = self.cs.parse_stereopairs()
@@ -488,21 +490,26 @@ class HiRISE(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = str(float(mpp)).replace('.', '_')
-        args = []
+        post_args = []
         if not just_dem:
-            args.extend(['-n', '--errorimage', '--orthoimage', f'{both}-L.tif'])
+            post_args.extend(['-n', '--errorimage', '--orthoimage', f'{both}-L.tif'])
         with cd(Path.cwd() / both / 'results'):
             true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
-            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
+            proj     = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             if mpp < true_gsd*3:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})", category=RuntimeWarning)
-            additional_args = kwargs_to_args(clean_kwargs(kwargs))
-            if len(additional_args) > 0:
-                args.extend(additional_args)
-            return self.cs.point2dem('--t_srs', f'{proj}', '-r', 'mars', '--nodata', -32767, '-s', mpp, f'{both}-PC.tif', '-o', f'dem/{both}_{mpp_postfix}', *args)
+            defaults = {
+                '--t_srs'      : proj,
+                '-r'           : 'mars',
+                '--dem-spacing': mpp,
+                '--nodata'     : -32767,
+                '--output-prefix': f'dem/{both}_{mpp_postfix}',
+            }
+            pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            return self.cs.point2dem(*pre_args, f'{both}-PC.tif', *post_args)
 
     @rich_logger
-    def pre_step_ten(self, refdem, alignment_method='similarity'):
+    def pre_step_ten(self, refdem, alignment_method='similarity', **kwargs):
         """
         Hillshade Align before PC Align
 
@@ -514,18 +521,24 @@ class HiRISE(object):
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
+        defaults = {
+            '--max-displacement'                  : -1,
+            '--num-iterations'                    : 0,
+            '--threads'                           : self.threads,
+            '--initial-transform-from-hillshading': alignment_method,
+            '--datum'                             : self.datum,
+            '--output-prefix'                     : 'hillshade_align/out'
+        }
         refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
         refdem_mpp_postfix = str(float(refdem_mpp)).replace('.', '_')
-        # create the lower resolution hirise dem to match the refdem gsd gdal_translate -r cubic -tr 18 18 ESP_057456_1890_ESP_057245_1890_2_0-DEM.tif gdal_18_0.tif
+        # create the lower resolution hirise dem to match the refdem gsd or do?: gdal_translate -r cubic -tr 18 18 in.tif out.tif
         self.step_nine(mpp=refdem_mpp, just_dem=True)
         # use the image in a call to pc_align with hillshades
         #TODO: auto crop the reference dem to be around hirise more closely\
-        cmd_res = None
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp_postfix}-DEM.tif'
-            cmd_res = self.cs.pc_align('--max-displacement', -1, '--num-iterations', 0, '--threads', self.threads,
-                             '--initial-transform-from-hillshading', alignment_method, '--datum', 'D_MARS',
-                              lr_hirise_dem, refdem, '-o', 'hillshade_align/out')
+            args    = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            cmd_res = self.cs.pc_align(*args, lr_hirise_dem, refdem)
             # done! log out to user that can use the transform
         out_dir = Path.cwd() / both / 'results' / 'hillshade_align'
         print(f"Completed Pre step nine, view output in {str(out_dir)}", flush=True)
@@ -548,13 +561,14 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         defaults = {
             '--threads': self.threads,
-            '--datum'  : 'D_MARS',
+            '--datum'  : self.datum,
             '--max-displacement': maxd,
+            '--output-prefix': f'dem_align/{both}_align'
         }
         with cd(Path.cwd() / both):
             with cd('results'):
                 args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-                return self.cs.pc_align(*args, f'{both}-PC.tif', refdem, '-o', f'dem_align/{both}_align')
+                return self.cs.pc_align(*args, f'{both}-PC.tif', refdem)
 
     @rich_logger
     def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
@@ -570,7 +584,6 @@ class HiRISE(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(mpp)).replace('.', '_')
-
         add_params = []
         if just_ortho:
             add_params.append('--no-dem')
@@ -578,15 +591,23 @@ class HiRISE(object):
             add_params.extend(['-n', '--errorimage',])
 
         with cd(Path.cwd() / both / 'results'):
-            proj = self.cs.get_srs_info(f'../{left}_RED.map.cub')
+            proj     = self.cs.get_srs_info(f'../{left}_RED.map.cub')
             true_gsd = self.cs.get_image_gsd(f'../{left}_RED.map.cub')
             if mpp < true_gsd*3 and not just_ortho:
                 warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})",
                               category=RuntimeWarning)
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                return self.cs.point2dem('--t_srs', proj, '-r', 'mars', '--nodata', -32767, '-s', mpp, str(point_cloud.name),
-                                  '--orthoimage', f'../{both}-L.tif', '-o', f'{both}_align_{gsd_postfix}', *add_params)
+                defaults = {
+                    '--t_srs'         : proj,
+                    '-r'              : 'mars',
+                    '--nodata'        : -32767,
+                    '--orthoimage'    : f'../{both}-L.tif',
+                    '--output-prefix' : f'{both}_align_{gsd_postfix}',
+                    '--dem-spacing'   : mpp
+                }
+                args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+                return self.cs.point2dem(*args, str(point_cloud.name), *add_params)
 
     @rich_logger
     def step_twelve(self, output_folder='dem_align', **kwargs):
@@ -601,7 +622,8 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results' / output_folder):
             file = next(Path.cwd().glob('*-DEM.tif'))
-            return self.cs.dem_geoid(file, '-o', f'{file.stem}')
+            args = kwargs_to_args(clean_kwargs(kwargs))
+            return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
 
 
 class ASAP(object):
