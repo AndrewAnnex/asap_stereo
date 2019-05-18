@@ -509,13 +509,29 @@ class HiRISE(object):
             pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.point2dem(*pre_args, f'{both}-PC.tif', *post_args)
 
+    def _gdal_hirise_rescale(self, mpp):
+        """
+        Hillshade using gdaldem instead of asp
+        :param mpp:
+        :return:
+        """
+        left, right, both = self.cs.parse_stereopairs()
+        mpp_postfix = str(float(mpp)).replace('.', '_')
+        with cd(Path.cwd() / both / 'results' / 'dem'):
+            true_gsd = self.cs.get_image_gsd(f'../../{left}_RED.map.cub')
+            if mpp < true_gsd*3:
+                warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd*3})", category=RuntimeWarning)
+            in_dem = next(Path.cwd().glob('*-DEM.tif')) # todo: this might not always be the right thing to do...
+            return sh.gdal_translate('-r', 'cubic', '-tr', float(mpp), float(mpp), in_dem, f'./{both}_{mpp_postfix}-DEM.tif')
+
     @rich_logger
-    def pre_step_ten(self, refdem, alignment_method='similarity', do_resample=True, **kwargs):
+    def pre_step_ten(self, refdem, alignment_method='similarity', do_resample='gdal', **kwargs):
         """
         Hillshade Align before PC Align
 
         Automates the procedure to use ipmatch on hillshades of downsampled HiRISE DEM
         to find an initial transform
+        :param do_resample:  can be: 'gdal' or 'asp' or anything else for no resampling
         :param alignment_method: can be 'similarity' 'rigid' or 'translation'
         :param refdem:
         :param kwargs:
@@ -532,11 +548,16 @@ class HiRISE(object):
         }
         refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
         refdem_mpp_postfix = str(float(refdem_mpp)).replace('.', '_')
-        # create the lower resolution hirise dem to match the refdem gsd or do?: gdal_translate -r cubic -tr 18 18 in.tif out.tif
-        if do_resample:
+        # create the lower resolution hirise dem to match the refdem gsd
+        if do_resample.lower() == 'asp':
+            # use the image in a call to pc_align with hillshades, slow!
             self.step_nine(mpp=refdem_mpp, just_dem=True)
-        # use the image in a call to pc_align with hillshades
-        #TODO: auto crop the reference dem to be around hirise more closely\
+        elif do_resample.lower() == 'gdal':
+            # use gdal translate to resample hirise dem down to needed resolution
+            self._gdal_hirise_rescale(refdem_mpp)
+        else:
+            print('Not resampling HiRISE per user request')
+        #TODO: auto crop the reference dem to be around hirise more closely
         with cd(Path.cwd() / both / 'results'):
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp_postfix}-DEM.tif'
             args    = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
