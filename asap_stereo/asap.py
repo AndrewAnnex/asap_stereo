@@ -510,7 +510,7 @@ class HiRISE(object):
             return self.cs.point2dem(*pre_args, f'{both}-PC.tif', *post_args)
 
     @rich_logger
-    def pre_step_ten(self, refdem, alignment_method='similarity', **kwargs):
+    def pre_step_ten(self, refdem, alignment_method='similarity', do_resample=True, **kwargs):
         """
         Hillshade Align before PC Align
 
@@ -524,7 +524,7 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         defaults = {
             '--max-displacement'                  : -1,
-            '--num-iterations'                    : 0,
+            '--num-iterations'                    : '0',
             '--threads'                           : self.threads,
             '--initial-transform-from-hillshading': alignment_method,
             '--datum'                             : self.datum,
@@ -533,7 +533,8 @@ class HiRISE(object):
         refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
         refdem_mpp_postfix = str(float(refdem_mpp)).replace('.', '_')
         # create the lower resolution hirise dem to match the refdem gsd or do?: gdal_translate -r cubic -tr 18 18 in.tif out.tif
-        self.step_nine(mpp=refdem_mpp, just_dem=True)
+        if do_resample:
+            self.step_nine(mpp=refdem_mpp, just_dem=True)
         # use the image in a call to pc_align with hillshades
         #TODO: auto crop the reference dem to be around hirise more closely\
         with cd(Path.cwd() / both / 'results'):
