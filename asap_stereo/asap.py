@@ -69,7 +69,8 @@ def kwargs_to_args(kwargs: Dict)-> List:
     # ensure keys start with '--' for asp scripts
     for key in kwargs.keys():
         key = str(key)
-        key = key.replace('_', '-')
+        if key not in ('--t_srs', '--t_projwin'):
+            key = key.replace('_', '-')
         if not key.startswith('--'):
             keys.append(f'--{key}')
         else:
