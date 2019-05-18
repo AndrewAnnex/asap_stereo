@@ -628,10 +628,10 @@ class HiRISE(object):
 
 class ASAP(object):
 
-    def __init__(self, https=False):
-        self.https = https
-        self.hirise = HiRISE(self.https)
-        self.ctx = CTX(self.https)
+    def __init__(self, https=False, datum="D_MARS"):
+        self.https  = https
+        self.hirise = HiRISE(self.https, datum=datum)
+        self.ctx    = CTX(self.https, datum=datum)
         self.common = CommonSteps()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
