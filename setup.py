@@ -22,7 +22,7 @@ setup(
     author_email='annex@jhu.edu',
     url='https://github.com/andrewannex/jhu_asp_scripts',
 
-    install_requires=['requests', 'fire', 'moody', 'sh', 'papermill'],
+    install_requires=['requests', 'fire', 'moody', 'sh', 'papermill', 'rasterio', 'pyproj'],
 
     dependency_links = [
         "git+https://github.com/andrewannex/moody.git"
