@@ -4,10 +4,10 @@ ASAP-Stereo (Ames Stereo Automated Pipeline)
 ASAP-Stereo is workflow wrapper for the `NASA Ames Stereo Pipeline`_, it is a reimplementation of the `asp_scripts`_ workflow to produce
 co-registered CTX and HiRISE Digital Elevation Models (DEMs) from stereo image pairs in python and jupyter notebooks.
 
-ASAP-Stereo currently only support the origional MRO CTX/HiRISE stereo pair workflow from the asp_scripts, but could be built upon to make workflows for other imaging datasets.
+ASAP-Stereo currently only support the original MRO CTX/HiRISE stereo pair workflow from the asp_scripts, but could be built upon to make workflows for other imaging datasets.
 
-*NOTE:* Advanced knowledge of the Ames Stereo Pipeline, Bash environment, and ISIS3 is a near pre-requisit for using ASAP-Stereo.
-No guarentees are implied for product quality or correctness, and it is not endorsed by the ASP developers. Proceed with caution.
+*NOTE:* Advanced knowledge of the Ames Stereo Pipeline, Bash environment, and ISIS3 is a near prerequisite for using ASAP-Stereo.
+No guarantees are implied for product quality or correctness, and it is not endorsed by the ASP developers. Proceed with caution.
 
 
 .. _asp_scripts: https://github.com/USGS-Astrogeology/asp_scripts
@@ -16,11 +16,11 @@ No guarentees are implied for product quality or correctness, and it is not endo
 Goals
 -----
 
-The aim of ASAP-Stereo is to enable reproducable workflows for ASP. Through rich logging and the jupyer notebook based workflows, users can distribute
+The aim of ASAP-Stereo is to enable reproducible workflows for ASP. Through rich logging and the jupyter notebook based workflows, users can distribute
 the complete log of steps they ran to produce a digital elevation model, and that other users can run to duplicate results.
 ASAP-Stereo, like the asp_scripts project, provides high level functions to execute many individual steps of the pipeline to reduce the complexity of producing a CTX or DEM to two steps.
 
-In addition, workflows are broken down to dozens of granular steps that users can re-run with different parameters to fix issues as they arrise.
+In addition, workflows are broken down to dozens of granular steps that users can re-run with different parameters to fix issues as they arise.
 
 High Level Workflow
 -------------------
@@ -38,9 +38,9 @@ some steps are much faster than others.
 
 The advantage of the Jupyter Notebook workflows are that the configuration parameters and preview images are richly displayed
 along side logs of the commands that were run so that workflows are both
-reproduceable and easy to interact with. Should things go wrong for a processing step, the Jupyter Notebooks
+reproducible and easy to interact with. Should things go wrong for a processing step, the Jupyter Notebooks
 are easy to modify so steps can be re-run easily. The Jupyter Notebook workflow uses the same CLI interface
-for ASAP-Stereo so the notebooks are the prefered way to interact with ASAP-Stereo.
+for ASAP-Stereo so the notebooks are the preferred way to interact with ASAP-Stereo.
 
 Differences from asp_scripts
 ----------------------------
@@ -60,7 +60,7 @@ Installation
 Clone the repository, cd into the project and run: python setup.py install (or develop).
 
 You must also have all of the other dependencies for ASP and the asp_scripts installed and available in the path to run.
-You will also need GDAL command line tools, Imagemagick, and ISIS3 installed. It is recommendend to use anaconda to isolate the ASAP-Stereo
+You will also need GDAL command line tools, Imagemagick, and ISIS3 installed. It is recommended to use anaconda to isolate the ASAP-Stereo
 environment.
 
 Usage
