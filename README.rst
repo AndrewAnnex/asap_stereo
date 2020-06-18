@@ -102,9 +102,9 @@ Final products from step 3 are located in the `PRODUCTID_PRODUCTID/results/dem_a
 `PRODUCTID_PRODUCTID_align_1_0-DEM-adj.tif` is the final DEM product, and the map projected images
 are `PRODUCTID_PRODUCTID_align_1_0-DRG.tif` and `PRODUCTID_PRODUCTID_align_0_25-DRG.tif`
 
-Estimating Max-Disperity
+Estimating Max-Disparity
 ------------------------
-The maximum disperity parameter used in both `align_dem` steps can be estimated by loading the reference and target
+The maximum disparity parameter used in both `align_dem` steps can be estimated by loading the reference and target
 DEM products into a GIS environment (like QGIS) to determine the distance in the x, y, and z axes between the two products.
 It is good practice to add a hundred meter margin to this estimate. For CTX use the PEDR CSV file to estimate it from MOLA,
 for HiRISE use the final DEM.tif (non-geoid corrected) for the corresponding CTX pair.
