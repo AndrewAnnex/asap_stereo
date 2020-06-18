@@ -1,0 +1,7 @@
+requests
+fire
+moody>=0.0.4
+sh
+papermill
+rasterio
+pyproj

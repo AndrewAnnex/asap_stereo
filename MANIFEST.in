@@ -1,0 +1,6 @@
+# Misc
+include LICENSE
+include README.rst
+
+# notebooks
+include asap_stereo/*.ipynb
