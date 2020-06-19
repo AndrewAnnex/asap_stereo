@@ -28,6 +28,25 @@ _threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess >
 _processes             = _threads_multiprocess // 4 if _threads_multiprocess > 3 else 1 # 3, 2
 
 
+banner = f"""
+
+█████████████████████████████████████████████████████████████
+                                                             
+          ___   _____ ___    ____    
+         /   | / ___//   |  / __ \   
+        / /| | \__ \/ /| | / /_/ /   
+       / ___ |___/ / ___ |/ ____/    
+      /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
+      
+      asap_stereo (0.0.3) 
+        threads sp: {_threads_singleprocess}
+        threads mp: {_threads_multiprocess}
+        processes:  {_processes}
+      
+      Github: https://github.com/AndrewAnnex/asap_stereo
+
+█████████████████████████████████████████████████████████████
+"""
 
 pool = Semaphore(cores)
 
@@ -1347,6 +1366,9 @@ class ASAP(object):
         self.common = CommonSteps()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
+
+    def __str__(self):
+        return banner
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
