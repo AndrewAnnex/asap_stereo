@@ -17,7 +17,7 @@ Goals
 -----
 
 The aim of ASAP-Stereo is to enable reproducible workflows for ASP. Through rich logging and the jupyter notebook based workflows, users can distribute
-the complete log of steps they ran to produce a digital elevation model, and that other users can run to duplicate results.
+the complete log of the steps they ran to produce a digital elevation model, and from that other users can run the same steps to duplicate results.
 ASAP-Stereo, like the asp_scripts project, provides high level functions to execute many individual steps of the pipeline to reduce the complexity of producing a CTX or DEM to two steps.
 
 In addition, workflows are broken down to dozens of granular steps that users can re-run with different parameters to fix issues as they arise.
@@ -51,7 +51,7 @@ partially listed here.
 2. Bundle Adjustment was added to the HiRISE workflow, possibly of marginal benefit.
 3. PEDR data, and pedr2tab is optional as the ODE Rest API is used to get relevant data.
 4. Image resolutions are encoded in file names in meters with an underscore for decimals (ie 0_25.tif would be 25 cm per pixel).
-5. Hillshade alignment of the HiRISE dem to the target DEM is used to improve/speed up alignment of HiRISE.
+5. Hillshade alignment of the HiRISE dem to the target DEM is used to improve/speed up alignment of HiRISE to CTX.
 
 .. _SLURM: https://slurm.schedmd.com
 
@@ -85,26 +85,26 @@ for example `asap ctx notebook_pipeline_make_dem -- --help`.
 For CTX:
 ~~~~~~~~
 1. `asap ctx notebook_pipeline_make_dem PRODUCTID1 PRODUCTID2 STEREO_CONF`
-2. `asap ctx notebook_pipeline_align_dem`
+2. `asap ctx notebook_pipeline_align_dem --maxdisp 500`
 
 Final products from step 2 are located in the `PRODUCTID_PRODUCTID/results_map_ba/dem_align` folder. The
 `PRODUCTID_PRODUCTID_map_ba_align_24_0-DEM-adj.tif` is the final DEM product,
 and the map projected images are `PRODUCTID_PRODUCTID_map_ba_align_24_0-DRG.tif`
-and `PRODUCTID_PRODUCTID_map_ba_align_6_0-DRG.tif`
+and `PRODUCTID_PRODUCTID_map_ba_align_6_0-DRG.tif`.
 
 For HiRISE:
 ~~~~~~~~~~~
 1. `asap hirise notebook_pipeline_make_dem ID1 ID2 STEREO_CONF`
-2. `asap hirise notebook_pipeline_align_dem REFDEM`
+2. `asap hirise notebook_pipeline_align_dem REFDEM --maxdisp 500`
     where REFDEM is the path to the CTX DEM (non "adj.tif") created before.
 
 Final products from step 3 are located in the `PRODUCTID_PRODUCTID/results/dem_align` folder. The
 `PRODUCTID_PRODUCTID_align_1_0-DEM-adj.tif` is the final DEM product, and the map projected images
-are `PRODUCTID_PRODUCTID_align_1_0-DRG.tif` and `PRODUCTID_PRODUCTID_align_0_25-DRG.tif`
+are `PRODUCTID_PRODUCTID_align_1_0-DRG.tif` and `PRODUCTID_PRODUCTID_align_0_25-DRG.tif`.
 
-Estimating Max-Disparity
-------------------------
-The maximum disparity parameter used in both `align_dem` steps can be estimated by loading the reference and target
+Estimating Max-Disparity (--maxdisp)
+------------------------------------
+The maximum disparity parameter used in both `align_dem` steps above can be estimated by loading the reference and target
 DEM products into a GIS environment (like QGIS) to determine the distance in the x, y, and z axes between the two products.
 It is good practice to add a hundred meter margin to this estimate. For CTX use the PEDR CSV file to estimate it from MOLA,
 for HiRISE use the final DEM.tif (non-geoid corrected) for the corresponding CTX pair.
