@@ -526,7 +526,6 @@ class CommonSteps(object):
             dst_file = f'{c.with_name("rescaled_"+c.name)}'
         self.cubreduce(f'from={c}', f'to={dst_file}', f'sscale={factor}', f'lscale={factor}')
         if overwrite:
-            c.unlink(missing_ok=True)
             sh.mv(dst_file, src_file)
 
 
