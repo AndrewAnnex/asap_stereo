@@ -9,5 +9,4 @@ dependencies:
   - stereo-pipeline==2.7.0
   - nb_conda_kernels
   - jupyterlab
-prefix: /mnt/scratch1/anaconda3_09_26_19/envs/asp_aug_1
 
