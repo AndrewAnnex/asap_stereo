@@ -190,6 +190,7 @@ class CommonSteps(object):
         self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
         self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
         self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
+        self.cubreduce   = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr)
         self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr)
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
@@ -508,6 +509,27 @@ class CommonSteps(object):
             args = kwargs_to_args({**self.defaults_ps2, **clean_kwargs(kwargs)})
             return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', Path(stereo_conf).absolute(), f'results_ba/{both}_ba')
 
+    @rich_logger
+    def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
+        """
+        rescale an ISIS3 cub file using the 'reduce' command
+        given a factor, optionaly do not overwrite file
+
+        :param src_file: path to src cub file
+        :param factor: reduction factor (number [lines, samples] / factor)
+        :param overwrite: if true overwrite the src file
+        :param dst_file: destination file name, append "rescaled_" if not specified
+        :return:
+        """
+        c = Path(src_file)
+        if not dst_file:
+            dst_file = f'{c.with_name("rescaled_"+c.name)}'
+        self.cubreduce(f'from={c}', f'to={dst_file}', f'sscale={factor}', f'lscale={factor}')
+        if overwrite:
+            c.unlink(missing_ok=True)
+            sh.mv(dst_file, src_file)
+
+
 class CTX(object):
 
     def __init__(self, https=False, datum="D_MARS", proj: Optional[str] = None):
@@ -743,10 +765,11 @@ class CTX(object):
             self.cs.hillshade(dem.name, f'./{dem.stem}-hillshade.tif')
 
     @rich_logger
-    def step_nine(self, refdem=None):
+    def step_nine(self, refdem=None, mpp=6):
         """
         Mapproject the left and right ctx images against the reference DEM
-        :param refdem:
+        :param refdem: reference dem to map project using
+        :param mpp: target GSD
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
@@ -755,8 +778,8 @@ class CTX(object):
         with cd(Path.cwd() / both):
             # map project both ctx images against the reference dem
             # might need to do par do here
-            self.cs.mapproject('-t', 'isis', refdem, f'{left}.lev1eo.cub', f'{left}.ba.map.tif', '--mpp', 6, '--bundle-adjust-prefix', 'adjust/ba')
-            self.cs.mapproject('-t', 'isis', refdem, f'{right}.lev1eo.cub', f'{right}.ba.map.tif', '--mpp', 6, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject('-t', 'isis', refdem, f'{left}.lev1eo.cub', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject('-t', 'isis', refdem, f'{right}.lev1eo.cub', f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
 
     @rich_logger
     def step_ten(self, stereo_conf, refdem=None, **kwargs):

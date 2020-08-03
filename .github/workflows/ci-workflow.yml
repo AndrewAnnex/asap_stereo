@@ -25,3 +25,6 @@ jobs:
         run: |
           conda info
           conda list
+      - name: test for asap
+        shell: bash -l {0}
+        run: asap

@@ -17,6 +17,9 @@ jobs:
           channel-priority: true
           auto-update-conda: true
           use-only-tar-bz2: true
+      - name: isis3 path inits
+        shell: bash -l {0}
+        run: python $CONDA_PREFIX/scripts/isis3VarInit.py
       - name: install asap
         shell: bash -l {0}
         run: pip install -e .
