@@ -528,6 +528,19 @@ class CommonSteps(object):
         if overwrite:
             sh.mv(dst_file, src_file)
 
+    def rescale_and_overwrite(self, factor, postfix='.lev1eo.cub'):
+        """
+        # todo: par do this
+        Rescale the left and right images
+        :param factor:
+        :param postfix: file postfix
+        :return:
+        """
+        left, right, both = self.parse_stereopairs()
+        assert both is not None
+        self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
+        self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
+
 
 class CTX(object):
 
