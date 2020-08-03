@@ -17,12 +17,11 @@ jobs:
           channel-priority: true
           auto-update-conda: true
           use-only-tar-bz2: true
+      - name: install asap
+        shell: bash -l {0}
+        run: pip install -e .
       - name: conda info
         shell: bash -l {0}
         run: |
           conda info
           conda list
-      - name: install asap
-        shell: bash -l {0}
-        run: pip install -e .
-
