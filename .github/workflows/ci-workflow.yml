@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   test_runner:
     name: Ubuntu 
-    runs-on: "ubuntu-latest
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
       - name: setup miniconda
