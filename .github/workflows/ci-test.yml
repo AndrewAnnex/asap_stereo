@@ -1,5 +1,5 @@
 # Trigger the workflow on push or pull request
-on: [worflow_dispatch]
+on: [workflow_dispatch]
 jobs:
   test_runner:
     name: asap test 
