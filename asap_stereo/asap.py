@@ -667,17 +667,18 @@ class CTX(object):
             moody.ODE(self.https).ctx_edr(two)
 
     @rich_logger
-    def step_two(self):
+    def step_two(self, with_web=False):
         """
         ISIS3 CTX preprocessing
         replaces ctxedr2lev1eo.sh
+        :param with_web: if true attempt to use webservices for SPICE kernel data
         :return:
         """
         _cwd = Path.cwd()
         imgs = list(_cwd.glob('*.IMG')) + list(_cwd.glob('*.img'))
         self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
-        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}' for c in cubs])
+        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
         self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
         self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))

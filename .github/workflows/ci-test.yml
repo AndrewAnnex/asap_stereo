@@ -20,6 +20,12 @@ jobs:
       - name: isis3 path inits
         shell: bash -l {0}
         run: python $CONDA_PREFIX/scripts/isis3VarInit.py
+      - name: rsync base kernels
+        shell: bash -l {0}
+        run: rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
+      - name: rsync mro kernels
+        shell: bash -l {0}
+        run: rsync -azv --exclude='kernels'  --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
       - name: install asap
         shell: bash -l {0}
         run: pip install -e .
@@ -34,9 +40,9 @@ jobs:
       - name: asap step 1
         shell: bash -l {0}
         run: asap ctx step-one B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
-      - name: asap step 2
+      - name: asap step 2 (and use spice web service)
         shell: bash -l {0}
-        run: asap ctx step-two
+        run: asap ctx step-two True
       - name: asap rescale images for test
         shell: bash -l {0}
         run:  asap common rescale_and_overwrite 8
