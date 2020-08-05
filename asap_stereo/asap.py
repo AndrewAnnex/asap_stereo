@@ -488,9 +488,10 @@ class CommonSteps(object):
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
+        stereo_conf = Path(stereo_conf).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.defaults_ps1, **clean_kwargs(kwargs)})
-            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', Path(stereo_conf).absolute(), f'results_ba/{both}_ba')
+            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
 
     @rich_logger
     def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
@@ -505,9 +506,10 @@ class CommonSteps(object):
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
+        stereo_conf = Path(stereo_conf).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.defaults_ps2, **clean_kwargs(kwargs)})
-            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', Path(stereo_conf).absolute(), f'results_ba/{both}_ba')
+            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
 
     @rich_logger
     def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
@@ -788,6 +790,8 @@ class CTX(object):
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
             refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
+        else:
+            refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             # map project both ctx images against the reference dem
             # might need to do par do here
@@ -804,12 +808,15 @@ class CTX(object):
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
+        stereo_conf = Path(stereo_conf).absolute()
         if not refdem:
             refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
+        else:
+            refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.cs.defaults_ps1, **clean_kwargs(kwargs)})
             return self.cs.parallel_stereo(*args, f'{left}.ba.map.tif', f'{right}.ba.map.tif', f'{left}.lev1eo.cub', f'{right}.lev1eo.cub',
-                                           '-s', Path(stereo_conf).absolute(), f'results_map_ba/{both}_ba', refdem)
+                                           '-s', stereo_conf, f'results_map_ba/{both}_ba', refdem)
 
     @rich_logger
     def step_eleven(self, stereo_conf, refdem=None, **kwargs):
@@ -821,12 +828,15 @@ class CTX(object):
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
+        stereo_conf = Path(stereo_conf).absolute()
         if not refdem:
             refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
+        else:
+            refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.cs.defaults_ps2, **clean_kwargs(kwargs)})
             return self.cs.parallel_stereo(*args, f'{left}.ba.map.tif', f'{right}.ba.map.tif', f'{left}.lev1eo.cub', f'{right}.lev1eo.cub',
-                                           '-s', Path(stereo_conf).absolute(), f'results_map_ba/{both}_ba', refdem)
+                                           '-s', stereo_conf, f'results_map_ba/{both}_ba', refdem)
 
     @rich_logger
     def step_twelve(self, pedr_list):
@@ -848,8 +858,8 @@ class CTX(object):
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
-        :param maxd:
-        :param refdem:
+        :param maxd: maximum displacement in meters
+        :param pedr4align: path to pedr csv file
         :param kwargs:
         :return:
         """
@@ -1220,6 +1230,7 @@ class HiRISE(object):
             '--datum'                             : self.datum,
             '--output-prefix'                     : 'hillshade_align/out'
         }
+        refdem = Path(refdem).absolute()
         refdem_mpp = math.ceil(self.cs.get_image_gsd(refdem))
         refdem_mpp_postfix = self.cs.get_mpp_postfix(refdem_mpp)
         # create the lower resolution hirise dem to match the refdem gsd
@@ -1263,6 +1274,7 @@ class HiRISE(object):
             '--max-displacement': maxd,
             '--output-prefix': f'dem_align/{both}_align'
         }
+        refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             with cd('results_ba'):
                 args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
