@@ -22,8 +22,18 @@ jobs:
         run: python $CONDA_PREFIX/scripts/isis3VarInit.py
       - name: rsync base kernels
         shell: bash -l {0}
-        run: rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
-      - name: rsync mro kernels
+        run: |
+          rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
+          mkdir -p $CONDA_PREFIX/data/base/kernels/spk/
+          mkdir -p $CONDA_PREFIX/data/base/kernels/lsk/
+          mkdir -p $CONDA_PREFIX/data/base/kernels/pck/
+          mkdir -p $CONDA_PREFIX/data/base/dems/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/de430.bsp -O $CONDA_PREFIX/data/base/kernels/spk/de430.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mar097.bsp -O $CONDA_PREFIX/data/base/kernels/spk/mar097.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA_PREFIX/data/base/kernels/lsk/naif0012.tls
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA_PREFIX/data/base/kernels/pck/pck00009.tpc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA_PREFIX/data/base/dems/molaMarsPlanetaryRadius0005.cub
+      - name: rsync mro data
         shell: bash -l {0}
         run: rsync -azv --exclude='kernels'  --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
       - name: install asap
@@ -43,12 +53,14 @@ jobs:
       - name: asap step 2 (and use spice web service)
         shell: bash -l {0}
         run: asap ctx step-two True
-      - name: asap rescale images for test
-        shell: bash -l {0}
-        run:  asap common rescale_and_overwrite 8
       - name: asap step 3
         shell: bash -l {0}
         run:  asap ctx step-three
+      - name: asap rescale images for test
+        shell: bash -l {0}
+        run:
+          asap common rescale_and_overwrite 8
+          cp -nf ./*.cub ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/
       - name: asap step 4
         shell: bash -l {0}
         run:  asap ctx step-four
