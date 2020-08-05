@@ -24,6 +24,7 @@ jobs:
         shell: bash -l {0}
         run: |
           rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA_PREFIX/data/base
           mkdir -p $CONDA_PREFIX/data/base/kernels/spk/
           mkdir -p $CONDA_PREFIX/data/base/kernels/lsk/
           mkdir -p $CONDA_PREFIX/data/base/kernels/pck/
@@ -35,7 +36,21 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA_PREFIX/data/base/dems/molaMarsPlanetaryRadius0005.cub
       - name: rsync mro data
         shell: bash -l {0}
-        run: rsync -azv --exclude='kernels'  --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
+        run: |
+          rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA_PREFIX/data/mro
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/spk/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/sclk/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/ck/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/iak/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/fk/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA_PREFIX/data/mro/kernels/fk/mro_v15.tf
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O $CONDA_PREFIX/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O $CONDA_PREFIX/data/mro/kernels/iak/mroctxAddendum005.ti
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O $CONDA_PREFIX/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA_PREFIX/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
       - name: install asap
         shell: bash -l {0}
         run: pip install -e .
@@ -56,17 +71,48 @@ jobs:
       - name: isis3 spice server hack
         shell: bash -l {0}
         run: sed -i 's/4.1/3.12/g' $ISISROOT/version
-      - name: asap step 2 (and use spice web service)
+      - name: look before you leap
+        shell: bash -l {0}
+        run: |
+          ls ./* -lahtr
+          env | grep ISIS
+      - name: asap step 2 mroctx2isis
         timeout-minutes: 10
         shell: bash -l {0}
-        run: asap ctx step-two True
+        run: |
+          mroctx2isis from=B03_010644_1889_XN_08N001W.IMG to=B03_010644_1889_XN_08N001W.cub
+          mroctx2isis from=P02_001902_1889_XI_08N001W.IMG to=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 spiceinit
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          spiceinit from=B03_010644_1889_XN_08N001W.cub 
+          spiceinit from=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 spicefit
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          spicefit from=B03_010644_1889_XN_08N001W.cub 
+          spicefit from=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 ctxcal
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          ctxcal from=B03_010644_1889_XN_08N001W.cub to=B03_010644_1889_XN_08N001W.lev1.cub 
+          ctxcal from=P02_001902_1889_XI_08N001W.cub to=P02_001902_1889_XI_08N001W.lev1.cub
+      - name: asap step 2 ctxevenodd
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          ctxevenodd from=B03_010644_1889_XN_08N001W.lev1.cub to=B03_010644_1889_XN_08N001W.lev1eo.cub 
+          ctxevenodd from=P02_001902_1889_XI_08N001W.lev1.cub to=P02_001902_1889_XI_08N001W.lev1eo.cub              
       - name: asap step 3
         shell: bash -l {0}
         run:  asap ctx step-three
       - name: asap rescale images for test
         shell: bash -l {0}
-        run:
-          asap common rescale_and_overwrite 8
+        run: |
+          asap common rescale_and_overwrite 8 
           cp -nf ./*.cub ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/
       - name: asap step 4
         shell: bash -l {0}
