@@ -24,6 +24,7 @@ jobs:
         shell: bash -l {0}
         run: |
           rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA_PREFIX/data/base
           mkdir -p $CONDA_PREFIX/data/base/kernels/spk/
           mkdir -p $CONDA_PREFIX/data/base/kernels/lsk/
           mkdir -p $CONDA_PREFIX/data/base/kernels/pck/
@@ -37,6 +38,7 @@ jobs:
         shell: bash -l {0}
         run: |
           rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA_PREFIX/data/mro
           mkdir -p $CONDA_PREFIX/data/mro/kernels/spk/
           mkdir -p $CONDA_PREFIX/data/mro/kernels/sclk/
           mkdir -p $CONDA_PREFIX/data/mro/kernels/ck/
