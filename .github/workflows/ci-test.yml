@@ -74,10 +74,36 @@ jobs:
         run: |
           ls ./* -lahtr
           env | grep ISIS
-      - name: asap step 2 (and use spice web service)
+      - name: asap step 2 mroctx2isis
         timeout-minutes: 10
         shell: bash -l {0}
-        run: asap ctx step-two 
+        run: |
+          mroctx2isis from=B03_010644_1889_XN_08N001W.IMG to=B03_010644_1889_XN_08N001W.cub
+          mroctx2isis from=P02_001902_1889_XI_08N001W.IMG to=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 spiceinit
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          spiceinit from=B03_010644_1889_XN_08N001W.cub 
+          spiceinit from=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 spicefit
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          spicefit from=B03_010644_1889_XN_08N001W.cub 
+          spicefit from=P02_001902_1889_XI_08N001W.cub
+      - name: asap step 2 ctxcal
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          ctxcal from=B03_010644_1889_XN_08N001W.cub to=B03_010644_1889_XN_08N001W.lev1.cub 
+          ctxcal from=P02_001902_1889_XI_08N001W.cub to=P02_001902_1889_XI_08N001W.lev1.cub
+      - name: asap step 2 ctxevenodd
+        timeout-minutes: 10
+        shell: bash -l {0}
+        run: |
+          ctxevenodd from=B03_010644_1889_XN_08N001W.lev1.cub to=B03_010644_1889_XN_08N001W.lev1eo.cub 
+          ctxevenodd from=P02_001902_1889_XI_08N001W.lev1.cub to=P02_001902_1889_XI_08N001W.lev1eo.cub              
       - name: asap step 3
         shell: bash -l {0}
         run:  asap ctx step-three
