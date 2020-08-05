@@ -44,6 +44,9 @@ jobs:
         run: |
           conda info
           conda list
+      - name: check core cout
+        shell: bash -l {0}
+        run: python3 -c "import os;  print(os.cpu_count())"
       - name: test for asap
         shell: bash -l {0}
         run: asap
@@ -54,6 +57,7 @@ jobs:
         shell: bash -l {0}
         run: sed -i 's/4.1/3.12/g' $ISISROOT/version
       - name: asap step 2 (and use spice web service)
+        timeout-minutes: 10
         shell: bash -l {0}
         run: asap ctx step-two True
       - name: asap step 3

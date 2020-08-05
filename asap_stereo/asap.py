@@ -24,8 +24,8 @@ if not cores:
     cores = 16
 
 _threads_singleprocess = cores # 24, 16
-_threads_multiprocess  = _threads_singleprocess // 2 # 12, 8
-_processes             = _threads_multiprocess // 4 # 3, 2
+_threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess > 1 else 1 # 12, 8
+_processes             = _threads_multiprocess // 4 if _threads_multiprocess > 3 else 1 # 3, 2
 
 
 
