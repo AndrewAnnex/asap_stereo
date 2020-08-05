@@ -35,7 +35,20 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA_PREFIX/data/base/dems/molaMarsPlanetaryRadius0005.cub
       - name: rsync mro data
         shell: bash -l {0}
-        run: rsync -azv --exclude='kernels'  --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
+        run: |
+          rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/spk/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/sclk/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/ck/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/iak/
+          mkdir -p $CONDA_PREFIX/data/mro/kernels/fk/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA_PREFIX/data/mro/kernels/fk/mro_v15.tf
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O $CONDA_PREFIX/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O $CONDA_PREFIX/data/mro/kernels/iak/mroctxAddendum005.ti
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O $CONDA_PREFIX/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA_PREFIX/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
       - name: install asap
         shell: bash -l {0}
         run: pip install -e .
@@ -56,10 +69,15 @@ jobs:
       - name: isis3 spice server hack
         shell: bash -l {0}
         run: sed -i 's/4.1/3.12/g' $ISISROOT/version
+      - name: look before you leap
+        shell: bash -l {0}
+        run: |
+          ls ./* -lahtr
+          env | grep ISIS
       - name: asap step 2 (and use spice web service)
         timeout-minutes: 10
         shell: bash -l {0}
-        run: asap ctx step-two True
+        run: asap ctx step-two 
       - name: asap step 3
         shell: bash -l {0}
         run:  asap ctx step-three
