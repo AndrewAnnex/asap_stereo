@@ -170,7 +170,7 @@ class CommonSteps(object):
 
         def do(*args):
             pool.acquire()
-            return func(*args)
+            return func(*args, _bg=True, _done=done)
 
         for call_args in all_calls_args:
             if ' ' in call_args:
@@ -676,17 +676,16 @@ class CTX(object):
         :param with_web: if true attempt to use webservices for SPICE kernel data
         :return:
         """
-        _cwd = Path.cwd()
-        imgs = list(_cwd.glob('*.IMG')) + list(_cwd.glob('*.img'))
+        imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
         self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
         self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
         self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
         self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
-        lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
-        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
         for cub in cubs:
             cub.unlink()
+        lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
+        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
         for lc in lev1cubs:
             lc.unlink()
 
