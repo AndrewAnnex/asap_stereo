@@ -196,7 +196,7 @@ jobs:
       - name: asap step 13
         timeout-minutes: 10
         shell: bash -l {0}
-        run:  asap ctx step-thirteen 1000 --highest_accuracy False
+        run:  asap ctx step-thirteen 1000 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
       - name: asap step 14
         timeout-minutes: 10
         shell: bash -l {0}
