@@ -185,7 +185,7 @@ class CommonSteps(object):
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
-        self.pc_align    = Command('pc_align').bake('--highest-accuracy', '--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
+        self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
         self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
         self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
@@ -852,12 +852,13 @@ class CTX(object):
                 self.cs.get_pedr_4_pcalign_w_moody(f'{left}.lev1eo.cub', proj=self.proj, https=self.https)
 
     @rich_logger
-    def step_thirteen(self, maxd, pedr4align=None, **kwargs):
+    def step_thirteen(self, maxd, pedr4align=None, highest_accuracy=True, **kwargs):
         """
         PC Align CTX
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
+        :param highest_accuracy:
         :param maxd: maximum displacement in meters
         :param pedr4align: path to pedr csv file
         :param kwargs:
@@ -875,7 +876,8 @@ class CTX(object):
             pedr4align = f'../{both}_pedr4align.csv'
         with cd(Path.cwd() / both / 'results_map_ba'):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.cs.pc_align(*args, '--save-inv-trans', '--highest-accuracy', f'{both}_ba-PC.tif', pedr4align)
+            hq = ['--highest-accuracy'] if highest_accuracy else []
+            return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', pedr4align)
 
     @rich_logger
     def step_fourteen(self, mpp=24.0, just_ortho=False, output_folder='dem_align', **kwargs):
@@ -1255,7 +1257,7 @@ class HiRISE(object):
         return cmd_res
 
     @rich_logger
-    def step_ten(self, maxd, refdem, **kwargs):
+    def step_ten(self, maxd, refdem, highest_accuracy=True, **kwargs):
         """
         PC Align HiRISE
 
@@ -1263,6 +1265,7 @@ class HiRISE(object):
         optionally accept an initial transform via kwargs
         :param maxd:
         :param refdem:
+        :param highest_accuracy:
         :param kwargs:
         :return:
         """
@@ -1278,7 +1281,8 @@ class HiRISE(object):
         with cd(Path.cwd() / both):
             with cd('results_ba'):
                 args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-                return self.cs.pc_align(*args, f'{both}_ba-PC.tif', refdem)
+                hq = ['--highest-accuracy'] if highest_accuracy else []
+                return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
     @rich_logger
     def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
