@@ -125,6 +125,7 @@ def rich_logger(func):
         print(f"""# Started: {name_line}, at: {start_time.isoformat(" ")}""", flush=True)
         # call the function and get the return
         ret = func(*args, **kwargs)
+        print("DEBUG FINISHED in rich logger", flush=True)
         # if we had a running command log out the call
         if ret is not None and isinstance(ret, sh.RunningCommand):
             print(f'# Ran Command: {cmd_to_string(ret)}', flush=True)
@@ -676,29 +677,30 @@ class CTX(object):
         :param with_web: if true attempt to use webservices for SPICE kernel data
         :return:
         """
-        _cwd = Path.cwd()
-        print(_cwd)
-        imgs = list(_cwd.glob('*.IMG')) + list(_cwd.glob('*.img'))
-        print(imgs)
+        print("DEBUG FINISHED in step 2", flush=True)
+        imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
+        print("DEBUG FINISHED in step 2 imgs", flush=True)
+        print(imgs, flush=True)
         _ = self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
-        print(_)
+        print("DEBUG FINISHED in step 2 first par do", flush=True)
+        print(_, flush=True)
         cubs = list(Path.cwd().glob('*.cub'))
-        print(cubs)
-        _ =self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
-        print(_)
+        print(cubs, flush=True)
+        _ = self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
+        print(_, flush=True)
         _ = self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
-        print(_)
+        print(_, flush=True)
         _ = self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
-        print(_)
+        print(_, flush=True)
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
-        print(lev1cubs)
+        print(lev1cubs, flush=True)
         _ = self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
-        print(_)
+        print(_, flush=True)
         for cub in cubs:
-            print(cub)
+            print(cub, flush=True)
             cub.unlink()
         for lc in lev1cubs:
-            print(lc)
+            print(lc, flush=True)
             lc.unlink()
 
     @rich_logger
