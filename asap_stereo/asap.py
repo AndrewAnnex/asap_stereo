@@ -171,7 +171,7 @@ class CommonSteps(object):
 
         def do(*args):
             pool.acquire()
-            return func(*args, _done=done)
+            return func(*args, _bg=True, _done=done)
 
         for call_args in all_calls_args:
             if ' ' in call_args:
