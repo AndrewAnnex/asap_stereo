@@ -28,7 +28,6 @@ _threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess >
 _processes             = _threads_multiprocess // 4 if _threads_multiprocess > 3 else 1 # 3, 2
 
 
-
 pool = Semaphore(cores)
 
 def done(cmd, success, exit_code):
@@ -1339,6 +1338,22 @@ class HiRISE(object):
 
 
 class ASAP(object):
+    """
+    ASAP Stereo Pipeline\n
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____    
+             /   | / ___//   |  / __ \   
+            / /| | \__ \/ /| | / /_/ /   
+           / ___ |___/ / ___ |/ ____/    
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
 
     def __init__(self, https=False, datum="D_MARS"):
         self.https  = https
@@ -1426,6 +1441,13 @@ class ASAP(object):
         # eleven don't bother as prior call to eleven did the work
         if not math.isclose(imggsd, demgsd):
             self.hirise.step_eleven(mpp=imggsd, just_ortho=True)
+
+    def info(self):
+        """
+        Get the number of threads and processes as a formatted string
+        :return: str rep of info
+        """
+        return f"threads sp: {_threads_singleprocess}\nthreads mp: {_threads_multiprocess}\nprocesses: {_processes}"
 
 
 def main():
