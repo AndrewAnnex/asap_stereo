@@ -677,17 +677,28 @@ class CTX(object):
         :return:
         """
         _cwd = Path.cwd()
+        print(_cwd)
         imgs = list(_cwd.glob('*.IMG')) + list(_cwd.glob('*.img'))
-        self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        print(imgs)
+        _ = self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        print(_)
         cubs = list(Path.cwd().glob('*.cub'))
-        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
-        self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
-        self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
+        print(cubs)
+        _ =self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
+        print(_)
+        _ = self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
+        print(_)
+        _ = self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
+        print(_)
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
-        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
+        print(lev1cubs)
+        _ = self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
+        print(_)
         for cub in cubs:
+            print(cub)
             cub.unlink()
         for lc in lev1cubs:
+            print(lc)
             lc.unlink()
 
     @rich_logger
