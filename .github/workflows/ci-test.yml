@@ -2,7 +2,7 @@
 on: [workflow_dispatch]
 jobs:
   test_runner:
-    name: asap test 
+    name: ASAP test CTX pipeline
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
@@ -59,68 +59,32 @@ jobs:
         run: |
           conda info
           conda list
-      - name: check core cout
-        shell: bash -l {0}
-        run: python3 -c "import os;  print(os.cpu_count())"
       - name: test for asap
         shell: bash -l {0}
         run: asap
       - name: asap step 1
+        timeout-minutes: 5
         shell: bash -l {0}
         run: asap ctx step-one B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
-      - name: isis3 spice server hack
-        shell: bash -l {0}
-        run: sed -i 's/4.1/3.12/g' $ISISROOT/version
       - name: look before you leap
         shell: bash -l {0}
         run: |
           ls ./* -lahtr
           env | grep ISIS
           pwd
-      - name: asap step 2 mroctx2isis
-        timeout-minutes: 10
+      - name: asap step 2
+        timeout-minutes: 1
+        shell: bash -l {0}
+        run: asap ctx step-two
+      - name: asap 4 & rescale images for test
         shell: bash -l {0}
         run: |
-          mroctx2isis from=B03_010644_1889_XN_08N001W.IMG to=B03_010644_1889_XN_08N001W.cub
-          mroctx2isis from=P02_001902_1889_XI_08N001W.IMG to=P02_001902_1889_XI_08N001W.cub
-      - name: asap step 2 spiceinit
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: |
-          spiceinit from=B03_010644_1889_XN_08N001W.cub 
-          spiceinit from=P02_001902_1889_XI_08N001W.cub
-      - name: asap step 2 spicefit
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: |
-          spicefit from=B03_010644_1889_XN_08N001W.cub 
-          spicefit from=P02_001902_1889_XI_08N001W.cub
-      - name: asap step 2 ctxcal
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: |
-          ctxcal from=B03_010644_1889_XN_08N001W.cub to=B03_010644_1889_XN_08N001W.lev1.cub 
-          ctxcal from=P02_001902_1889_XI_08N001W.cub to=P02_001902_1889_XI_08N001W.lev1.cub
-      - name: asap step 2 ctxevenodd
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: |
-          ctxevenodd from=B03_010644_1889_XN_08N001W.lev1.cub to=B03_010644_1889_XN_08N001W.lev1eo.cub 
-          ctxevenodd from=P02_001902_1889_XI_08N001W.lev1.cub to=P02_001902_1889_XI_08N001W.lev1eo.cub              
-      - name: asap step 3
-        shell: bash -l {0}
-        run:  asap ctx step-three
-      - name: asap rescale images for test
-        shell: bash -l {0}
-        run: |
+          asap ctx step-three
           asap common rescale_and_overwrite 8 
           cp -nf ./*.cub ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/
       - name: asap step 4
         shell: bash -l {0}
         run:  asap ctx step-four
-      - name: reverse isis3 spice server hack
-        shell: bash -l {0}
-        run: sed -i 's/3.12/4.1/g' $ISISROOT/version
       - name: asap step 5 (and get stereo conf files)
         shell: bash -l {0}
         run:  |
@@ -128,104 +92,68 @@ jobs:
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
           asap ctx step-five ./stereo.nonmap
       - name: asap step 6
-        timeout-minutes: 10
         shell: bash -l {0}
         run:  asap ctx step-six ./stereo.nonmap
-      - name: asap step 7
-        timeout-minutes: 10
+      - name: asap step 7-8
         shell: bash -l {0}
-        run:  asap ctx step-seven --mpp 240 --just_dem True --dem_hole_fill_len 50 
-      - name: asap step 8
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run:  asap ctx step-eight
+        run: |
+          asap ctx step-seven --mpp 240 --just_dem True --dem_hole_fill_len 50
+          asap ctx step-eight
       - name: asap 1st round previews
-        timeout-minutes: 10
         shell: bash -l {0}
         run: |
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM-hillshade.tif ./hillshade_1.png
-      - name: Archive First pass gpm
+      - name: Archive First Round Previews
         uses: actions/upload-artifact@v2
         with:
-          name: good_pixel_map_1.png
-          path: good_pixel_map_1.png
-      - name: Archive First pass hillshade
-        uses: actions/upload-artifact@v2
-        with:
-          name: hillshade_1.png
-          path: hillshade_1.png
+          name: first-round
+          path: |
+            good_pixel_map_1.png
+            hillshade_1.png
       - name: asap step 9
-        timeout-minutes: 10
         shell: bash -l {0}
         run:  asap ctx step-nine --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
-      - name: asap step 10
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run:  asap ctx step-ten --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-      - name: asap step 11
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run:  asap ctx step-eleven --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-      - name: asap step 11.5
-        timeout-minutes: 10
+      - name: asap step 10-11
         shell: bash -l {0}
         run: |
-          asap ctx step-seven --mpp 144 --folder results_map_ba 
+          asap ctx step-ten --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
+          asap ctx step-eleven --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
+          asap ctx step-seven --mpp 144 --folder results_map_ba
           asap ctx step-eight --folder results_map_ba
       - name: asap step 12
-        timeout-minutes: 10
         shell: bash -l {0}
         run:  asap ctx step-twelve None
       - name: asap 2nd round previews
-        timeout-minutes: 10
         shell: bash -l {0}
         run: |
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_144_0-DEM-hillshade.tif ./hillshade_2.png
-      - name: Archive 2nd pass gpm
+      - name: Archive 2nd Round Previews
         uses: actions/upload-artifact@v2
         with:
-          name: good_pixel_map_2.png
-          path: good_pixel_map_2.png
-      - name: Archive 2nd pass hillshade
-        uses: actions/upload-artifact@v2
-        with:
-          name: hillshade_2.png
-          path: hillshade_2.png
-      - name: asap step 13
-        timeout-minutes: 10
+          name: second-round
+          path: |
+            good_pixel_map_2.png
+            hillshade_2.png
+      - name: asap step 13-17
+        timeout-minutes: 2
         shell: bash -l {0}
-        run:  asap ctx step-thirteen 1000 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
-      - name: asap step 14
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run:  asap ctx step-fourteen --mpp 144
-      - name: asap step 15
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run:  asap ctx step-fifteen
-      - name: asap step 16
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: asap ctx step_eight --folder results_map_ba --output_folder dem_align
-      - name: asap step 17
-        timeout-minutes: 10
-        shell: bash -l {0}
-        run: asap ctx step_fourteen --mpp 48 --just_ortho True
+        run: |
+          asap ctx step-thirteen 1000 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
+          asap ctx step-fourteen --mpp 144
+          asap ctx step-fifteen
+          asap ctx step_eight --folder results_map_ba --output_folder dem_align
+          asap ctx step_fourteen --mpp 48 --just_ortho True
       - name: asap final previews
-        timeout-minutes: 10
         shell: bash -l {0}
         run: |
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png
-      - name: Archive final hillshade
+      - name: Archive Final Previews
         uses: actions/upload-artifact@v2
         with:
-          name: hillshade_f.png
-          path:  hillshade_f.png
-      - name: Archive final DRG
-        uses: actions/upload-artifact@v2
-        with:
-          name: vis_f.png
-          path: vis_f.png
+          name: final
+          path: |
+            hillshade_f.png
+            vis_f.png
