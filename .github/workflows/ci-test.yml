@@ -73,7 +73,7 @@ jobs:
           env | grep ISIS
           pwd
       - name: asap step 2
-        timeout-minutes: 1
+        timeout-minutes: 4
         shell: bash -l {0}
         run: asap ctx step-two
       - name: asap 4 & rescale images for test
