@@ -1356,11 +1356,6 @@ class ASAP(object):
     """
 
     def __init__(self, https=False, datum="D_MARS"):
-        """
-        asap init
-        :param https:
-        :param datum:
-        """
         self.https  = https
         self.hirise = HiRISE(self.https, datum=datum)
         self.ctx    = CTX(self.https, datum=datum)
