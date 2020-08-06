@@ -39,7 +39,11 @@ banner = f"""
        / ___ |___/ / ___ |/ ____/    
       /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
       
+<<<<<<< HEAD
       asap_stereo ({__version__}) 
+=======
+      asap_stereo (0.0.3) 
+>>>>>>> 14fac132240abc63da6f5d859dae66c6cc7d1589
         threads sp: {_threads_singleprocess}
         threads mp: {_threads_multiprocess}
         processes:  {_processes}
@@ -1367,6 +1371,9 @@ class ASAP(object):
         self.common = CommonSteps()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
+
+    def __str__(self):
+        return banner
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
