@@ -125,7 +125,6 @@ def rich_logger(func):
         print(f"""# Started: {name_line}, at: {start_time.isoformat(" ")}""", flush=True)
         # call the function and get the return
         ret = func(*args, **kwargs)
-        print("DEBUG FINISHED in rich logger", flush=True)
         # if we had a running command log out the call
         if ret is not None and isinstance(ret, sh.RunningCommand):
             print(f'# Ran Command: {cmd_to_string(ret)}', flush=True)
@@ -677,34 +676,17 @@ class CTX(object):
         :param with_web: if true attempt to use webservices for SPICE kernel data
         :return:
         """
-        print(f"DEBUG in step 2 {datetime.datetime.now().isoformat(' ')}", flush=True)
         imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
-        print(f"DEBUG in step 2 imgs {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(imgs, datetime.datetime.now().isoformat(' '),  flush=True)
-        _ = self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
-        print(f"DEBUG in step 2 first par do {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(_, datetime.datetime.now().isoformat(' '), flush=True)
+        self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
-        print(cubs, datetime.datetime.now().isoformat(' '), flush=True)
-        _ = self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
-        print(f"DEBUG in step 2 spiceinit par do {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(_, datetime.datetime.now().isoformat(' '), flush=True)
-        _ = self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
-        print(f"DEBUG in step 2 spicefit par do {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(_,datetime.datetime.now().isoformat(' '),  flush=True)
-        _ = self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
-        print(f"DEBUG in step 2 ctxcal par do {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(_, datetime.datetime.now().isoformat(' '), flush=True)
-        lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
-        print(lev1cubs, datetime.datetime.now().isoformat(' '), flush=True)
-        _ = self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
-        print(f"DEBUG in step 2 ctxevenodd par do {datetime.datetime.now().isoformat(' ')}", flush=True)
-        print(_, datetime.datetime.now().isoformat(' '), flush=True)
+        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
+        self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
+        self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
         for cub in cubs:
-            print(cub, datetime.datetime.now().isoformat(' '),  flush=True)
             cub.unlink()
+        lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
+        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
         for lc in lev1cubs:
-            print(lc, datetime.datetime.now().isoformat(' '),  flush=True)
             lc.unlink()
 
     @rich_logger
