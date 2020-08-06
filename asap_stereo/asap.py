@@ -1,3 +1,4 @@
+import sys
 import fire
 import sh
 from sh import Command
@@ -16,7 +17,7 @@ import math
 import json
 import warnings
 import papermill as pm
-
+from ._version import __version__
 here = os.path.dirname(__file__)
 
 cores = os.cpu_count()
@@ -38,7 +39,7 @@ banner = f"""
        / ___ |___/ / ___ |/ ____/    
       /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
       
-      asap_stereo (0.0.3) 
+      asap_stereo ({__version__}) 
         threads sp: {_threads_singleprocess}
         threads mp: {_threads_multiprocess}
         processes:  {_processes}
@@ -1367,9 +1368,6 @@ class ASAP(object):
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
 
-    def __str__(self):
-        return banner
-
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
             self.ctx.step_one(left, right)
@@ -1451,6 +1449,8 @@ class ASAP(object):
 
 
 def main():
+    if len(sys.argv) == 1:
+        print(banner, flush=True)
     fire.Fire(ASAP)
 
 if __name__ == '__main__':
