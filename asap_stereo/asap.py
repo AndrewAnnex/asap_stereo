@@ -1,4 +1,3 @@
-import sys
 import fire
 import sh
 from sh import Command
@@ -17,7 +16,7 @@ import math
 import json
 import warnings
 import papermill as pm
-from ._version import __version__
+
 here = os.path.dirname(__file__)
 
 cores = os.cpu_count()
@@ -28,26 +27,6 @@ _threads_singleprocess = cores # 24, 16
 _threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess > 1 else 1 # 12, 8
 _processes             = _threads_multiprocess // 4 if _threads_multiprocess > 3 else 1 # 3, 2
 
-
-banner = f"""
-
-█████████████████████████████████████████████████████████████
-                                                             
-          ___   _____ ___    ____    
-         /   | / ___//   |  / __ \   
-        / /| | \__ \/ /| | / /_/ /   
-       / ___ |___/ / ___ |/ ____/    
-      /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
-      
-      asap_stereo ({__version__}) 
-        threads sp: {_threads_singleprocess}
-        threads mp: {_threads_multiprocess}
-        processes:  {_processes}
-      
-      Github: https://github.com/AndrewAnnex/asap_stereo
-
-█████████████████████████████████████████████████████████████
-"""
 
 pool = Semaphore(cores)
 
@@ -1359,17 +1338,35 @@ class HiRISE(object):
 
 
 class ASAP(object):
+    """
+    ASAP Stereo Pipeline\n
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____    
+             /   | / ___//   |  / __ \   
+            / /| | \__ \/ /| | / /_/ /   
+           / ___ |___/ / ___ |/ ____/    
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
 
     def __init__(self, https=False, datum="D_MARS"):
+        """
+        asap init
+        :param https:
+        :param datum:
+        """
         self.https  = https
         self.hirise = HiRISE(self.https, datum=datum)
         self.ctx    = CTX(self.https, datum=datum)
         self.common = CommonSteps()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
-
-    def __str__(self):
-        return banner
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         with cd(cwd):
@@ -1450,10 +1447,15 @@ class ASAP(object):
         if not math.isclose(imggsd, demgsd):
             self.hirise.step_eleven(mpp=imggsd, just_ortho=True)
 
+    def info(self):
+        """
+        Get the number of threads and processes as a formatted string
+        :return: str rep of info
+        """
+        return f"threads sp: {_threads_singleprocess}\nthreads mp: {_threads_multiprocess}\nprocesses: {_processes}"
+
 
 def main():
-    if len(sys.argv) == 1:
-        print(banner, flush=True)
     fire.Fire(ASAP)
 
 if __name__ == '__main__':
