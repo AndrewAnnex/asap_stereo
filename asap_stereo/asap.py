@@ -361,8 +361,7 @@ class CommonSteps(object):
     def get_pedr_4_pcalign_w_moody(self, cub_path, proj = None, https=True):
         """
         Python replacement for pedr_bin4pc_align.sh
-        hopefully this will be replaced by a method that queries the mars ODE rest API directly or
-        uses a spatial index on the pedr files for speed
+        that uses moody and the PDS geosciences node REST API
         :param proj: optional projection override
         :param https: optional way to disable use of https
         :param cub_path: path to input file to get query geometry
@@ -480,8 +479,6 @@ class CommonSteps(object):
         Step 1 of parallel stereo
         :param postfix:
         :param stereo_conf:
-        :param left:
-        :param right:
         :param kwargs:
         :return:
         """
@@ -498,8 +495,6 @@ class CommonSteps(object):
         Step 2 of parallel stereo
         :param postfix:
         :param stereo_conf:
-        :param left:
-        :param right:
         :param kwargs:
         :return:
         """
@@ -541,6 +536,14 @@ class CommonSteps(object):
         assert both is not None
         self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
         self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
+
+    def get_pedr_4_pcalign_common(self, postfix, proj, https, pedr_list=None):
+        left, right, both = self.parse_stereopairs()
+        with cd(Path.cwd() / both):
+            if pedr_list:
+                self.get_pedr_4_pcalign(f'{left}{postfix}.cub', pedr_list, proj)
+            else:
+                self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
 
 
 class CTX(object):
@@ -590,19 +593,19 @@ class CTX(object):
         old_ctx_two(stereodirs, max_disp, demgsd, _fg=True)
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, pedr_list: str, config1: str, working_dir ='./', config2: Optional[str] = None, out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', config2: Optional[str] = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
         this command does most of the work, so it is long running!
         I recommend strongly to use nohup with this command
-        :param out_notebook:
-        :param config2:
-        :param working_dir:
-        :param config1:
-        :param pedr_list:
-        :param left:
-        :param right:
+        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_make_dem.ipynb
+        :param config2: ASP config file to use for second processing pass
+        :param working_dir: Where to execute the processing, defaults to current directory
+        :param config1: ASP config file to use for first processing pass
+        :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
+        :param left: First image id
+        :param right: Second image id
         :return:
         """
         if not out_notebook:
@@ -629,11 +632,11 @@ class CTX(object):
 
         this command aligns the CTX DEM produced in step 1 to the Mola Datum
         I recommend strongly to use nohup with this command
-        :param maxdisp:
-        :param demgsd:
-        :param imggsd:
-        :param working_dir:
-        :param out_notebook:
+        :param maxdisp: Maximum expected displacement in meters 
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
+        :param working_dir: Where to execute the processing, defaults to current directory
+        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem.ipynb
         :param kwargs:
         :return:
         """
@@ -654,10 +657,10 @@ class CTX(object):
     @rich_logger
     def step_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
         """
-        Download CTX EDRs
+        Download CTX EDRs from the PDS
 
-        :param one:
-        :param two:
+        :param one: first CTX image id
+        :param two: second CTX image id
         :param cwd:
         :return:
         """
@@ -706,9 +709,9 @@ class CTX(object):
     def step_four(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
-        asp_ctx_lev1eo2dem.sh
+
         Run bundle adjustment on the CTX map projected data
-        :param bundle_adjust_prefix:
+        :param bundle_adjust_prefix: prefix for bundle adjust output
         :return:
         """
         return self.cs.bundle_adjust(postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
@@ -799,9 +802,9 @@ class CTX(object):
     @rich_logger
     def step_ten(self, stereo_conf, refdem=None, **kwargs):
         """
-        second stereo first step
+        Second stereo first step
         :param stereo_conf:
-        :param refdem:
+        :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
         :return:
         """
@@ -821,7 +824,7 @@ class CTX(object):
         """
         second stereo second step
         :param stereo_conf:
-        :param refdem:
+        :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
         :return:
         """
@@ -837,17 +840,13 @@ class CTX(object):
                                            '-s', stereo_conf, f'results_map_ba/{both}_ba', refdem)
 
     @rich_logger
-    def step_twelve(self, pedr_list):
+    def step_twelve(self, pedr_list=None, postfix='.lev1eo.cub'):
         """
-        Run pedr_bin4pc_align
+        Get MOLA PEDR data to align the CTX DEM to
+        :param pedr_list: path local PEDR file list, default None to use REST API
         :return:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        with cd(Path.cwd() / both):
-            if pedr_list:
-                self.cs.get_pedr_4_pcalign(f'{left}.lev1eo.cub', pedr_list, self.proj)
-            else:
-                self.cs.get_pedr_4_pcalign_w_moody(f'{left}.lev1eo.cub', proj=self.proj, https=self.https)
+        self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
     def step_thirteen(self, maxd, pedr4align=None, highest_accuracy=True, **kwargs):
@@ -857,7 +856,7 @@ class CTX(object):
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
         :param highest_accuracy:
-        :param maxd: maximum displacement in meters
+        :param maxd: Maximum expected displacement in meters
         :param pedr4align: path to pedr csv file
         :param kwargs:
         :return:
@@ -975,11 +974,11 @@ class HiRISE(object):
 
         This command does most of the work, so it is long running!
         I recommend strongly to use nohup with this command, even more so for HiRISE!
-        :param out_notebook:
-        :param working_dir:
-        :param config:
-        :param left:
-        :param right:
+        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_make_dem_hirise.ipynb
+        :param working_dir: Where to execute the processing, defaults to current directory
+        :param config:  ASP config file to use for processing
+        :param left: first image id
+        :param right: second image id
         :return:
         """
         if not out_notebook:
@@ -1007,13 +1006,13 @@ class HiRISE(object):
         It will first attempt to do this using point alignment on hillshaded views of the dems.
 
         I recommend strongly to use nohup with this command
-        :param alignment_method:
-        :param refdem:
-        :param maxdisp:
-        :param demgsd:
-        :param imggsd:
-        :param working_dir:
-        :param out_notebook:
+        :param alignment_method: alignment method to use for pc_align
+        :param refdem: path to reference DEM or PEDR csv file
+        :param maxdisp: Maximum expected displacement in meters
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
+        :param working_dir: Where to execute the processing, defaults to current directory
+        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem_hirise.ipynb
         :param kwargs:
         :return:
         """
@@ -1039,8 +1038,8 @@ class HiRISE(object):
         Download HiRISE EDRs
 
         Download two HiRISE images worth of EDR files to two folders
-        :param one:
-        :param two:
+        :param one: first image id
+        :param two: second image id
         :param cwd:
         :return:
         """
@@ -1215,7 +1214,7 @@ class HiRISE(object):
         to find an initial transform
         :param do_resample:  can be: 'gdal' or 'asp' or anything else for no resampling
         :param alignment_method: can be 'similarity' 'rigid' or 'translation'
-        :param refdem:
+        :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
         :return:
         """
@@ -1255,16 +1254,28 @@ class HiRISE(object):
         return cmd_res
 
     @rich_logger
+    def pre_step_ten_pedr(self, pedr_list=None, postfix='_RED.map.cub'):
+        """
+        Use MOLA PEDR data to align the HiRISE DEM to in case no CTX DEM is available
+
+        :param pedr_list: path local PEDR file list, default None to use REST API
+        :param postfix: postfix for the file
+        :return:
+        """
+        self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
+
+    @rich_logger
     def step_ten(self, maxd, refdem, highest_accuracy=True, **kwargs):
         """
         PC Align HiRISE
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
-        :param maxd:
-        :param refdem:
-        :param highest_accuracy:
-        :param kwargs:
+
+        :param maxd: Maximum expected displacement in meters
+        :param refdem: path to reference DEM or PEDR csv file
+        :param highest_accuracy: use highest precision alignment (more memory and cpu intensive)
+        :param kwargs: kwargs to pass to pc_align, use to override ASAP defaults
         :return:
         """
         left, right, both = self.cs.parse_stereopairs()
