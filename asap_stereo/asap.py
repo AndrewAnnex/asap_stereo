@@ -822,7 +822,7 @@ class CTX(object):
     @rich_logger
     def step_eleven(self, stereo_conf, refdem=None, **kwargs):
         """
-        second stereo second step
+        Second stereo second step
         :param stereo_conf:
         :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
@@ -840,9 +840,10 @@ class CTX(object):
                                            '-s', stereo_conf, f'results_map_ba/{both}_ba', refdem)
 
     @rich_logger
-    def step_twelve(self, pedr_list=None, postfix='.lev1eo.cub'):
+    def step_twelve(self, pedr_list=None, postfix='.lev1eo'):
         """
         Get MOLA PEDR data to align the CTX DEM to
+        :param postfix: postfix for file, minus extension
         :param pedr_list: path local PEDR file list, default None to use REST API
         :return:
         """
