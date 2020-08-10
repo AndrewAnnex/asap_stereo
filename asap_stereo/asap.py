@@ -631,19 +631,6 @@ class CTX(object):
                 o.write('\n')
 
     @staticmethod
-    def old_ctx_step_one(stereo: str, ids: str, pedr_list: str, stereo2: Optional[str] = None) -> None:
-        old_ctx_one = Command('ctx_pipeline_part_one.sh')
-        if stereo2:
-            old_ctx_one(stereo, stereo2, ids, pedr_list, _fg=True)
-        else:
-            old_ctx_one(stereo, ids, pedr_list, _fg=True)
-
-    @staticmethod
-    def old_ctx_step_two(stereodirs: str, max_disp: int, demgsd: float) -> None:
-        old_ctx_two = Command('ctx_pipeline_part_two.sh')
-        old_ctx_two(stereodirs, max_disp, demgsd, _fg=True)
-
-    @staticmethod
     def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', config2: Optional[str] = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
@@ -1045,20 +1032,6 @@ class HiRISE(object):
             for pid in order:
                 o.write(pid)
                 o.write('\n')
-
-    @staticmethod
-    def old_hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
-        """
-
-        :param stereodirs:
-        :param max_disp:
-        :param ref_dem:
-        :param demgsd:
-        :param imggsd:
-        :return:
-        """
-        old_hirise_two = Command('hirise_pipeline_part_two.sh')
-        old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
     @staticmethod
     def notebook_pipeline_make_dem(left: str, right: str, config: str, working_dir ='./', out_notebook=None, **kwargs):
