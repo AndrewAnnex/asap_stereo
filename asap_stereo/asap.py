@@ -220,7 +220,6 @@ class CommonSteps(object):
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
         self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
-        self.pedr_bin4pc_align = Command('pedr_bin4pc_align.sh').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
