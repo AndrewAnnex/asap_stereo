@@ -94,6 +94,11 @@ def kwargs_to_args(kwargs: Dict)-> List:
     return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x]
 
 def isis3_to_dict(instr: str)-> Dict:
+    """
+    Given a stdout string from ISIS3, return a Dict version
+    :param instr:
+    :return:
+    """
     groups = re.findall(r'Group([\S\s]*?)End_Group', instr)
     out = {}
     for group in groups:
@@ -136,7 +141,46 @@ def rich_logger(func):
     return wrapper
 
 
+def par_do(func, all_calls_args):
+    """
+    Parallel execution helper function for sh.py Commands
+    :param func: func to call
+    :param all_calls_args: args to pass to each call of the func
+    :return: list of called commands
+    """
+    procs = []
+
+    def do(*args):
+        pool.acquire()
+        return func(*args, _bg=True, _done=done)
+
+    for call_args in all_calls_args:
+        if ' ' in call_args:
+            # if we are running a command with multiple args, sh needs different strings
+            call_args = call_args.split(' ')
+            procs.append(do(*call_args))
+        else:
+            procs.append(do(call_args))
+
+    return [p.wait() for p in procs]
+
 class CommonSteps(object):
+    """
+    ASAP Stereo Pipeline - Common Commands\n
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
 
     # defaults for first 3 steps parallel stereo
     defaults_ps1 = {
@@ -162,24 +206,6 @@ class CommonSteps(object):
         "IAU_Moon": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=1737400 +b=1737400 +units=m +no_defs",
         "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
     }
-
-    @staticmethod
-    def par_do(func, all_calls_args):
-        procs = []
-
-        def do(*args):
-            pool.acquire()
-            return func(*args, _bg=True, _done=done)
-
-        for call_args in all_calls_args:
-            if ' ' in call_args:
-                # if we are running a command with multiple args, sh needs different strings
-                call_args = call_args.split(' ')
-                procs.append(do(*call_args))
-            else:
-                procs.append(do(call_args))
-
-        return [p.wait() for p in procs]
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
@@ -287,12 +313,26 @@ class CommonSteps(object):
 
     @staticmethod
     def get_img_crs(img):
+        """
+        Get CRS of the image
+
+        uses rasterio
+        :param img: path to image
+        :return: CRX of image
+        """
         import rasterio as rio
         with rio.open(img) as i:
             return i.crs
 
     @staticmethod
     def get_img_bounds(img):
+        """
+        Get the bounds of the image
+
+        uses rasterio
+        :param img: path to image
+        :return: bounds tuple
+        """
         import rasterio as rio
         with rio.open(img) as i:
             return i.bounds
@@ -450,19 +490,15 @@ class CommonSteps(object):
             sh.echo("#Latitude,Longitude,Datum_Elevation,Easting,Northing,Orbit", _out=f'./{out_name}_pedr4align.csv')
             # run through a bunch of steps, please re-write this in python!
             sh.awk(sh.sed(proj_tab, 's/\\t/,/g'),'-F,','{print($5","$4","$3","$1","$2","$6)}', _out=f'./{out_name}_pedr4align.csv')
-            # clean up files
-            #sh.rm(f'./{out_name}_pedr.tab')
-            #sh.rm(f'./{out_name}_pedr.asc')
-            # ## TODO: Add functionality to build VRT for CSV and then convert to shapefile using ogr2ogr
 
     @rich_logger
     def bundle_adjust(self, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Bundle adjustment wrapper
-        :param postfix:
-        :param bundle_adjust_prefix:
-        :param kwargs:
-        :return:
+        :param postfix: postfix of images to bundle adjust
+        :param bundle_adjust_prefix: where to save out bundle adjust results
+        :param kwargs: kwargs to pass to bundle_adjust
+        :return: RunningCommand
         """
         defaults = {
             '--datum': "D_MARS",
@@ -526,9 +562,8 @@ class CommonSteps(object):
 
     def rescale_and_overwrite(self, factor, postfix='.lev1eo.cub'):
         """
-        # todo: par do this
         Rescale the left and right images
-        :param factor:
+        :param factor: factor to reduce each dimension by
         :param postfix: file postfix
         :return:
         """
@@ -547,6 +582,22 @@ class CommonSteps(object):
 
 
 class CTX(object):
+    """
+    ASAP Stereo Pipeline - CTX workflow\n
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
 
     def __init__(self, https=False, datum="D_MARS", proj: Optional[str] = None):
         self.cs = CommonSteps()
@@ -674,28 +725,28 @@ class CTX(object):
     def step_two(self, with_web=False):
         """
         ISIS3 CTX preprocessing
+
         replaces ctxedr2lev1eo.sh
         :param with_web: if true attempt to use webservices for SPICE kernel data
         :return:
         """
         imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
-        self.cs.par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
-        self.cs.par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
-        self.cs.par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
-        self.cs.par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
+        par_do(self.cs.spiceinit, [f'from={c.name}{" web=yes" if with_web else ""}' for c in cubs])
+        par_do(self.cs.spicefit, [f'from={c.name}' for c in cubs])
+        par_do(self.cs.ctxcal, [f'from={c.name} to={c.stem}.lev1.cub' for c in cubs])
         for cub in cubs:
             cub.unlink()
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
-        self.cs.par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
+        par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
         for lc in lev1cubs:
             lc.unlink()
 
     @rich_logger
     def step_three(self):
         """
-        Do a bunch of checks for asp_ctx_lev1eo2dem.sh
-        :return:
+        Create various processing files for future steps
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
@@ -932,6 +983,22 @@ class CTX(object):
             return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
 
 class HiRISE(object):
+    """
+    ASAP Stereo Pipeline - HiRISE workflow\n
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
 
     def __init__(self, https=False, threads=cores, datum="D_MARS", proj: Optional[str] = None):
         self.https = https
@@ -946,9 +1013,20 @@ class HiRISE(object):
         self.proj = CommonSteps.projections.get(proj, proj)
 
     def get_hirise_emission_angle(self, pid):
+        """
+        Use moody to get the emission angle of the provided HiRISE image id
+        :param pid: HiRISE image id
+        :return:
+        """
         return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
 
     def get_hirise_order(self, one, two):
+        """
+        Get the image ids sorted by lower emission angle
+        :param one: first image
+        :param two: second image
+        :return: tuple of sorted images
+        """
         em_one = self.get_hirise_emission_angle(one)
         em_two = self.get_hirise_emission_angle(two)
         if em_one <= em_two:
@@ -957,6 +1035,11 @@ class HiRISE(object):
             return two, one
 
     def generate_hirise_pair_list(self, one, two):
+        """
+        Generate the hirise pair.lis file for future steps
+        :param one: first image id
+        :param two: second image id
+        """
         order = self.get_hirise_order(one, two)
         with open('pair.lis', 'w', encoding='utf') as o:
             for pid in order:
@@ -965,6 +1048,15 @@ class HiRISE(object):
 
     @staticmethod
     def old_hirise_step_two(stereodirs: str, max_disp: int, ref_dem: str, demgsd: float, imggsd: float) -> None:
+        """
+
+        :param stereodirs:
+        :param max_disp:
+        :param ref_dem:
+        :param demgsd:
+        :param imggsd:
+        :return:
+        """
         old_hirise_two = Command('hirise_pipeline_part_two.sh')
         old_hirise_two(stereodirs, max_disp, ref_dem, demgsd, imggsd, _fg=True)
 
@@ -1105,7 +1197,7 @@ class HiRISE(object):
     @rich_logger
     def step_five(self):
         """
-        Cam2map4Stereo
+        Map project HiRISE data for stereo processing
 
         Run cam2map4stereo on the data
         :return:
@@ -1194,7 +1286,7 @@ class HiRISE(object):
     def _gdal_hirise_rescale(self, mpp):
         """
         Hillshade using gdaldem instead of asp
-        #todo this just rescales the image, did I forget to hillshade or does pc_align do that for me?
+
         :param mpp:
         :return:
         """
