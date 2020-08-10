@@ -1376,6 +1376,15 @@ class ASAP(object):
         self.get_map_info = self.common.get_map_info
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
+        """
+        Run first stage of CTX pipeline
+
+        This command runs steps 1-3 of the CTX pipeline
+
+        :param left: left image id
+        :param right: right image id
+        :param cwd: directory to run process within (default to CWD)
+        """
         with cd(cwd):
             self.ctx.step_one(left, right)
             # ctxedr2lev1eo steps
@@ -1384,6 +1393,16 @@ class ASAP(object):
             self.ctx.step_three()
 
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
+        """
+        Run Second stage of CTX pipeline
+
+        This command runs steps 4-12 of the CTX pipeline
+
+        :param stereo: ASP stereo config file to use
+        :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
+        :param stereo2: 2nd ASP stereo config file to use, if none use first stereo file again
+        :param cwd: directory to run process within (default to CWD)
+        """
         with cd(cwd):
             self.ctx.step_four()
             self.ctx.step_five(stereo)
@@ -1398,18 +1417,33 @@ class ASAP(object):
             self.ctx.step_eight(folder='results_map_ba')
             self.ctx.step_twelve(pedr_list)
 
-    def ctx_three(self, max_disp, demgsd: float = 24, cwd: Optional[str] = None, **kwargs) -> None:
+    def ctx_three(self, max_disp, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
+        """
+        Run third and final stage of the CTX pipeline
+
+        This command runs steps 13-15 of the CTX pipeline
+
+        :param max_disp: Maximum expected displacement in meters
+        :param demgsd: GSD of final Dem, default is 1 mpp
+        :param imggsd: GSD of full res image
+        :param cwd: directory to run process within (default to CWD)
+        :param kwargs:
+        """
         with cd(cwd):
             self.ctx.step_thirteen(max_disp, **kwargs)
             self.ctx.step_fourteen(mpp=demgsd, **kwargs)
             self.ctx.step_fifteen(**kwargs)
-            self.ctx.step_fourteen(mpp=6, just_ortho=True, **kwargs)
+            # go back and make final orthos and such
+            self.ctx.step_fourteen(mpp=imggsd, just_ortho=True, **kwargs)
             self.ctx.step_eight(folder='results_map_ba', output_folder='dem_align')
 
     def hirise_one(self, left, right):
         """
         Download the EDR data from the PDS, requires two HiRISE Id's
         (order left vs right does not matter)
+
+        This command runs step 1 of the HiRISE pipeline
+
         :param left: HiRISE Id
         :param right: HiRISE Id
         """
@@ -1420,11 +1454,13 @@ class ASAP(object):
         Run various calibration steps then:
         bundle adjust, produce DEM, render low res version for inspection
         This will take a while (sometimes over a day), use nohup!
-        :param stereo:
-        :param mpp:
-        :param bundle_adjust_prefix:
-        :param max_iterations:
-        :return:
+
+        This command runs steps 2-9 of the HiRISE pipeline
+
+        :param stereo: ASP stereo config file to use
+        :param mpp: preview DEM GSD, defaults to 2 mpp
+        :param bundle_adjust_prefix: bundle adjust prefix, defaults to 'adjust/ba'
+        :param max_iterations: number of iterations for HiRISE bundle adjustment, defaults to 50
         """
         self.hirise.step_two()
         self.hirise.step_three()
@@ -1440,11 +1476,13 @@ class ASAP(object):
         Given estimate of max disparity between reference elevation model
         and HiRISE output, run point cloud alignment and
         produce the final DEM/ORTHO data products.
-        :param max_disp: Disparity in meters
-        :param ref_dem: absolute path the reference dem
+
+        This command runs steps 10-12 of the HiRISE pipeline
+
+        :param max_disp: Maximum expected displacement in meters
+        :param ref_dem: Absolute path the reference dem
         :param demgsd: GSD of final Dem, default is 1 mpp
         :param imggsd: GSD of full res image
-        :return:
         """
         self.hirise.step_ten(max_disp, ref_dem, **kwargs)
         self.hirise.step_eleven(mpp=demgsd, **kwargs)
