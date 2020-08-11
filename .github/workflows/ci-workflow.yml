@@ -27,4 +27,8 @@ jobs:
           conda list
       - name: test for asap
         shell: bash -l {0}
-        run: asap
+        run: |
+          asap
+          asap ctx
+          asap hirise
+          asap common

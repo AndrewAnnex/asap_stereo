@@ -25,22 +25,6 @@ setup(
 
     install_requires=['requests', 'fire', 'moody>=0.0.4', 'sh', 'papermill', 'rasterio', 'pyproj'],
 
-    scripts = [
-        'asap_stereo/asp_tools/ctx/asp_ctx_lev1eo2dem.sh',
-        'asap_stereo/asp_tools/ctx/ctx_pipeline_part_one.sh',
-        'asap_stereo/asp_tools/ctx/pedr_bin4pc_align.sh',
-        'asap_stereo/asp_tools/ctx/asp_ctx_map_ba_pc_align2dem.sh',
-        'asap_stereo/asp_tools/ctx/ctx_pipeline_part_two.sh',
-        'asap_stereo/asp_tools/ctx/asp_ctx_step2_map2dem.sh',
-        'asap_stereo/asp_tools/ctx/ctxedr2lev1eo.sh',
-        'asap_stereo/asp_tools/hirise/asp_hirise_map2dem.sh',
-        'asap_stereo/asp_tools/hirise/asp_hirise_prep.sh',
-        'asap_stereo/asp_tools/hirise/hirise_pipeline_part_two.sh',
-        'asap_stereo/asp_tools/hirise/asp_hirise_pc_align2dem.sh',
-        'asap_stereo/asp_tools/hirise/hirise_pipeline_part_one.sh',
-        'asap_stereo/asp_tools/hirise/pedr_bin4pc_align_hirise.sh',
-    ],
-
     entry_points={
         'console_scripts': [
             'asap = asap_stereo.asap:main'
