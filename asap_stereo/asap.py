@@ -7,7 +7,7 @@ import os
 import sys
 import datetime
 import itertools
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple, Union, Callable
 import moody
 import re
 from pathlib import Path
@@ -55,11 +55,12 @@ def silent_cd(newdir):
     finally:
         os.chdir(prevdir)
 
-def cmd_to_string(command: sh.RunningCommand):
+def cmd_to_string(command: sh.RunningCommand) -> str:
     """
     Converts the running command into a single string of the full command call for easier logging
-    :param command:
-    :return:
+    
+    :param command: a command from sh.py that was run
+    :return: string of bash command
     """
     return  " ".join((_.decode("utf-8") for _ in command.cmd))
 
@@ -96,8 +97,9 @@ def kwargs_to_args(kwargs: Dict)-> List:
 def isis3_to_dict(instr: str)-> Dict:
     """
     Given a stdout string from ISIS3, return a Dict version
+    
     :param instr:
-    :return:
+    :return: dictionary of isis output
     """
     groups = re.findall(r'Group([\S\s]*?)End_Group', instr)
     out = {}
@@ -107,7 +109,13 @@ def isis3_to_dict(instr: str)-> Dict:
         out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
     return out
 
-def rich_logger(func):
+def rich_logger(func: Callable):
+    """
+    rich logger decorator, wraps a function and writes nice log statements
+    
+    :param func: function to wrap
+    :return: wrapped function
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = datetime.datetime.now()
@@ -144,6 +152,7 @@ def rich_logger(func):
 def par_do(func, all_calls_args):
     """
     Parallel execution helper function for sh.py Commands
+    
     :param func: func to call
     :param all_calls_args: args to pass to each call of the func
     :return: list of called commands
@@ -165,8 +174,9 @@ def par_do(func, all_calls_args):
     return [p.wait() for p in procs]
 
 class CommonSteps(object):
-    """
-    ASAP Stereo Pipeline - Common Commands\n
+    r"""
+    ASAP Stereo Pipeline - Common Commands
+
     █████████████████████████████████████████████████████████████
 
               ___   _____ ___    ____
@@ -234,6 +244,12 @@ class CommonSteps(object):
 
     @staticmethod
     def get_cam_info(img) -> Dict:
+        """
+        Get the camera information dictionary from ISIS using camrange
+
+        :param img: path to image as a string
+        :return: dictionary of info
+        """
         wd = str(Path(img).absolute().parent)
         with silent_cd(wd):
             # currently have to cd into the directory to minify the length
@@ -370,10 +386,10 @@ class CommonSteps(object):
     def crop_by_buffer(self, img1, img2, factor=2.0):
         """
         use gdal warp to crop img2 by a buffer around img1
-        :param img1:
-        :param img2:
-        :param factor:
-        :return:
+
+        :param img1: first image defines buffer area
+        :param img2: second image is cropped by buffer from first
+        :param factor: factor to buffer with
         """
         xmin, ymin, xmax, ymax = self.transform_bounds_and_buffer(img1, img2, factor=factor)
         img2_path = Path(img2).absolute()
@@ -383,9 +399,9 @@ class CommonSteps(object):
     def check_mpp_against_true_gsd(self, path, mpp):
         """
         Get the GSD of the image, and warn if it is less than 3 * the gsd
+
         :param path: path to image
         :param mpp: proposed mpp for image
-        :return:
         """
         true_gsd = self.get_image_gsd(path)
         if mpp < true_gsd * 3:
@@ -393,7 +409,13 @@ class CommonSteps(object):
                           category=RuntimeWarning)
 
     @staticmethod
-    def get_mpp_postfix(mpp):
+    def get_mpp_postfix(mpp: Union[int, float, str]) -> str:
+        """
+        get the mpp postfix
+
+        :param mpp: mpp value
+        :return: postfix as a string
+        """
         return str(float(mpp)).replace('.', '_')
 
     @rich_logger
@@ -401,10 +423,10 @@ class CommonSteps(object):
         """
         Python replacement for pedr_bin4pc_align.sh
         that uses moody and the PDS geosciences node REST API
+
         :param proj: optional projection override
         :param https: optional way to disable use of https
         :param cub_path: path to input file to get query geometry
-        :return:
         """
         cub_path = Path(cub_path).absolute()
         out_name = cub_path.parent.name
@@ -430,9 +452,9 @@ class CommonSteps(object):
         Python replacement for pedr_bin4pc_align.sh
         hopefully this will be replaced by a method that queries the mars ODE rest API directly or
         uses a spatial index on the pedr files for speed
+
         :param cub_path:
         :param pedr_path:
-        :return:
         """
         from string import Template
         from textwrap import dedent
@@ -494,6 +516,7 @@ class CommonSteps(object):
     def bundle_adjust(self, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Bundle adjustment wrapper
+
         :param postfix: postfix of images to bundle adjust
         :param bundle_adjust_prefix: where to save out bundle adjust results
         :param kwargs: kwargs to pass to bundle_adjust
@@ -512,10 +535,10 @@ class CommonSteps(object):
     def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
         """
         Step 1 of parallel stereo
+
         :param postfix:
         :param stereo_conf:
         :param kwargs:
-        :return:
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
@@ -528,10 +551,10 @@ class CommonSteps(object):
     def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
         """
         Step 2 of parallel stereo
+
         :param postfix:
         :param stereo_conf:
         :param kwargs:
-        :return:
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
@@ -549,8 +572,7 @@ class CommonSteps(object):
         :param src_file: path to src cub file
         :param factor: reduction factor (number [lines, samples] / factor)
         :param overwrite: if true overwrite the src file
-        :param dst_file: destination file name, append "rescaled_" if not specified
-        :return:
+        :param dst_file: destination file name, append `rescaled_` if not specified
         """
         c = Path(src_file)
         if not dst_file:
@@ -562,9 +584,9 @@ class CommonSteps(object):
     def rescale_and_overwrite(self, factor, postfix='.lev1eo.cub'):
         """
         Rescale the left and right images
+
         :param factor: factor to reduce each dimension by
         :param postfix: file postfix
-        :return:
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
@@ -581,8 +603,9 @@ class CommonSteps(object):
 
 
 class CTX(object):
-    """
-    ASAP Stereo Pipeline - CTX workflow\n
+    r"""
+    ASAP Stereo Pipeline - CTX workflow
+
     █████████████████████████████████████████████████████████████
 
               ___   _____ ___    ____
@@ -636,6 +659,7 @@ class CTX(object):
 
         this command does most of the work, so it is long running!
         I recommend strongly to use nohup with this command
+        
         :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_make_dem.ipynb
         :param config2: ASP config file to use for second processing pass
         :param working_dir: Where to execute the processing, defaults to current directory
@@ -643,7 +667,6 @@ class CTX(object):
         :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
         :param left: First image id
         :param right: Second image id
-        :return:
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
@@ -669,13 +692,13 @@ class CTX(object):
 
         this command aligns the CTX DEM produced in step 1 to the Mola Datum
         I recommend strongly to use nohup with this command
+
         :param maxdisp: Maximum expected displacement in meters 
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
         :param working_dir: Where to execute the processing, defaults to current directory
         :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem.ipynb
         :param kwargs:
-        :return:
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem.ipynb'
@@ -699,7 +722,6 @@ class CTX(object):
         :param one: first CTX image id
         :param two: second CTX image id
         :param cwd:
-        :return:
         """
         with cd(cwd):
             self.generate_ctx_pair_list(one, two)
@@ -710,11 +732,9 @@ class CTX(object):
     @rich_logger
     def step_two(self, with_web=False):
         """
-        ISIS3 CTX preprocessing
+        ISIS3 CTX preprocessing, replaces ctxedr2lev1eo.sh
 
-        replaces ctxedr2lev1eo.sh
         :param with_web: if true attempt to use webservices for SPICE kernel data
-        :return:
         """
         imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
         par_do(self.cs.mroctx2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
@@ -748,8 +768,8 @@ class CTX(object):
         Bundle Adjust CTX
 
         Run bundle adjustment on the CTX map projected data
+
         :param bundle_adjust_prefix: prefix for bundle adjust output
-        :return:
         """
         return self.cs.bundle_adjust(postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
@@ -777,10 +797,10 @@ class CTX(object):
         Produce preview DEMs/Orthos
 
         Produce dem from point cloud, by default 24mpp for ctx for max-disparity estimation
+
         :param folder:
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = self.cs.get_mpp_postfix(mpp)
@@ -807,10 +827,10 @@ class CTX(object):
     def step_eight(self, folder='results_ba', output_folder='dem'):
         """
         hillshade First step in asp_ctx_step2_map2dem script
+
         :param output_folder:
         :param folder:
         :param mpp:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / folder / output_folder):
@@ -821,9 +841,9 @@ class CTX(object):
     def step_nine(self, refdem=None, mpp=6):
         """
         Mapproject the left and right ctx images against the reference DEM
+
         :param refdem: reference dem to map project using
         :param mpp: target GSD
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
@@ -840,10 +860,10 @@ class CTX(object):
     def step_ten(self, stereo_conf, refdem=None, **kwargs):
         """
         Second stereo first step
+
         :param stereo_conf:
         :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         stereo_conf = Path(stereo_conf).absolute()
@@ -860,10 +880,10 @@ class CTX(object):
     def step_eleven(self, stereo_conf, refdem=None, **kwargs):
         """
         Second stereo second step
+
         :param stereo_conf:
         :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         stereo_conf = Path(stereo_conf).absolute()
@@ -880,9 +900,9 @@ class CTX(object):
     def step_twelve(self, pedr_list=None, postfix='.lev1eo'):
         """
         Get MOLA PEDR data to align the CTX DEM to
+
         :param postfix: postfix for file, minus extension
         :param pedr_list: path local PEDR file list, default None to use REST API
-        :return:
         """
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
@@ -893,11 +913,11 @@ class CTX(object):
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
+
         :param highest_accuracy:
         :param maxd: Maximum expected displacement in meters
         :param pedr4align: path to pedr csv file
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         defaults = {
@@ -920,11 +940,11 @@ class CTX(object):
         Produce final DEMs/Orthos
 
         Run point2dem on the aligned output to produce final science ready products
+
         :param mpp:
         :param just_ortho:
         :param output_folder:
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(mpp)).replace('.', '_')
@@ -960,7 +980,6 @@ class CTX(object):
         Run geoid adjustment on dem for final science ready product
         :param output_folder:
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results_map_ba' / output_folder):
@@ -969,8 +988,9 @@ class CTX(object):
             return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
 
 class HiRISE(object):
-    """
-    ASAP Stereo Pipeline - HiRISE workflow\n
+    r"""
+    ASAP Stereo Pipeline - HiRISE workflow
+
     █████████████████████████████████████████████████████████████
 
               ___   _____ ___    ____
@@ -998,21 +1018,25 @@ class HiRISE(object):
         # otherwise it's a none so remain a none
         self.proj = CommonSteps.projections.get(proj, proj)
 
-    def get_hirise_emission_angle(self, pid):
+    def get_hirise_emission_angle(self, pid: str)-> float:
         """
         Use moody to get the emission angle of the provided HiRISE image id
+
         :param pid: HiRISE image id
-        :return:
+        :return: emission angle
         """
+
         return float(moody.ODE(self.https).get_hirise_meta_by_key(f'{pid}_R*', 'Emission_angle'))
 
-    def get_hirise_order(self, one, two):
+    def get_hirise_order(self, one: str, two: str) -> Tuple[str, str]:
         """
         Get the image ids sorted by lower emission angle
+
         :param one: first image
         :param two: second image
         :return: tuple of sorted images
         """
+
         em_one = self.get_hirise_emission_angle(one)
         em_two = self.get_hirise_emission_angle(two)
         if em_one <= em_two:
@@ -1023,6 +1047,7 @@ class HiRISE(object):
     def generate_hirise_pair_list(self, one, two):
         """
         Generate the hirise pair.lis file for future steps
+
         :param one: first image id
         :param two: second image id
         """
@@ -1039,12 +1064,12 @@ class HiRISE(object):
 
         This command does most of the work, so it is long running!
         I recommend strongly to use nohup with this command, even more so for HiRISE!
+
         :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_make_dem_hirise.ipynb
         :param working_dir: Where to execute the processing, defaults to current directory
         :param config:  ASP config file to use for processing
         :param left: first image id
         :param right: second image id
-        :return:
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
@@ -1067,10 +1092,9 @@ class HiRISE(object):
         Second and final step in HiRISE DEM pipeline that uses papermill to persist log
 
         This pipeline aligns the HiRISE DEM produced to an input DEM, typically a CTX DEM.
-
         It will first attempt to do this using point alignment on hillshaded views of the dems.
-
         I recommend strongly to use nohup with this command
+
         :param alignment_method: alignment method to use for pc_align
         :param refdem: path to reference DEM or PEDR csv file
         :param maxdisp: Maximum expected displacement in meters
@@ -1079,7 +1103,6 @@ class HiRISE(object):
         :param working_dir: Where to execute the processing, defaults to current directory
         :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem_hirise.ipynb
         :param kwargs:
-        :return:
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem_hirise.ipynb'
@@ -1103,10 +1126,10 @@ class HiRISE(object):
         Download HiRISE EDRs
 
         Download two HiRISE images worth of EDR files to two folders
+
         :param one: first image id
         :param two: second image id
         :param cwd:
-        :return:
         """
         with cd(cwd):
             self.generate_hirise_pair_list(one, two)
@@ -1125,7 +1148,7 @@ class HiRISE(object):
         Metadata init
 
         Create various files with info for later steps
-        :return:
+
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
@@ -1138,7 +1161,7 @@ class HiRISE(object):
         Hiedr2mosaic preprocessing
 
         Run hiedr2mosaic on all the data
-        :return:
+
         """
 
         def hiedr2mosaic(*im):
@@ -1160,7 +1183,7 @@ class HiRISE(object):
         Move hieder2mosaic files
 
         Move the hiedr2mosaic output to the location needed for cam2map4stereo
-        :return:
+
         """
         left, right, both = self.cs.parse_stereopairs()
         sh.mv(next(Path(f'./{left}/').glob(f'{left}*.mos_hijitreged.norm.cub')), both)
@@ -1172,7 +1195,7 @@ class HiRISE(object):
         Map project HiRISE data for stereo processing
 
         Run cam2map4stereo on the data
-        :return:
+
         """
 
         def par_cam2map(argstring):
@@ -1202,9 +1225,8 @@ class HiRISE(object):
         Bundle Adjust HiRISE
 
         Run bundle adjustment on the HiRISE map projected data
+
         :param bundle_adjust_prefix:
-        :param max_iterations:
-        :return:
         """
         return self.cs.bundle_adjust(postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
@@ -1232,9 +1254,9 @@ class HiRISE(object):
         Produce preview DEMs/Orthos
 
         Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
+
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = self.cs.get_mpp_postfix(mpp)
@@ -1260,7 +1282,6 @@ class HiRISE(object):
         Hillshade using gdaldem instead of asp
 
         :param mpp:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         mpp_postfix = self.cs.get_mpp_postfix(mpp)
@@ -1277,11 +1298,11 @@ class HiRISE(object):
 
         Automates the procedure to use ipmatch on hillshades of downsampled HiRISE DEM
         to find an initial transform
+
         :param do_resample:  can be: 'gdal' or 'asp' or anything else for no resampling
         :param alignment_method: can be 'similarity' 'rigid' or 'translation'
         :param refdem: path to reference DEM or PEDR csv file
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         defaults = {
@@ -1325,7 +1346,6 @@ class HiRISE(object):
 
         :param pedr_list: path local PEDR file list, default None to use REST API
         :param postfix: postfix for the file
-        :return:
         """
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
@@ -1341,7 +1361,6 @@ class HiRISE(object):
         :param refdem: path to reference DEM or PEDR csv file
         :param highest_accuracy: use highest precision alignment (more memory and cpu intensive)
         :param kwargs: kwargs to pass to pc_align, use to override ASAP defaults
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         defaults = {
@@ -1364,11 +1383,11 @@ class HiRISE(object):
         Produce final DEMs/Orthos
 
         Run point2dem on the aligned output to produce final science ready products
-        :param mpp:
-        :param just_ortho:
-        :param output_folder:
-        :param kwargs:
-        :return:
+
+        :param mpp: Desired GSD (meters per pixel)
+        :param just_ortho: if True, just render out the ortho images
+        :param output_folder: output folder name
+        :param kwargs: any other kwargs you want to pass to point2dem
         """
         left, right, both = self.cs.parse_stereopairs()
         gsd_postfix = str(float(mpp)).replace('.', '_')
@@ -1402,9 +1421,9 @@ class HiRISE(object):
         Adjust DEM to geoid
 
         Run geoid adjustment on dem for final science ready product
+
         :param output_folder:
         :param kwargs:
-        :return:
         """
         left, right, both = self.cs.parse_stereopairs()
         with cd(Path.cwd() / both / 'results_ba' / output_folder):
@@ -1414,15 +1433,16 @@ class HiRISE(object):
 
 
 class ASAP(object):
-    """
-    ASAP Stereo Pipeline\n
-    █████████████████████████████████████████████████████████████
+    r"""
+    ASAP Stereo Pipeline
 
-              ___   _____ ___    ____    
-             /   | / ___//   |  / __ \   
-            / /| | \__ \/ /| | / /_/ /   
-           / ___ |___/ / ___ |/ ____/    
-          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂 
+    █████████████████████████████████████████████████████████████
+                                                                 
+              ___   _____ ___    ____                            
+             /   | / ___//   |  / __ \                           
+            / /| | \__ \/ /| | / /_/ /                           
+           / ___ |___/ / ___ |/ ____/                            
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂               
 
           asap_stereo (0.0.4)
 
@@ -1559,6 +1579,7 @@ class ASAP(object):
     def info(self):
         """
         Get the number of threads and processes as a formatted string
+
         :return: str rep of info
         """
         return f"threads sp: {_threads_singleprocess}\nthreads mp: {_threads_multiprocess}\nprocesses: {_processes}"
