@@ -10,12 +10,7 @@ dependencies:
   - nb_conda_kernels
   - jupyterlab
   - numpy
-  - sh
   - sphinx==3.1.2
-  - papermill
-  - pyproj
-  - tqdm
-  - fire
   - requests
   - pip
   - pip:
@@ -23,3 +18,8 @@ dependencies:
     - sphinx_autodoc_typehints
     - moody>=0.0.4
     - rasterio
+    - pyproj
+    - papermill
+    - sh
+    - tqdm
+    - fire
