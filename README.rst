@@ -1,6 +1,10 @@
 ASAP-Stereo (Ames Stereo Automated Pipeline)
 =============================================
 
+.. image:: https://readthedocs.org/projects/asap-stereo/badge/?version=main
+   :target: https://asap-stereo.readthedocs.io/en/main/?badge=main
+   :alt: Documentation Status
+
 ASAP-Stereo is workflow wrapper for the `NASA Ames Stereo Pipeline`_, it is a reimplementation of the `asp_scripts`_ workflow to produce
 co-registered CTX and HiRISE Digital Elevation Models (DEMs) from stereo image pairs in python and jupyter notebooks.
 
