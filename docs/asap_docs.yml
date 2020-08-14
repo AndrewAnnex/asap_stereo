@@ -1,14 +1,9 @@
 name: asap_docs
 channels:
-  - nasa-ames-stereo-pipeline
-  - usgs-astrogeology
   - conda-forge
   - defaults
 dependencies:
   - python=3.6
-  - stereo-pipeline==2.7.0
-  - nb_conda_kernels
-  - jupyterlab
   - numpy
   - sphinx==3.1.2
   - requests
