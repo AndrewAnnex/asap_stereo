@@ -8,11 +8,12 @@ Welcome to ASAP-Stereo's documentation!
 
 .. toctree::
    :caption: Contents:
-   :maxdepth: 3
+   :maxdepth: 2
 
    intro
    install
    documentation
+   tutorial
 
 
 
