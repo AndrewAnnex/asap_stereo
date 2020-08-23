@@ -152,7 +152,7 @@ Step 8: Make GoodPixelMap and Hillshade Previews
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We make image previews of the DEM using the next few steps to check for issues with our first pass DEM.
-First we will render out the goodpixelmap image and then the hillshade of the DEM to look for issues with the topography.
+First we will render out the good pixel map image and then the hillshade of the DEM to look for issues with the topography.
 
 .. code:: ipython3
 
@@ -201,20 +201,35 @@ Display the image in the notebook.
 Step 9: Mapproject ctx against 100m DEM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+We now map-project our ctx images against our low resolution DEM to reduce image distortion for our 2nd pass DEM.
+
 .. code:: ipython3
 
     !asap ctx step-nine 2>&1 | tee -i -a ./5_mapproject_to_100m_dem.log ./full_log.log
 
-Calculate Better DEM using prior
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 10: Stereo second run (steps 1-3 of stereo in ASP)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Same as step 5, just using the new map projected images this time.
 
 .. code:: ipython3
 
     !asap ctx step-ten {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
 
+Step 11: Stereo second run (step 4 of stereo in ASP)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Same as step 6, just using the new map projected images this time.
+
 .. code:: ipython3
 
     !asap ctx step-eleven {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
+
+Step 7&8 again: create preview DEMs and Hillshade
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We have made our second point cloud, so we should export some visuals as before.
+The parameter '--folder' just specifies that we are saving things into a different directory this time around.
 
 .. code:: ipython3
 
@@ -224,16 +239,22 @@ Calculate Better DEM using prior
 
     !asap ctx step-eight --folder results_map_ba
 
-Get PEDR Shots for PC alignment (Step 5)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 12: Get PEDR Shots for PC alignment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The final important step in the make_dem workflow is to get the MOLA PEDR data for the region we care about.
+Again, our data is not completely done until it has been aligned to the MOLA topography.
+If we had GCPs in the bundle adjust stage this would not be as big of an issue, but since it is relatively easy to align to MOLA we don't
+need to go through the process of producing GCPs.
 
 .. code:: ipython3
 
     !asap ctx step-twelve {pedr_list}  2>&1 | tee -i -a ./7_pedr_for_pc_align.log ./full_log.log
 
+Make Final GoodPixelMap and Hillshade Previews
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Good Pixel Preview
-##################
+Nothing too surprising here, just export PNG versions of the images we care about to see the DEM at this stage of the processing.
 
 .. code:: ipython3
 
@@ -249,9 +270,6 @@ Good Pixel Preview
 
     Image(filename=out)
 
-Hillshade of higher res DEM
-###########################
-
 .. code:: ipython3
 
     both = f'{left}_{right}'
@@ -266,6 +284,8 @@ Hillshade of higher res DEM
 
     Image(filename=out)
 
+One additional bit here, for the MOLA data, show the PEDR2TAB template if created and the amount of PEDR data we have to align to.
+If the final line is less than a few hundred we could be in a bad situation.
 
 .. code:: ipython3
 
@@ -274,3 +294,95 @@ Hillshade of higher res DEM
 .. code:: ipython3
 
     !cat ./{left}_{right}/{left}_{right}_pedr4align.csv | wc -l
+
+Now that we have finished the first half of the workflow we can inspect the output products for issues before moving forwards.
+If there are issues noted in the log or after a particular step, that step can be re-run with different parameters until a good solution is found.
+
+
+Part 2: notebook_pipeline_align_dem
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In part 2, we have a completed DEM and PEDR data or some other reference DEM to use `to correct the position of the CTX DEM <https://stereopipeline.readthedocs.io/en/latest/next_steps.html?highlight=ortho#alignment-to-point-clouds-from-a-different-source>`_.
+Like before, we have to define a few parameters for papermill to use, but this time we can work with some defaults that generally work for CTX.
+The second two parameters, "demgsd" and "imggsd" default to 24 and 6 meters per pixel which works for generally any CTX image pair.
+These parameters control the number of pixels per pixel the final DEM and orthorectified images have.
+Generally, most CTX images are captured at around 5.5 meters per pixel (GSD) so we pick 6 mpp as a reasonable default.
+By convention, the DEM post spacing `should be at least 3X the image GSD <https://stereopipeline.readthedocs.io/en/latest/tools/point2dem.html?highlight=post%20spacing#post-spacing>`_.
+ASAP defaults to 4X the image GSD to be a bit more conservative, resulting in 24 meters per pixel.
+
+The "maxdisp" parameter in particular deserves attention.
+It is the number passed to `pc_align's --max-displacement <https://stereopipeline.readthedocs.io/en/latest/tools/pc_align.html>`_ parameter in the Ames Stereo Pipeline.
+Basically, it is the value of the distance you expect to move the CTX DEM to become aligned to your reference DEM (in this case, the PEDR data).
+It is generally worth estimating this number using a GIS to sample points in both the DEM and reference file, and seeing how far away they are from each other.
+But, CTX can be well behaved with ASP, so we pick a default of 500 meters which can be large enough for many situations.
+
+.. code:: ipython3
+
+    maxdisp = 500
+    demgsd  = 24.0
+    imggsd  = 6.0
+
+Imports for some things in the workflow
+
+.. code:: ipython3
+
+    from IPython.display import Image
+    from pathlib import Path
+
+Step 13: Align the DEM to MOLA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the most important step in the 2nd half of the workflow as all the remaining steps are just producing final science products and visuals for the logs.
+This step runs `pc_align <https://stereopipeline.readthedocs.io/en/latest/tools/pc_align.html>`_ using the provided max displacement (aka disparity). If the
+logs indicate a larger displacement was observed than the user provided value it will need to be re-run using larger values or with other advanced parameters.
+If users see issues it is generally easyier to re-run the pipeline at this step repeatedly in the command line or via Jupyter.
+
+.. code:: ipython3
+
+    !asap ctx step_thirteen {maxdisp} 2>&1 | tee -i -a ./8_pc_align.log ./full_log.log
+
+Step 14: Make the final CTX DEM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After the previous step everything after is simple and easy as we now have a final aligned point cloud from which DEMs and ortho images can be made.
+That is all the rest of the steps do, they generate final DEMs with the geoid adjustment to produce science ready DEMs and ortho images for mapping.
+
+.. code:: ipython3
+
+    !asap ctx step_fourteen --mpp {demgsd}  2>&1 | tee -i -a ./9_dems_orthos.log ./full_log.log
+
+Step 15: Adjust final CTX DEM to Geoid (Areoid)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !asap ctx step_fifteen 2>&1 | tee -i -a ./10_geoid_adjustment.log  ./full_log.log
+
+Make the final CTX Hillshade and Orthos
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !asap ctx step_eight --folder results_map_ba --output_folder dem_align 2>&1 | tee -i -a ./11_hillshade.log ./full_log.log
+
+
+.. code:: ipython3
+
+    img = './' + str(next(Path('./').glob('./*/results_map_ba/dem_align/*_ba_align_24_0-DEM-hillshade.tif')))
+    out = img.replace('.tif', '.png')
+
+
+.. code:: ipython3
+
+    !gdal_translate -of PNG -co worldfile=yes {img} {out}
+
+
+.. code:: ipython3
+
+    Image(filename=out)
+
+
+.. code:: ipython3
+
+    !asap ctx step_fourteen --mpp {imggsd} --just_ortho True  2>&1 | tee -i -a ./12_img_full_ortho.log ./full_log.log
+
