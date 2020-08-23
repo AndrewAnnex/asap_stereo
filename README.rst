@@ -17,6 +17,11 @@ No guarantees are implied for product quality or correctness, and it is not endo
 .. _asp_scripts: https://github.com/USGS-Astrogeology/asp_scripts
 .. _NASA Ames Stereo Pipeline: https://github.com/NeoGeographyToolkit/StereoPipeline
 
+Docs
+----
+
+Documentation is available at https://asap-stereo.readthedocs.io 
+
 Goals
 -----
 
@@ -51,24 +56,27 @@ Differences from asp_scripts
 There are a few minor to major differences between the workflow in ASAP-Stereo and the asp_scripts default workflow that are
 partially listed here.
 
-1. `SLURM`_ support was removed, but could likely be added back.
-2. Bundle Adjustment was added to the HiRISE workflow, possibly of marginal benefit.
-3. PEDR data, and pedr2tab is optional as the ODE Rest API is used to get relevant data.
-4. Image resolutions are encoded in file names in meters with an underscore for decimals (ie 0_25.tif would be 25 cm per pixel).
-5. Hillshade alignment of the HiRISE dem to the target DEM is used to improve/speed up alignment of HiRISE to CTX.
+1. Bundle Adjustment was added to the HiRISE workflow, possibly of marginal benefit.
+2. PEDR data, and pedr2tab is optional as the ODE Rest API is used to get relevant data.
+3. Image resolutions are encoded in file names in meters with an underscore for decimals (ie 0_25.tif would be 25 cm per pixel).
+4. Hillshade alignment of the HiRISE dem to the target DEM is used to improve/speed up alignment of HiRISE to CTX.
 
 .. _SLURM: https://slurm.schedmd.com
 
 Installation
 ------------
+ASAP can be installed using pip in a conda environment hosting ASP and ISIS. See the documentation for more details. 
+
 Clone the repository, cd into the project and run: python setup.py install (or develop).
 
 You must also have all of the other dependencies for ASP and the asp_scripts installed and available in the path to run.
-You will also need GDAL command line tools, Imagemagick, and ISIS3 installed. It is recommended to use anaconda to isolate the ASAP-Stereo
+You will also need GDAL command line tools,and ISIS3 installed. It is recommended to use anaconda to isolate the ASAP-Stereo
 environment.
 
 Usage
 =====
+
+Please checkout the documentation available at https://asap-stereo.readthedocs.io for more complete documentation and usage than below. 
 
 Once installed, asap-stereo is available in the command line as the command `asap`.
 Try this out, and see the list of sub-commands that are available in the output of running `asap`.
