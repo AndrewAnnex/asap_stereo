@@ -1,13 +1,7 @@
-============
-Tutorial
-============
+=======================================
+Notebook Workflow Step-by-Step for CTX
+=======================================
 
-ASAP CTX Notebook Workflow Step-by-Step
----------------------------------------
-
-
-Overview
-^^^^^^^^
 Now that we have run the Jupyter Notebook based workflows through the command line interface, we can look at each step that was run and describe what happened in more detail.
 Note that the function docstrings are also available to describe the parameters of a given step, and what that step does.
 Below is an export of all the codeblocks in the notebook workflow, additional markdown cells are included in the files but are not important to reproduce here.
