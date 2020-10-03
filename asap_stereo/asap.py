@@ -1,4 +1,5 @@
 import fire
+import pvl
 import sh
 from sh import Command
 from contextlib import contextmanager
@@ -219,6 +220,7 @@ class CommonSteps(object):
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
+        self.stereo = Command('stereo').bake(_out=sys.stdout, _err=sys.stderr)
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
@@ -230,6 +232,8 @@ class CommonSteps(object):
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
         self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdal_calc   = Command('gdal_calc.py').bake(_out=sys.stdout, _err=sys.stderr)
+        self.point2mesh  = Command('point2mesh').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
@@ -241,6 +245,36 @@ class CommonSteps(object):
             self.ba = Command('bundle_adjust')
         finally:
             self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
+
+    @staticmethod
+    def get_cav_info(lbl: str) -> Dict:
+        """
+        Get the Camera Model Data Elements from a pds label file
+        """
+        data = pvl.load(lbl)
+        return dict(data['GEOMETRIC_CAMERA_MODEL_PARMS'])
+
+    @staticmethod
+    def write_camera_model_file(params: Dict, out_name: str)-> None:
+        """
+        Write out the camera model elements to a file ASP can use
+        
+        Note, parameters are exported out to 9 decimals, I can see
+        other scripts out there introduce float64 precision differences
+        #todo switch to use kwargs to allow overrides
+        :param params: 
+        :param out_name: 
+        :return: 
+        """
+        model_type = params['MODEL_TYPE']
+        out_name = Path(out_name).with_suffix(f'.{model_type.lower()}')
+        comp_ids = params['MODEL_COMPONENT_ID']
+        comps = [params[f'MODEL_COMPONENT_{i}'] for i, _ in enumerate(comp_ids, start=1)]
+        lines = [f"{cid} = {' '.join(list(map(lambda c: f'{c:.9f}', c)))}" for cid, c in zip(comp_ids, comps)]
+        with open(out_name, 'w') as out:
+            out.writelines(lines)
+        pass
+        
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -530,6 +564,26 @@ class CommonSteps(object):
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.ba(f'{left}{postfix}',f'{right}{postfix}', '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+        
+    @rich_logger
+    def stereo_pinhole(self, left, right, stereo_conf: str, postfix_img='.jpeg', **kwargs):
+        """
+        Run Basic Stereo correlation for pinhole cameras
+        with no parallelism, for small, simple image pairs
+
+        :param left
+        :param right
+        :param postfix_img:
+        :param postfix_camera:
+        :param stereo_conf:
+        :param kwargs:
+        """
+        both = f'{left}_{right}'
+        stereo_conf = Path(stereo_conf).absolute()
+        with cd(Path.cwd() / both):
+            postfix_camera = next(Path.cwd().glob(f'{left.name}.ca*')).stem
+            args = kwargs_to_args({**clean_kwargs(kwargs)})
+            return self.stereo(*args, f'{left}{postfix_img}', f'{left}{postfix_camera}', f'{right}{postfix_img}', f'{right}{postfix_camera}', '-s', stereo_conf, f'results/{both}')
 
     @rich_logger
     def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
@@ -601,6 +655,108 @@ class CommonSteps(object):
             else:
                 self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
 
+    def img_to_luma(self, in_img, calc="R*0.2989+G*0.5870+B*0.1140"):
+        """
+        Convert RGB image to just the luma component, if 3 bands are present
+        :param in_img: 
+        :param calc: 
+        :return: 
+        """
+        other_calcs = {
+            'avg'       : "(R+G+B)/3",
+            'simp'      : "R*0.3+G*0.59+B*0.11",
+            'desat'     : "(maximum(maximum(R,G),B)+minimum(minimum(R,G),B))/2",
+            'min_decomp': "minimum(minimum(R,G),B)",
+            'max_decomp': "maximum(maximum(R,G),B)"
+        }
+        gdalinfocmd = Command('gdalinfo').bake('-json')
+        in_img = Path(in_img).expanduser().absolute()
+        img = str(in_img)
+        out_img = Path(in_img).with_suffix("_luma.tif")
+        gdal_info = json.loads(str(gdalinfocmd(img)))
+        if len(gdal_info['bands']) == 3:
+            calc = other_calcs.get(calc, calc)
+            return self.gdal_calc(f'--calc="{calc}"',  f'--outfile={out_img}', '-R', img, '--R_band=1', '-G', img, '--G_band=2', '-B', img, '--B_band=3', '--co', '"-b=1"')
+        else:
+            sh.cp(img, out_img)
+            pass
+        
+
+class Rover(object):
+    r"""
+    ASAP Stereo Pipeline - Rover workflow
+
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
+    
+    def __init__(self, https=False):
+        self.cs = CommonSteps()
+        self.https = https
+
+    @rich_logger
+    def step_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
+        """
+        Download images from the PDS
+
+        :param one: first image id
+        :param two: second image id
+        :param cwd:
+        """
+        with cd(cwd):
+            pass #need to update moody
+
+    @rich_logger
+    def step_two(self, left, right, **kwargs):
+        """
+        Preprocess images
+        :return: 
+        """
+        # first write out camera models
+        # next, if rgb, convert to YCbCr, and save out the luma only
+        both = f'{left}_{right}'
+        (Path.cwd() / both).mkdir(exist_ok=True)
+        for img in (left, right):
+            img_p = Path(img).expanduser().absolute()
+            info = self.cs.get_cav_info(img_p.with_suffix('.LBL'))
+            self.cs.write_camera_model_file(info, img_p)
+            self.cs.img_to_luma(img_p, **kwargs)
+            files = list(Path.cwd().glob(f'{img_p.name}.*'))
+            for f in files:
+                sh.cp(f, str(Path.cwd() / both))
+
+    @rich_logger
+    def step_three(self, left, right, stereo_conf, **kwargs):
+        """
+        Perform stereo correlation
+        :return: 
+        """
+        return self.cs.stereo_pinhole(left, right, stereo_conf=stereo_conf, **kwargs)
+
+    @rich_logger
+    def step_four(self, left, right):
+        """
+        Finally export obj versions of the point clouds
+        :return: 
+        """
+        both = f'{left}_{right}'
+        with cd(Path.cwd() / both / 'results'):
+            pc = next(Path.cwd().glob('*-PC.tif'))
+            l  = next(Path.cwd().glob('*-L.tif'))
+            self.cs.point2mesh('-s', 2, pc, l, '-t', 'obj')
+    
+    
 
 class CTX(object):
     r"""
