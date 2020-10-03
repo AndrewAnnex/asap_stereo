@@ -725,14 +725,14 @@ class CTX(object):
         )
 
     @staticmethod
-    def notebook_pipeline_align_dem(maxdisp = 500, demgsd = 24.0, imggsd = 6.0, working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_align_dem(maxdisp = None, demgsd = 24.0, imggsd = 6.0, working_dir ='./', out_notebook=None, **kwargs):
         """
         Second and final step in CTX DEM pipeline that uses papermill to persist log
 
         this command aligns the CTX DEM produced in step 1 to the Mola Datum
         I recommend strongly to use nohup with this command
 
-        :param maxdisp: Maximum expected displacement in meters 
+        :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
         :param working_dir: Where to execute the processing, defaults to current directory
@@ -946,7 +946,7 @@ class CTX(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_thirteen(self, maxd, pedr4align=None, highest_accuracy=True, **kwargs):
+    def step_thirteen(self, maxd: float = None, pedr4align=None, highest_accuracy=True, **kwargs):
         """
         PC Align CTX
 
@@ -959,6 +959,11 @@ class CTX(object):
         :param kwargs:
         """
         left, right, both = self.cs.parse_stereopairs()
+        if not pedr4align:
+            pedr4align = str(Path.cwd() / both / f'{both}_pedr4align.csv')
+        if not maxd:
+            dem = next((Path.cwd() / both / 'results_map_ba' / '/dem/').glob('*-DEM.tif'))
+            maxd, std = self.cs.estimate_max_disparity(dem, pedr4align)
         defaults = {
             '--num-iterations': 4000,
             '--threads': _threads_singleprocess,
@@ -966,8 +971,6 @@ class CTX(object):
             '--max-displacement': maxd,
             '--output-prefix': f'dem_align/{both}_map_ba_align'
         }
-        if not pedr4align:
-            pedr4align = f'../{both}_pedr4align.csv'
         with cd(Path.cwd() / both / 'results_map_ba'):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             hq = ['--highest-accuracy'] if highest_accuracy else []
@@ -1126,7 +1129,7 @@ class HiRISE(object):
         )
 
     @staticmethod
-    def notebook_pipeline_align_dem(refdem, maxdisp = 500, demgsd = 1.0, imggsd = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_align_dem(refdem, maxdisp = None, demgsd = 1.0, imggsd = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
         """
         Second and final step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1136,7 +1139,7 @@ class HiRISE(object):
 
         :param alignment_method: alignment method to use for pc_align
         :param refdem: path to reference DEM or PEDR csv file
-        :param maxdisp: Maximum expected displacement in meters
+        :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
         :param working_dir: Where to execute the processing, defaults to current directory
@@ -1402,6 +1405,14 @@ class HiRISE(object):
         :param kwargs: kwargs to pass to pc_align, use to override ASAP defaults
         """
         left, right, both = self.cs.parse_stereopairs()
+        if not maxd:
+            dem = next((Path.cwd() / both / 'results_ba' / '/dem/').glob('*-DEM.tif'))
+            _maxd, std = self.cs.estimate_max_disparity(dem, refdem)
+            if '--initial-transform' in kwargs:
+                maxd = 3*std
+            else:
+                maxd = _maxd
+        
         defaults = {
             '--num-iterations': 2000,
             '--threads': self.threads,
@@ -1540,7 +1551,7 @@ class ASAP(object):
             self.ctx.step_eight(folder='results_map_ba')
             self.ctx.step_twelve(pedr_list)
 
-    def ctx_three(self, max_disp, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
+    def ctx_three(self, max_disp: float = None, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
         """
         Run third and final stage of the CTX pipeline
 
