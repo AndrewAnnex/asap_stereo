@@ -222,7 +222,7 @@ class CommonSteps(object):
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
-        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr)
+        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
         self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
         self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
         self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
@@ -602,15 +602,44 @@ class CommonSteps(object):
             else:
                 self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
 
-    def estimate_max_disp(self, ref_dem, src_dem=None):
+    def get_geo_diff(self, ref_dem, src_dem=None):
         left, right, both = self.parse_stereopairs()
+        ref_dem = Path(ref_dem).absolute()
         with cd(Path.cwd() / both):
             args = []
             if not src_dem:
                 src_dem = next(Path.cwd().glob('*_pedr4align.csv'))
-                args.extend(['--csv-format', '"1:lat 2:lon 3:height_above_datum"'])
-            res = self.geodiff(ref_dem, src_dem, *args)
-            # todo: return dict of max disp estimate, or translation estimate depending
+            src_dem = str(src_dem)
+            if src_dem.endswith('.csv'):
+                args.extend(['--csv-format', '1:lat 2:lon 3:height_above_datum'])
+            res = self.geodiff(*args, ref_dem, src_dem)
+            res = str(res).splitlines()
+            res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
+            return res
+    
+    def estimate_max_disparity(self, ref_dem, src_dem=None):
+        """
+        Estimate the absolute value of the maximum observed displacement
+        between two point clouds, and the standard deviation of the differences
+        
+        if not applying an initial transform to pc_align, use the max_d value 
+        if expecting to apply a transform first and you are 
+        interested in the maximum displacement after an initial transform, then
+        use the std_d returned (likely 3X it)
+        """
+        vals = self.get_geo_diff(ref_dem, src_dem)
+        max_d = abs(float(vals['Max difference']))
+        min_d = abs(float(vals['Min difference']))
+        std_d = float(vals['StdDev of difference'])
+        max_d = max(max_d, min_d)
+        return max_d, std_d
+    
+    def estimate_median_disparity(self, ref_dem, src_dem=None):
+        vals = self.get_geo_diff(ref_dem, src_dem)
+        med_d = float(vals['Median difference'])       
+        return med_d
+        
+
 
 class CTX(object):
     r"""
