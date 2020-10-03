@@ -222,6 +222,7 @@ class CommonSteps(object):
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
+        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr)
         self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
         self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
         self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
@@ -601,6 +602,15 @@ class CommonSteps(object):
             else:
                 self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
 
+    def estimate_max_disp(self, ref_dem, src_dem=None):
+        left, right, both = self.parse_stereopairs()
+        with cd(Path.cwd() / both):
+            args = []
+            if not src_dem:
+                src_dem = next(Path.cwd().glob('*_pedr4align.csv'))
+                args.extend(['--csv-format', '"1:lat 2:lon 3:height_above_datum"'])
+            res = self.geodiff(ref_dem, src_dem, *args)
+            # todo: return dict of max disp estimate, or translation estimate depending
 
 class CTX(object):
     r"""
