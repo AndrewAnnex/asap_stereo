@@ -6,3 +6,4 @@ papermill
 rasterio
 pyproj
 pvl
+numpy

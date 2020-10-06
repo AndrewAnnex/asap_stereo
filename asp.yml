@@ -10,4 +10,10 @@ dependencies:
   - nb_conda_kernels
   - jupyterlab
   - pvl
+  - rasterio
+  - pyproj
+  - fire
+  - sh
+  - papermill
+  - numpy
 
