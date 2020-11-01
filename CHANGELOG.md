@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 
+## [0.1.0] - 2020-10-31
+### Added
+- Docs!
+- Install guide
+- CTX walkthrough
+- docstrings!
+- mola pedr pre step 10
+
+### Fixed
+- step twelve postix
+
+### Removed
+- asp_scripts bash files
+
 ## [0.0.4] - 2020-08-06
 ### Added
 - ci tests for ctx via github action
