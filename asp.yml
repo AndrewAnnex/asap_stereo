@@ -5,8 +5,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.6
+  - python=>3.6
   - stereo-pipeline==2.7.0
   - nb_conda_kernels
   - jupyterlab
-  - xerces-c=3.1.4=0
