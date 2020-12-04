@@ -6,6 +6,14 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
+      - name: Cache conda
+        uses: actions/cache@v2
+        env:
+          # Increase this value to reset cache
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-${{ hashFiles('asp.yml') }}
       - name: setup miniconda
         uses: conda-incubator/setup-miniconda@v2.0.1
         with:
