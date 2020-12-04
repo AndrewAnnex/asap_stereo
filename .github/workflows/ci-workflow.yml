@@ -14,7 +14,7 @@ jobs:
           environment-file: asp.yml
           python-version: 3.6
           channels: nasa-ames-stereo-pipeline,usgs-astrogeology,conda-forge,defaults
-          channel-priority: true
+          channel-priority: strict
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: install asap
@@ -25,6 +25,10 @@ jobs:
         run: |
           conda info
           conda list
+      - name: check isis shared libraries
+        shell: bash -l {0}
+        run: |
+          ldd `which qview`
       - name: test for asap
         shell: bash -l {0}
         run: |

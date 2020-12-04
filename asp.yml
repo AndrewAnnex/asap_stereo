@@ -10,3 +10,5 @@ dependencies:
   - nb_conda_kernels
   - jupyterlab
   - xerces-c=3.1.4=0
+  - jasper=1.900.1=4
+
