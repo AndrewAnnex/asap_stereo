@@ -591,8 +591,9 @@ class CommonSteps(object):
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
-        self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
-        self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
+        with cd(Path.cwd() / both):
+            self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
+            self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
 
     def get_pedr_4_pcalign_common(self, postfix, proj, https, pedr_list=None):
         left, right, both = self.parse_stereopairs()
@@ -692,7 +693,8 @@ class CTX(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', config2: Optional[str] = None, out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', 
+                                   config2: Optional[str] = None, demgsd = 24.0, imggsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
@@ -706,11 +708,14 @@ class CTX(object):
         :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
         :param left: First image id
         :param right: Second image id
+        :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
         pm.execute_notebook(
-            f'{here}/asap_ctx.ipynb',
+            f'{here}/asap_ctx_workflow.ipynb',
             out_notebook,
             parameters={
                 'left' : left,
@@ -719,33 +724,7 @@ class CTX(object):
                 'config1': config1,
                 'config2': config2,
                 'output_path' : working_dir,
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
-
-    @staticmethod
-    def notebook_pipeline_align_dem(maxdisp = None, demgsd = 24.0, imggsd = 6.0, working_dir ='./', out_notebook=None, **kwargs):
-        """
-        Second and final step in CTX DEM pipeline that uses papermill to persist log
-
-        this command aligns the CTX DEM produced in step 1 to the Mola Datum
-        I recommend strongly to use nohup with this command
-
-        :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
-        :param working_dir: Where to execute the processing, defaults to current directory
-        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem.ipynb
-        :param kwargs:
-        """
-        if not out_notebook:
-            out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem.ipynb'
-        pm.execute_notebook(
-            f'{here}/asap_ctx_pc_align.ipynb',
-            out_notebook,
-            parameters={
-                'maxdisp' : maxdisp,
+                'maxdisp': maxdisp,
                 'demgsd' : demgsd,
                 'imggsd' : imggsd
             },
@@ -799,7 +778,7 @@ class CTX(object):
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
-        return sh.cp('-n', sh.glob('./*.cub'), f'./{both}/')
+        return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
     def step_four(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
@@ -946,7 +925,7 @@ class CTX(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_thirteen(self, maxd: float = None, pedr4align=None, highest_accuracy=True, **kwargs):
+    def step_thirteen(self, maxd: float = None, pedr4align = None, highest_accuracy = True, **kwargs):
         """
         PC Align CTX
 
