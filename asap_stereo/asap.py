@@ -693,7 +693,7 @@ class CTX(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', 
+    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
                                    config2: Optional[str] = None, demgsd = 24.0, imggsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
@@ -709,6 +709,7 @@ class CTX(object):
         :param left: First image id
         :param right: Second image id
         :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
+        :param downsample: Factor to downsample images for faster production
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
         """
@@ -726,7 +727,8 @@ class CTX(object):
                 'output_path' : working_dir,
                 'maxdisp': maxdisp,
                 'demgsd' : demgsd,
-                'imggsd' : imggsd
+                'imggsd' : imggsd,
+                'downsample' : downsample,
             },
             request_save_on_cell_execute=True,
             **kwargs
@@ -1079,7 +1081,7 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1091,51 +1093,29 @@ class HiRISE(object):
         :param config:  ASP config file to use for processing
         :param left: first image id
         :param right: second image id
+        :param alignment_method: alignment method to use for pc_align
+        :param downsample: Factor to downsample images for faster production
+        :param refdem: path to reference DEM or PEDR csv file
+        :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
         pm.execute_notebook(
-            f'{here}/asap_hirise.ipynb',
+            f'{here}/asap_hirise_workflow.ipynb',
             out_notebook,
             parameters={
                 'left' : left,
                 'right': right,
                 'config': config,
                 'output_path' : working_dir,
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
-
-    @staticmethod
-    def notebook_pipeline_align_dem(refdem, maxdisp = None, demgsd = 1.0, imggsd = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
-        """
-        Second and final step in HiRISE DEM pipeline that uses papermill to persist log
-
-        This pipeline aligns the HiRISE DEM produced to an input DEM, typically a CTX DEM.
-        It will first attempt to do this using point alignment on hillshaded views of the dems.
-        I recommend strongly to use nohup with this command
-
-        :param alignment_method: alignment method to use for pc_align
-        :param refdem: path to reference DEM or PEDR csv file
-        :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
-        :param working_dir: Where to execute the processing, defaults to current directory
-        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem_hirise.ipynb
-        :param kwargs:
-        """
-        if not out_notebook:
-            out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem_hirise.ipynb'
-        pm.execute_notebook(
-            f'{here}/asap_hirise_pc_align.ipynb',
-            out_notebook,
-            parameters={
-                'refdem' : refdem,
-                'maxdisp' : maxdisp,
-                'demgsd' : demgsd,
-                'imggsd' : imggsd,
-                'alignment_method' : alignment_method,
+                'refdem'          : refdem,
+                'maxdisp'         : maxdisp,
+                'demgsd'          : demgsd,
+                'imggsd'          : imggsd,
+                'alignment_method': alignment_method,
+                'downsample': downsample,
             },
             request_save_on_cell_execute=True,
             **kwargs
