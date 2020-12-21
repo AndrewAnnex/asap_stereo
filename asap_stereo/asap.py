@@ -437,7 +437,7 @@ class CommonSteps(object):
             # use moody to get the pedr in shape file form, we export a csv for what we need to align to
             moody.ODE(https=https).pedr(minlon=float(minlon), minlat=float(minlat), maxlon=float(maxlon), maxlat=float(maxlat), ext='shp')
             shpfile = next(Path.cwd().glob('*z.shp'))
-            sql_query = f'SELECT Lat, Lon, Planet_Rad - 3396190.0 AS Datum_Elev, Topography FROM {shpfile.stem}'
+            sql_query = f'SELECT Lat, Lon, Planet_Rad - 3396190.0 AS Datum_Elev, Topography FROM "{shpfile.stem}"'
             # create the minified file just for pc_align
             sh.ogr2ogr('-f', 'CSV', '-sql', sql_query, f'./{out_name}_pedr4align.csv', shpfile.name)
             # get projection info
