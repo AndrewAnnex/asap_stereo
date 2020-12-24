@@ -2,6 +2,7 @@ requests
 fire
 moody>=0.0.4
 sh
+pvl
 papermill
 rasterio
 pyproj

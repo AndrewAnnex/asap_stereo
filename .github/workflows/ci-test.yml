@@ -88,6 +88,12 @@ jobs:
         timeout-minutes: 1
         shell: bash -l {0}
         run: asap ctx step-two
+      - name: asap stereo quality report 
+        shell: bash -l {0}
+        run: |
+          ls
+          asap common get_stereo_quality_report ./B03_010644_1889_XN_08N001W.lev1eo.cub ./P02_001902_1889_XI_08N001W.lev1eo.cub
+          ls
       - name: asap 4 & rescale images for test
         shell: bash -l {0}
         run: |
