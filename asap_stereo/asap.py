@@ -1,3 +1,34 @@
+# BSD 3-Clause License
+#
+# Copyright (c) 2020, Andrew Michael Annex
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
 import fire
 import pvl
 import sh
@@ -186,7 +217,7 @@ class CommonSteps(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.0.4)
+          asap_stereo (0.1.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -275,6 +306,26 @@ class CommonSteps(object):
             out.writelines(lines)
         pass
         
+    @staticmethod
+    def get_stereo_quality_report(cub1, cub2) -> str:
+        """
+        Get the stereo quality report for two cub files
+        The cub files must be Level1 images (Spiceinit'ed but not map-projected).
+
+        The quality values reported by this program are based on the
+        recommendations and limitations in Becker et al. (2015).  They have
+        a value of one for an ideal value, between zero and one for a value
+        within the acceptable limits, and less than zero (the more negative,
+        the worse) if the value is beyond the acceptable limit.
+        # TODO refactor into more granular bits
+        :param cub1: path
+        :param cub2: path
+        :return:
+        """
+        from .stereo_quality import get_report
+        report = get_report(cub1, cub2)
+        return report
+
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -471,7 +522,7 @@ class CommonSteps(object):
             # use moody to get the pedr in shape file form, we export a csv for what we need to align to
             moody.ODE(https=https).pedr(minlon=float(minlon), minlat=float(minlat), maxlon=float(maxlon), maxlat=float(maxlat), ext='shp')
             shpfile = next(Path.cwd().glob('*z.shp'))
-            sql_query = f'SELECT Lat, Lon, Planet_Rad - 3396190.0 AS Datum_Elev, Topography FROM {shpfile.stem}'
+            sql_query = f'SELECT Lat, Lon, Planet_Rad - 3396190.0 AS Datum_Elev, Topography FROM "{shpfile.stem}"'
             # create the minified file just for pc_align
             sh.ogr2ogr('-f', 'CSV', '-sql', sql_query, f'./{out_name}_pedr4align.csv', shpfile.name)
             # get projection info
@@ -759,7 +810,7 @@ class CTX(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.0.4)
+          asap_stereo (0.1.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -1144,7 +1195,7 @@ class HiRISE(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.0.4)
+          asap_stereo (0.1.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -1589,7 +1640,7 @@ class ASAP(object):
            / ___ |___/ / ___ |/ ____/                            
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂               
 
-          asap_stereo (0.0.4)
+          asap_stereo (0.1.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 

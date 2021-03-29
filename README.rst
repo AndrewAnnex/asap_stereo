@@ -4,6 +4,10 @@ ASAP-Stereo (Ames Stereo Automated Pipeline)
 .. image:: https://readthedocs.org/projects/asap-stereo/badge/?version=main
    :target: https://asap-stereo.readthedocs.io/en/main/?badge=main
    :alt: Documentation Status
+   
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4171571.svg
+   :target: https://doi.org/10.5281/zenodo.4171571
+   :alt: Cite using doi.org/10.5281/zenodo.4171571
 
 ASAP-Stereo is workflow wrapper for the `NASA Ames Stereo Pipeline`_, it is a reimplementation of the `asp_scripts`_ workflow to produce
 co-registered CTX and HiRISE Digital Elevation Models (DEMs) from stereo image pairs in python and jupyter notebooks.
@@ -13,6 +17,7 @@ ASAP-Stereo currently only support the original MRO CTX/HiRISE stereo pair workf
 *NOTE:* Advanced knowledge of the Ames Stereo Pipeline, Bash environment, and ISIS3 is a near prerequisite for using ASAP-Stereo.
 No guarantees are implied for product quality or correctness, and it is not endorsed by the ASP developers. Proceed with caution.
 
+Please cite!
 
 .. _asp_scripts: https://github.com/USGS-Astrogeology/asp_scripts
 .. _NASA Ames Stereo Pipeline: https://github.com/NeoGeographyToolkit/StereoPipeline

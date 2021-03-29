@@ -6,15 +6,23 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
+      - name: Cache conda
+        uses: actions/cache@v2
+        env:
+          # Increase this value to reset cache
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-${{ hashFiles('asp.yml') }}
       - name: setup miniconda
-        uses: goanpeca/setup-miniconda@v1
+        uses: conda-incubator/setup-miniconda@v2.0.1
         with:
           mamba-version: "*"
           activate-environment: asp
           environment-file: asp.yml
           python-version: 3.6
           channels: nasa-ames-stereo-pipeline,usgs-astrogeology,conda-forge,defaults
-          channel-priority: true
+          channel-priority: strict
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: isis3 path inits
@@ -59,6 +67,10 @@ jobs:
         run: |
           conda info
           conda list
+      - name: check isis shared libraries
+        shell: bash -l {0}
+        run: |
+          ldd `which qview`
       - name: test for asap
         shell: bash -l {0}
         run: asap
@@ -76,6 +88,12 @@ jobs:
         timeout-minutes: 1
         shell: bash -l {0}
         run: asap ctx step-two
+      - name: asap stereo quality report 
+        shell: bash -l {0}
+        run: |
+          ls
+          asap common get_stereo_quality_report ./B03_010644_1889_XN_08N001W.lev1eo.cub ./P02_001902_1889_XI_08N001W.lev1eo.cub
+          ls
       - name: asap 4 & rescale images for test
         shell: bash -l {0}
         run: |
