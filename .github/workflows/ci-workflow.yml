@@ -4,6 +4,9 @@ jobs:
   test_runner:
     name: Ubuntu 
     runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
       - name: Cache conda
@@ -15,7 +18,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key: ${{ runner.os }}-${{ hashFiles('asp.yml') }}
       - name: setup miniconda
-        uses: conda-incubator/setup-miniconda@v2.0.1
+        uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
           activate-environment: asp
@@ -26,19 +29,15 @@ jobs:
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: install asap
-        shell: bash -l {0}
         run: pip install -e .
       - name: conda info
-        shell: bash -l {0}
         run: |
           conda info
           conda list
       - name: check isis shared libraries
-        shell: bash -l {0}
         run: |
           ldd `which qview`
       - name: test for asap
-        shell: bash -l {0}
         run: |
           asap
           asap ctx
