@@ -5,7 +5,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=>3.6
   - pvl
   - stereo-pipeline==2.7.0
   - nb_conda_kernels
