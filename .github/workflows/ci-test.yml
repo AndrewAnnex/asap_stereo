@@ -4,6 +4,9 @@ jobs:
   test_runner:
     name: ASAP test CTX pipeline
     runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
       - name: Cache conda
@@ -15,7 +18,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key: ${{ runner.os }}-${{ hashFiles('asp.yml') }}
       - name: setup miniconda
-        uses: conda-incubator/setup-miniconda@v2.0.1
+        uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
           activate-environment: asp
@@ -26,10 +29,8 @@ jobs:
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: isis3 path inits
-        shell: bash -l {0}
         run: python $CONDA_PREFIX/scripts/isis3VarInit.py
       - name: rsync base kernels
-        shell: bash -l {0}
         run: |
           rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA_PREFIX/data/
           rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA_PREFIX/data/base
@@ -43,7 +44,6 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA_PREFIX/data/base/kernels/pck/pck00009.tpc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA_PREFIX/data/base/dems/molaMarsPlanetaryRadius0005.cub
       - name: rsync mro data
-        shell: bash -l {0}
         run: |
           rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA_PREFIX/data/
           rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA_PREFIX/data/mro
@@ -60,65 +60,50 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA_PREFIX/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
       - name: install asap
-        shell: bash -l {0}
         run: pip install -e .
       - name: conda info
-        shell: bash -l {0}
         run: |
           conda info
           conda list
       - name: check isis shared libraries
-        shell: bash -l {0}
         run: |
           ldd `which qview`
       - name: test for asap
-        shell: bash -l {0}
         run: asap
       - name: asap step 1
         timeout-minutes: 5
-        shell: bash -l {0}
         run: asap ctx step-one B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
       - name: look before you leap
-        shell: bash -l {0}
         run: |
           ls ./* -lahtr
           env | grep ISIS
           pwd
       - name: asap step 2
         timeout-minutes: 1
-        shell: bash -l {0}
         run: asap ctx step-two
       - name: asap stereo quality report 
-        shell: bash -l {0}
         run: |
           ls
           asap common get_stereo_quality_report ./B03_010644_1889_XN_08N001W.lev1eo.cub ./P02_001902_1889_XI_08N001W.lev1eo.cub
           ls
       - name: asap 4 & rescale images for test
-        shell: bash -l {0}
         run: |
           asap ctx step-three
           asap common rescale_and_overwrite 8 
-          cp -nf ./*.cub ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/
       - name: asap step 4
-        shell: bash -l {0}
         run:  asap ctx step-four
       - name: asap step 5 (and get stereo conf files)
-        shell: bash -l {0}
         run:  |
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
           asap ctx step-five ./stereo.nonmap
       - name: asap step 6
-        shell: bash -l {0}
         run:  asap ctx step-six ./stereo.nonmap
       - name: asap step 7-8
-        shell: bash -l {0}
         run: |
           asap ctx step-seven --mpp 240 --just_dem True --dem_hole_fill_len 50
           asap ctx step-eight
       - name: asap 1st round previews
-        shell: bash -l {0}
         run: |
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM-hillshade.tif ./hillshade_1.png
@@ -130,20 +115,16 @@ jobs:
             good_pixel_map_1.png
             hillshade_1.png
       - name: asap step 9
-        shell: bash -l {0}
         run:  asap ctx step-nine --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
       - name: asap step 10-11
-        shell: bash -l {0}
         run: |
           asap ctx step-ten --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
           asap ctx step-eleven --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
           asap ctx step-seven --mpp 144 --folder results_map_ba
           asap ctx step-eight --folder results_map_ba
       - name: asap step 12
-        shell: bash -l {0}
         run:  asap ctx step-twelve None
       - name: asap 2nd round previews
-        shell: bash -l {0}
         run: |
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_144_0-DEM-hillshade.tif ./hillshade_2.png
@@ -154,17 +135,17 @@ jobs:
           path: |
             good_pixel_map_2.png
             hillshade_2.png
+      - name: list contents of results_map_ba/dem
+        run: ls $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/ -lahtr
       - name: asap step 13-17
         timeout-minutes: 2
-        shell: bash -l {0}
         run: |
-          asap ctx step-thirteen 1000 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
+          asap ctx step-thirteen --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
           asap ctx step-fourteen --mpp 144
           asap ctx step-fifteen
           asap ctx step_eight --folder results_map_ba --output_folder dem_align
           asap ctx step_fourteen --mpp 48 --just_ortho True
       - name: asap final previews
-        shell: bash -l {0}
         run: |
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png

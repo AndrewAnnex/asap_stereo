@@ -255,6 +255,7 @@ class CommonSteps(object):
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
+        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
         self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
         self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
         self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
@@ -695,8 +696,9 @@ class CommonSteps(object):
         """
         left, right, both = self.parse_stereopairs()
         assert both is not None
-        self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
-        self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
+        with cd(Path.cwd() / both):
+            self.rescale_cub(f'{left}{postfix}', factor=factor, overwrite=True)
+            self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
 
     def get_pedr_4_pcalign_common(self, postfix, proj, https, pedr_list=None):
         left, right, both = self.parse_stereopairs()
@@ -796,7 +798,43 @@ class Rover(object):
             l  = next(Path.cwd().glob('*-L.tif'))
             self.cs.point2mesh('-s', 2, pc, l)
     
+    def get_geo_diff(self, ref_dem, src_dem=None):
+        left, right, both = self.parse_stereopairs()
+        ref_dem = Path(ref_dem).absolute()
+        with cd(Path.cwd() / both):
+            args = []
+            if not src_dem:
+                src_dem = next(Path.cwd().glob('*_pedr4align.csv'))
+            src_dem = str(src_dem)
+            if src_dem.endswith('.csv'):
+                args.extend(['--csv-format', '1:lat 2:lon 3:height_above_datum'])
+            res = self.geodiff(*args, ref_dem, src_dem)
+            res = str(res).splitlines()
+            res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
+            return res
     
+    def estimate_max_disparity(self, ref_dem, src_dem=None):
+        """
+        Estimate the absolute value of the maximum observed displacement
+        between two point clouds, and the standard deviation of the differences
+        
+        if not applying an initial transform to pc_align, use the max_d value 
+        if expecting to apply a transform first and you are 
+        interested in the maximum displacement after an initial transform, then
+        use the std_d returned (likely 3X it)
+        """
+        vals = self.get_geo_diff(ref_dem, src_dem)
+        max_d = float(vals['Max difference'])
+        min_d = float(vals['Min difference'])
+        std_d = float(vals['StdDev of difference'])
+        absmax_d = max(abs(max_d), abs(min_d))
+        return absmax_d, max_d, min_d, std_d
+    
+    def estimate_median_disparity(self, ref_dem, src_dem=None):
+        vals = self.get_geo_diff(ref_dem, src_dem)
+        med_d = float(vals['Median difference'])       
+        return med_d, abs(med_d)
+        
 
 class CTX(object):
     r"""
@@ -849,7 +887,8 @@ class CTX(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, working_dir ='./', config2: Optional[str] = None, out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
+                                   config2: Optional[str] = None, demgsd = 24.0, imggsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
@@ -863,11 +902,15 @@ class CTX(object):
         :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
         :param left: First image id
         :param right: Second image id
+        :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
+        :param downsample: Factor to downsample images for faster production
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
         pm.execute_notebook(
-            f'{here}/asap_ctx.ipynb',
+            f'{here}/asap_ctx_workflow.ipynb',
             out_notebook,
             parameters={
                 'left' : left,
@@ -876,35 +919,10 @@ class CTX(object):
                 'config1': config1,
                 'config2': config2,
                 'output_path' : working_dir,
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
-
-    @staticmethod
-    def notebook_pipeline_align_dem(maxdisp = 500, demgsd = 24.0, imggsd = 6.0, working_dir ='./', out_notebook=None, **kwargs):
-        """
-        Second and final step in CTX DEM pipeline that uses papermill to persist log
-
-        this command aligns the CTX DEM produced in step 1 to the Mola Datum
-        I recommend strongly to use nohup with this command
-
-        :param maxdisp: Maximum expected displacement in meters 
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
-        :param working_dir: Where to execute the processing, defaults to current directory
-        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem.ipynb
-        :param kwargs:
-        """
-        if not out_notebook:
-            out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem.ipynb'
-        pm.execute_notebook(
-            f'{here}/asap_ctx_pc_align.ipynb',
-            out_notebook,
-            parameters={
-                'maxdisp' : maxdisp,
+                'maxdisp': maxdisp,
                 'demgsd' : demgsd,
-                'imggsd' : imggsd
+                'imggsd' : imggsd,
+                'downsample' : downsample,
             },
             request_save_on_cell_execute=True,
             **kwargs
@@ -956,7 +974,7 @@ class CTX(object):
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
-        return sh.cp('-n', sh.glob('./*.cub'), f'./{both}/')
+        return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
     def step_four(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
@@ -1103,19 +1121,27 @@ class CTX(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_thirteen(self, maxd, pedr4align=None, highest_accuracy=True, **kwargs):
+    def step_thirteen(self, maxd: float = None, pedr4align = None, highest_accuracy = True, **kwargs):
         """
         PC Align CTX
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
+        
+        #TODO: use the DEMs instead of the point clouds
 
-        :param highest_accuracy:
+        :param highest_accuracy: Use the maximum accuracy mode
         :param maxd: Maximum expected displacement in meters
         :param pedr4align: path to pedr csv file
         :param kwargs:
         """
         left, right, both = self.cs.parse_stereopairs()
+        if not pedr4align:
+            pedr4align = str(Path.cwd() / both / f'{both}_pedr4align.csv')
+        if not maxd:
+            dem = next((Path.cwd() / both / 'results_map_ba' / 'dem').glob(f'{both}*DEM.tif'))
+            # todo implement a new command or path to do a initial NED translation with this info
+            maxd, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
         defaults = {
             '--num-iterations': 4000,
             '--threads': _threads_singleprocess,
@@ -1123,8 +1149,6 @@ class CTX(object):
             '--max-displacement': maxd,
             '--output-prefix': f'dem_align/{both}_map_ba_align'
         }
-        if not pedr4align:
-            pedr4align = f'../{both}_pedr4align.csv'
         with cd(Path.cwd() / both / 'results_map_ba'):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             hq = ['--highest-accuracy'] if highest_accuracy else []
@@ -1254,7 +1278,7 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1266,51 +1290,29 @@ class HiRISE(object):
         :param config:  ASP config file to use for processing
         :param left: first image id
         :param right: second image id
+        :param alignment_method: alignment method to use for pc_align
+        :param downsample: Factor to downsample images for faster production
+        :param refdem: path to reference DEM or PEDR csv file
+        :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
+        :param demgsd: desired GSD of output DEMs (4x image GSD)
+        :param imggsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
         pm.execute_notebook(
-            f'{here}/asap_hirise.ipynb',
+            f'{here}/asap_hirise_workflow.ipynb',
             out_notebook,
             parameters={
                 'left' : left,
                 'right': right,
                 'config': config,
                 'output_path' : working_dir,
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
-
-    @staticmethod
-    def notebook_pipeline_align_dem(refdem, maxdisp = 500, demgsd = 1.0, imggsd = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
-        """
-        Second and final step in HiRISE DEM pipeline that uses papermill to persist log
-
-        This pipeline aligns the HiRISE DEM produced to an input DEM, typically a CTX DEM.
-        It will first attempt to do this using point alignment on hillshaded views of the dems.
-        I recommend strongly to use nohup with this command
-
-        :param alignment_method: alignment method to use for pc_align
-        :param refdem: path to reference DEM or PEDR csv file
-        :param maxdisp: Maximum expected displacement in meters
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
-        :param working_dir: Where to execute the processing, defaults to current directory
-        :param out_notebook: output notebook log file name, defaults to log_asap_notebook_pipeline_align_dem_hirise.ipynb
-        :param kwargs:
-        """
-        if not out_notebook:
-            out_notebook = f'{working_dir}/log_asap_notebook_pipeline_align_dem_hirise.ipynb'
-        pm.execute_notebook(
-            f'{here}/asap_hirise_pc_align.ipynb',
-            out_notebook,
-            parameters={
-                'refdem' : refdem,
-                'maxdisp' : maxdisp,
-                'demgsd' : demgsd,
-                'imggsd' : imggsd,
-                'alignment_method' : alignment_method,
+                'refdem'          : refdem,
+                'maxdisp'         : maxdisp,
+                'demgsd'          : demgsd,
+                'imggsd'          : imggsd,
+                'alignment_method': alignment_method,
+                'downsample': downsample,
             },
             request_save_on_cell_execute=True,
             **kwargs
@@ -1559,6 +1561,11 @@ class HiRISE(object):
         :param kwargs: kwargs to pass to pc_align, use to override ASAP defaults
         """
         left, right, both = self.cs.parse_stereopairs()
+        if not maxd:
+            dem = next((Path.cwd() / both / 'results_ba' / 'dem').glob(f'{both}*DEM.tif'))
+            # todo implement a new command or path to do a initial NED translation with this info
+            maxd, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
+        
         defaults = {
             '--num-iterations': 2000,
             '--threads': self.threads,
@@ -1698,7 +1705,7 @@ class ASAP(object):
             self.ctx.step_eight(folder='results_map_ba')
             self.ctx.step_twelve(pedr_list)
 
-    def ctx_three(self, max_disp, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
+    def ctx_three(self, max_disp: float = None, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
         """
         Run third and final stage of the CTX pipeline
 
