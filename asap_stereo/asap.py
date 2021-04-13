@@ -629,16 +629,15 @@ class CommonSteps(object):
         use the std_d returned (likely 3X it)
         """
         vals = self.get_geo_diff(ref_dem, src_dem)
-        max_d = abs(float(vals['Max difference']))
-        min_d = abs(float(vals['Min difference']))
+        max_d = float(vals['Max difference'])
+        min_d = float(vals['Min difference'])
         std_d = float(vals['StdDev of difference'])
-        max_d = max(max_d, min_d)
-        return max_d, std_d
+        return max_d, min_d, std_d, abs(max_d), abs(min_d)
     
     def estimate_median_disparity(self, ref_dem, src_dem=None):
         vals = self.get_geo_diff(ref_dem, src_dem)
         med_d = float(vals['Median difference'])       
-        return med_d
+        return med_d, abs(med_d)
         
 
 
@@ -933,8 +932,10 @@ class CTX(object):
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
+        
+        #TODO: use the DEMs instead of the point clouds
 
-        :param highest_accuracy:
+        :param highest_accuracy: Use the maximum accuracy mode
         :param maxd: Maximum expected displacement in meters
         :param pedr4align: path to pedr csv file
         :param kwargs:
@@ -944,7 +945,8 @@ class CTX(object):
             pedr4align = str(Path.cwd() / both / f'{both}_pedr4align.csv')
         if not maxd:
             dem = next((Path.cwd() / both / 'results_map_ba' / '/dem/').glob('*-DEM.tif'))
-            maxd, std = self.cs.estimate_max_disparity(dem, pedr4align)
+            # todo implement a new command or path to do a initial NED translation with this info
+            maxd, _, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
         defaults = {
             '--num-iterations': 4000,
             '--threads': _threads_singleprocess,
@@ -1366,11 +1368,8 @@ class HiRISE(object):
         left, right, both = self.cs.parse_stereopairs()
         if not maxd:
             dem = next((Path.cwd() / both / 'results_ba' / '/dem/').glob('*-DEM.tif'))
-            _maxd, std = self.cs.estimate_max_disparity(dem, refdem)
-            if '--initial-transform' in kwargs:
-                maxd = 3*std
-            else:
-                maxd = _maxd
+            # todo implement a new command or path to do a initial NED translation with this info
+            maxd, _, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
         
         defaults = {
             '--num-iterations': 2000,
