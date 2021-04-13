@@ -945,7 +945,7 @@ class CTX(object):
         if not pedr4align:
             pedr4align = str(Path.cwd() / both / f'{both}_pedr4align.csv')
         if not maxd:
-            dem = next((Path.cwd() / both / 'results_map_ba' / '/dem/').glob('*-DEM.tif'))
+            dem = next((Path.cwd() / both / 'results_map_ba' / 'dem').glob(f'{both}*DEM.tif'))
             # todo implement a new command or path to do a initial NED translation with this info
             maxd, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
         defaults = {
@@ -1368,7 +1368,7 @@ class HiRISE(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         if not maxd:
-            dem = next((Path.cwd() / both / 'results_ba' / '/dem/').glob('*-DEM.tif'))
+            dem = next((Path.cwd() / both / 'results_ba' / 'dem').glob(f'{both}*DEM.tif'))
             # todo implement a new command or path to do a initial NED translation with this info
             maxd, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
         
