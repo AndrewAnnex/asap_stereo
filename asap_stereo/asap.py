@@ -30,6 +30,7 @@
 
 
 import fire
+import pvl
 import sh
 from sh import Command
 from contextlib import contextmanager
@@ -250,6 +251,7 @@ class CommonSteps(object):
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
+        self.stereo = Command('stereo').bake(_out=sys.stdout, _err=sys.stderr)
         self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
@@ -262,6 +264,8 @@ class CommonSteps(object):
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
         self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
+        self.rio_calc   = sh.rio.calc.bake(_out=sys.stdout, _err=sys.stderr)
+        self.point2mesh  = Command('point2mesh').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
@@ -274,6 +278,35 @@ class CommonSteps(object):
         finally:
             self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
 
+    @staticmethod
+    def get_cav_info(lbl: str) -> Dict:
+        """
+        Get the Camera Model Data Elements from a pds label file
+        """
+        data = pvl.load(str(lbl))
+        return dict(data['GEOMETRIC_CAMERA_MODEL_PARMS'])
+
+    @staticmethod
+    def write_camera_model_file(params: Dict, out_name: str)-> None:
+        """
+        Write out the camera model elements to a file ASP can use
+        
+        Note, parameters are exported out to 9 decimals, I can see
+        other scripts out there introduce float64 precision differences
+        #todo switch to use kwargs to allow overrides
+        :param params: 
+        :param out_name: 
+        :return: 
+        """
+        model_type = params['MODEL_TYPE']
+        out_name = Path(out_name).with_suffix(f'.{model_type.lower()}')
+        comp_ids = params['MODEL_COMPONENT_ID']
+        comps = [params[f'MODEL_COMPONENT_{i}'] for i, _ in enumerate(comp_ids, start=1)]
+        lines = [f"{cid} = {' '.join(list(map(lambda c: f'{c:.9f}', c)))}\n" for cid, c in zip(comp_ids, comps)]
+        with open(out_name, 'w') as out:
+            out.writelines(lines)
+        pass
+        
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
         """
@@ -293,6 +326,7 @@ class CommonSteps(object):
         from .stereo_quality import get_report
         report = get_report(cub1, cub2)
         return report
+
 
     @staticmethod
     def get_cam_info(img) -> Dict:
@@ -582,6 +616,26 @@ class CommonSteps(object):
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.ba(f'{left}{postfix}',f'{right}{postfix}', '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+        
+    @rich_logger
+    def stereo_pinhole(self, left, right, stereo_conf: str, postfix_img='.jpeg', **kwargs):
+        """
+        Run Basic Stereo correlation for pinhole cameras
+        with no parallelism, for small, simple image pairs
+
+        :param left
+        :param right
+        :param postfix_img:
+        :param postfix_camera:
+        :param stereo_conf:
+        :param kwargs:
+        """
+        both = f'{Path(left).stem}_{Path(right).stem}'
+        stereo_conf = Path(stereo_conf).absolute()
+        with cd(Path.cwd() / both):
+            postfix_camera = next(Path.cwd().glob(f'{Path(left).stem}.ca*')).suffix
+            args = kwargs_to_args({**clean_kwargs(kwargs)})
+            return self.stereo(*args, '-s', stereo_conf,  f'{Path(left).stem}{postfix_img}', f'{Path(left).stem}{postfix_camera}', f'{Path(right).stem}{postfix_img}', f'{Path(right).stem}{postfix_camera}', f'results/{both}')
 
     @rich_logger
     def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
@@ -654,6 +708,96 @@ class CommonSteps(object):
             else:
                 self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
 
+    def img_to_luma(self, in_img, out_suffix='.jpeg'):
+        """
+        Convert RGB image to just the luma component, if 3 bands are present
+        just take the mean, anything else is just tuned to human perception
+        :param in_img: 
+        :param out_suffix: 
+        :return: 
+        """
+        driver_map = {
+            '.jpeg': 'JPEG',
+            '.tif' : 'GTiff',
+            '.tiff': 'GTiff',
+        }
+        in_img = Path(in_img).expanduser().absolute().with_suffix('.LBL')
+        out_img = Path(in_img).with_suffix(out_suffix)
+        import rasterio as rio
+        with rio.open(in_img) as src:
+            with rio.open(out_img, 'w', driver=driver_map[out_suffix], count=1, width=src.width, height=src.height, dtype=rio.uint8) as dst:
+                if src.count == 3:
+                    rgb = src.read()
+                    res = rgb.mean(axis=0).astype(rio.uint8)
+                    dst.write(res, 1)
+                elif src.count == 1:
+                    res = src.read().astype(rio.uint8)
+                    dst.write(res)
+                
+        
+
+class Rover(object):
+    r"""
+    ASAP Stereo Pipeline - Rover workflow
+
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.0.4)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+
+    █████████████████████████████████████████████████████████████
+    """
+    
+    def __init__(self):
+        self.cs = CommonSteps()
+
+    @rich_logger
+    def step_one(self, left, right, **kwargs):
+        """
+        Preprocess images
+        :return: 
+        """
+        # first write out camera models
+        # next, if rgb, convert to YCbCr, and save out the luma only
+        both = f'{Path(left).stem}_{Path(right).stem}'
+        (Path.cwd() / both).mkdir(exist_ok=True)
+        for img in (left, right):
+            img_p = Path(img).expanduser().absolute()
+            info = self.cs.get_cav_info(img_p.with_suffix('.LBL'))
+            self.cs.write_camera_model_file(info, img_p)
+            self.cs.img_to_luma(img_p, **kwargs)
+            files = list(Path.cwd().glob(f'{img_p.stem}*.*'))
+            for f in files:
+                sh.cp(f, str(Path.cwd() / both)+'/')
+
+    @rich_logger
+    def step_two(self, left, right, stereo_conf, **kwargs):
+        """
+        Perform stereo correlation
+        :return: 
+        """
+        return self.cs.stereo_pinhole(left, right, stereo_conf=stereo_conf, **kwargs)
+
+    @rich_logger
+    def step_three(self, left, right):
+        """
+        Finally export obj versions of the point clouds
+        :return: 
+        """
+        
+        both = f'{Path(left).stem}_{Path(right).stem}'
+        with cd(Path.cwd() / both / 'results'):
+            pc = next(Path.cwd().glob('*-PC.tif'))
+            l  = next(Path.cwd().glob('*-L.tif'))
+            self.cs.point2mesh('-s', 2, pc, l)
+    
     def get_geo_diff(self, ref_dem, src_dem=None):
         left, right, both = self.parse_stereopairs()
         ref_dem = Path(ref_dem).absolute()
@@ -691,7 +835,6 @@ class CommonSteps(object):
         med_d = float(vals['Median difference'])       
         return med_d, abs(med_d)
         
-
 
 class CTX(object):
     r"""
@@ -1516,6 +1659,7 @@ class ASAP(object):
         self.hirise = HiRISE(self.https, datum=datum)
         self.ctx    = CTX(self.https, datum=datum)
         self.common = CommonSteps()
+        self.rover  = Rover()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
 
