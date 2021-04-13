@@ -151,7 +151,7 @@ jobs:
         timeout-minutes: 2
         shell: bash -l {0}
         run: |
-          asap ctx step-thirteen 1000 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
+          asap ctx step-thirteen --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
           asap ctx step-fourteen --mpp 144
           asap ctx step-fifteen
           asap ctx step_eight --folder results_map_ba --output_folder dem_align

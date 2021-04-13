@@ -632,7 +632,8 @@ class CommonSteps(object):
         max_d = float(vals['Max difference'])
         min_d = float(vals['Min difference'])
         std_d = float(vals['StdDev of difference'])
-        return max_d, min_d, std_d, abs(max_d), abs(min_d)
+        absmax_d = max(abs(max_d), abs(min_d))
+        return absmax_d, max_d, min_d, std_d
     
     def estimate_median_disparity(self, ref_dem, src_dem=None):
         vals = self.get_geo_diff(ref_dem, src_dem)
@@ -946,7 +947,7 @@ class CTX(object):
         if not maxd:
             dem = next((Path.cwd() / both / 'results_map_ba' / '/dem/').glob('*-DEM.tif'))
             # todo implement a new command or path to do a initial NED translation with this info
-            maxd, _, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
+            maxd, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
         defaults = {
             '--num-iterations': 4000,
             '--threads': _threads_singleprocess,
@@ -1369,7 +1370,7 @@ class HiRISE(object):
         if not maxd:
             dem = next((Path.cwd() / both / 'results_ba' / '/dem/').glob('*-DEM.tif'))
             # todo implement a new command or path to do a initial NED translation with this info
-            maxd, _, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
+            maxd, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
         
         defaults = {
             '--num-iterations': 2000,
