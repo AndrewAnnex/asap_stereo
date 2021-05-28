@@ -27,8 +27,9 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
+import affine
+import struct
+import csv
 import fire
 import sh
 from sh import Command
@@ -139,6 +140,13 @@ def isis3_to_dict(instr: str)-> Dict:
         group_name = lines[0][0]
         out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
     return out
+
+
+def get_affine_from_file(file):
+    md = json.loads(str(sh.gdalinfo(file, '-json')))
+    gt = md['geoTransform']
+    return affine.Affine.from_gdal(*gt)
+
 
 def rich_logger(func: Callable):
     """
@@ -264,6 +272,7 @@ class CommonSteps(object):
         self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
         self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr)
         self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
@@ -1521,10 +1530,10 @@ class Georef(object):
     def __init__(self):
         self.cs = CommonSteps()
         
-        
     def make_gcps(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
         """
         Generate GCPs for a mobile image relative to a reference image and echo to std out
+        #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
         :param reference_image: 
         :param mobile_image: 
         :param ipfindkwargs: 
@@ -1533,7 +1542,7 @@ class Georef(object):
         """
         if ipfindkwargs is None:
             # todo --output-folder
-            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --print-ip --debug-image 2'.split(' ')
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'.split(' ')
         # run ipfind
         self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
         # get vwip files
@@ -1543,7 +1552,120 @@ class Georef(object):
             ipmatchkwargs = '--ransac-constraint --debug-image'.split(' ')
         # run ipmatch
         self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
-    
+
+    @staticmethod
+    def _read_ip_record(mf):
+        """
+        Todo: find origin github repo again to cite/ref
+        :param mf:
+        :return:
+        """
+        x, y = struct.unpack('ff', mf.read(8))
+        xi, yi = struct.unpack('ff', mf.read(8))
+        orientation, scale, interest = struct.unpack('fff', mf.read(12))
+        polarity, = struct.unpack('?', mf.read(1))
+        octave, scale_lvl = struct.unpack('II', mf.read(8))
+        ndesc = struct.unpack('Q', mf.read(8))[0]
+        desc_len = int(ndesc * 4)
+        desc_fmt = 'f' * ndesc
+        desc = struct.unpack(desc_fmt, mf.read(desc_len))
+        iprec = [x, y, xi, yi, orientation,
+                 scale, interest, polarity,
+                 octave, scale_lvl, ndesc, *desc]
+        return iprec
+
+    @staticmethod
+    def _read_match_file(filename):
+        """
+        Todo: find origin github repo again to cite/ref
+        :param filename:
+        :return:
+        """
+        with open(filename, 'rb') as mf:
+            size1 = struct.unpack('q', mf.read(8))[0]
+            size2 = struct.unpack('q', mf.read(8))[0]
+            im1_ip = [Georef._read_ip_record(mf) for _ in range(size1)]
+            im2_ip = [Georef._read_ip_record(mf) for _ in range(size2)]
+            for i in range(len(im1_ip)):
+                #'col1 row1 col2 row2'
+                # todo: either here or below I may be making a mistaken row/col/x/y swap
+                yield (im1_ip[i][0], im1_ip[i][1], im2_ip[i][0], im2_ip[i][1])
+
+    @staticmethod
+    def _read_match_file_csv(filename):
+        with open(filename, 'r') as src:
+            return list(csv.reader(src))[1:]
+
+    @staticmethod
+    def _read_gcp_file_csv(filename):
+        with open(filename, 'r') as src:
+            return list(csv.reader(src))[1:]
+
+    @staticmethod
+    def matches_to_csv(self, match_file):
+        matches = self._read_match_file(match_file)
+        filename_out = os.path.splitext(match_file)[0] + '.csv'
+        with open(filename_out, 'w') as out:
+            writer = csv.writer(out, delimiter=',')
+            writer.writerow(['col1', 'row1', 'col2', 'row2'])
+            writer.writerows(matches)
+
+    @staticmethod
+    def transform_matches(self, match_file_csv, mobile_img, mobile_other):
+        mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
+        img_t = get_affine_from_file(mobile_img)
+        oth_t = get_affine_from_file(mobile_other)
+        # todo: either here or below I may be making a mistaken row/col/x/y swap
+        mp_for_other = [[*_[0:2], *(~oth_t * (img_t * _[2:4]))] for _ in mp_for_mobile_img]
+        return mp_for_other
+
+    @staticmethod
+    def create_gcps(self, reference_image, match_file_csv, write=None):
+        ref_t = get_affine_from_file(reference_image)
+        # iterable of [ref_col, ref_row, mob_col, mob_row]
+        mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
+        # get reference matchpoint positions in reference crs
+        # todo: either here or below I may be making a mistaken row/col/x/y swap
+        mp_in_ref_crs = [ref_t * (c, r) for c, r, _, _ in mp_for_mobile_img]
+        # get gcps
+        gcps = [[*ip_pix, ip_crs] for ip_pix, ip_crs in zip(mp_for_mobile_img, mp_in_ref_crs)]
+        if write is not None:
+            # assume we are given a path to write a csv to
+            with open(write, 'w') as out:
+                w = csv.writer(out)
+                w.writerow(['col', 'row', 'easting', 'northing'])
+                w.writerows(gcps)
+                # pass
+        return gcps
+
+    @staticmethod
+    def add_gcps(self, gcp_file, mobile_file):
+        # get gcps
+        gcps = self._read_gcp_file_csv(gcp_file)
+        # format gcps for gdal
+        gcps = itertools.chain.from_iterable([['-gcp', *_] for _ in gcps])
+        # use gdaltransform to update mobile file use VRT for wins
+        mobile_vrt = os.path.splitext(mobile_file)[0] + '_gt.vrt'
+        # create a vrt with the gcps
+        self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
+        return mobile_vrt
+
+    @staticmethod
+    def warp(self, reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+        if gdal_warp_args is None:
+            gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
+                              'NUM_THREADS=ALL_CPUS', '-refine_gcps',
+                              0.25, 120, '-order', 3, '-r', 'cubic',
+                              '-tr', 1.0, 1.0, ]
+        # get reference image crs
+        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip()[1:-2]
+        # update output name
+        if out_name is None:
+            out_name = os.path.splitext(mobile_vrt)[0] + '_ref.tif'
+        # let's do the time warp again
+        sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
+        # we are done!
+
 
 class ASAP(object):
     r"""
