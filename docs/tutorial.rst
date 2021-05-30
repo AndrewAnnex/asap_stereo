@@ -50,14 +50,14 @@ Selecting the correct parameters for a given pair is outside of the scope for th
 .. _stereo.nomap: https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
 .. _Ames Stereo Docs: https://stereopipeline.readthedocs.io/en/latest/stereodefault.html
 
-Now that we have all of our components we are ready to run the first ASAP notebook workflow::
+Now that we have all of our components we are ready to run the ASAP notebook workflow::
     
     nohup asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap &
 
 Again, we use the *"nohup ... &"* to run our command in the background, on a 8 core machine this step can take half an hour or so.
 If you want to produce a DEM faster, you can choose lower resource parameters for ASP by editing the stereo.default file.
 Alternatively, you can also tell ASAP to make a lower-resolution DEM by specifying a downscale parameter, ie '--downscale 4' to reduce the images by a factor of 4 in resolution.
-This one command will run several steps, replicating the workflow of the `asp_scripts`_ project steps of: ctxedr2lev1eo.sh, asp_ctx_lev1eo2dem.sh, asp_ctx_step2_map2dem.sh, and pedr_bin4_pc_align.sh.  
+This one command will run several steps, replicating the workflow of the `asp_scripts`_ project.
 A notebook file, which default to be named "log_asap_notebook_pipeline_make_dem.ipynb" will also be created which we will explore later below.
 
 .. _asp_scripts: https://github.com/USGS-Astrogeology/asp_scripts
@@ -65,7 +65,7 @@ A notebook file, which default to be named "log_asap_notebook_pipeline_make_dem.
 Inspecting outputs
 ^^^^^^^^^^^^^^^^^^
 
-The notebook produces a number of visualization products, some can be viewed using various ASP tools, some are produced by ASAP for viewing directly in the output notebook logs.
+The notebook workflow produces a number of visualization products, some can be viewed using various ASP tools, some are produced by ASAP for viewing directly in the output notebook logs.
 
 The *Good Pixel Maps* help quickly visualize if ASP is able to make sense of the provided images. 
 
