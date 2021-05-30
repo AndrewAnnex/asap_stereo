@@ -216,7 +216,7 @@ class CommonSteps(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -705,7 +705,7 @@ class CTX(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -1079,7 +1079,7 @@ class HiRISE(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
@@ -1507,7 +1507,7 @@ class ASAP(object):
            / ___ |___/ / ___ |/ ____/                            
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂               
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
 
