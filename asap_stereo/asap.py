@@ -745,7 +745,7 @@ class CTX(object):
 
     @staticmethod
     def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
-                                   config2: Optional[str] = None, demgsd = 24.0, imggsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
+                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
@@ -761,8 +761,8 @@ class CTX(object):
         :param right: Second image id
         :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
         :param downsample: Factor to downsample images for faster production
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
+        :param dem_gsd: desired GSD of output DEMs (4x image GSD)
+        :param img_gsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
@@ -777,8 +777,8 @@ class CTX(object):
                 'config2': config2,
                 'output_path' : working_dir,
                 'maxdisp': maxdisp,
-                'demgsd' : demgsd,
-                'imggsd' : imggsd,
+                'dem_gsd' : dem_gsd,
+                'img_gsd' : img_gsd,
                 'downsample' : downsample,
             },
             request_save_on_cell_execute=True,
