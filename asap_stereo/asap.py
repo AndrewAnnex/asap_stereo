@@ -922,6 +922,9 @@ class CTX(object):
         else:
             refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
+            # double check provided gsd
+            self.cs.check_mpp_against_true_gsd(f'{left}.lev1eo.cub', mpp)
+            self.cs.check_mpp_against_true_gsd(f'{right}.lev1eo.cub', mpp)
             # map project both ctx images against the reference dem
             # might need to do par do here
             self.cs.mapproject('-t', 'isis', refdem, f'{left}.lev1eo.cub', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
