@@ -21,7 +21,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
-          active-environment: isis_for_asp
+          activate-environment: isis_for_asp
           environment-file: isis.yml
           channel-priority: strict
           auto-update-conda: true
@@ -59,8 +59,8 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
       - name: download and extract ASP tarball to tmp
         run: |
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2
-          tar -xvf /tmp/sp.tar.bz2 --directory /tmp/sp
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:mega
+          tar -xvf /tmp/sp.tar.bz2 --directory /tmp
           ls /tmp/sp
       - name: setup asap conda env
         uses: conda-incubator/setup-miniconda@v2.1.0

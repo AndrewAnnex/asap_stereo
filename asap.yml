@@ -1,4 +1,4 @@
-name: asp
+name: asap
 channels:
   - conda-forge
   - defaults
