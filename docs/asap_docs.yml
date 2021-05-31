@@ -9,6 +9,8 @@ dependencies:
   - sphinx==3.1.2
   - requests
   - pip
+  - ipython
+  - pygments
   - pip:
     - sphinx-copybutton
     - sphinx_autodoc_typehints
