@@ -1638,7 +1638,6 @@ class Georef(object):
                 # pass
         return gcps
 
-    @staticmethod
     def add_gcps(self, gcp_file, mobile_file):
         # get gcps
         gcps = self._read_gcp_file_csv(gcp_file)
@@ -1651,7 +1650,7 @@ class Georef(object):
         return mobile_vrt
 
     @staticmethod
-    def warp(self, reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
         if gdal_warp_args is None:
             gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
                               'NUM_THREADS=ALL_CPUS', '-refine_gcps',
