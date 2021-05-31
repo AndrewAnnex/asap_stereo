@@ -21,6 +21,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
+          use-mamba: true
           activate-environment: isis_for_asp
           environment-file: isis.yml
           channel-priority: strict
@@ -37,21 +38,24 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
+          use-mamba: true
           activate-environment: asap
           environment-file: asap.yml
           python-version: 3.8
           channels: conda-forge,defaults
-          auto-update-conda: true
           use-only-tar-bz2: true
-          auto-activate: true
       - name: add ASP and ISIS to PATH of asap conda
         run: |
-          conda env config vars set PATH=$PATH:/tmp/sp/bin:$ISISROOT/bin
+          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
+          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
+          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
+          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
       - name: install asap
         run: pip install -e .
       - name: conda info
         run: |
           echo $PATH
+          conda env config vars list
           conda info
           conda list
       - name: check isis shared libraries

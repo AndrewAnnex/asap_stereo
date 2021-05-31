@@ -18,8 +18,3 @@ dependencies:
   - pip
   - pip:
       - moody>=0.0.4
-variables:
-  ASPROOT: /tmp/sp
-  ISISROOT: $CONDA/envs/isis_for_asp
-  ISISDATA: $CONDA/envs/isis_for_asp/data
-  ISISTESTDATA: $CONDA/envs/isis_for_asp/testdata

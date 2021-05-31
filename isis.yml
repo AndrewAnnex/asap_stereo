@@ -5,7 +5,3 @@ channels:
   - defaults
 dependencies:
   - isis=4.4.0
-variables:
-  ISISROOT: $CONDA/envs/isis_for_asp
-  ISISDATA: $CONDA/envs/isis_for_asp/data
-  ISISTESTDATA: $CONDA/envs/isis_for_asp/testdata
