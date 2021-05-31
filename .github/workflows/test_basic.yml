@@ -67,3 +67,6 @@ jobs:
           asap ctx
           asap hirise
           asap common
+      - name: Test readme rendering
+        run: |
+          python -m readme_renderer README.rst

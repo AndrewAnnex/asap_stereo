@@ -101,7 +101,7 @@ for example `asap ctx notebook_pipeline_make_dem -- --help`.
 
 For CTX:
 ~~~~~~~~
-1. `asap ctx notebook_pipeline_make_dem PRODUCTID1 PRODUCTID2 STEREO_CONF`
+`asap ctx notebook_pipeline_make_dem PRODUCTID1 PRODUCTID2 STEREO_CONF`
 
 
 Final products from step 2 are located in the `PRODUCTID_PRODUCTID/results_map_ba/dem_align` folder. The
@@ -111,8 +111,9 @@ and `PRODUCTID_PRODUCTID_map_ba_align_6_0-DRG.tif`.
 
 For HiRISE:
 ~~~~~~~~~~~
-1. `asap hirise notebook_pipeline_make_dem ID1 ID2 STEREO_CONF REFDEM `
-    where REFDEM is the path to the CTX DEM (not the geoid adjusted "adj.tif" DEM) created before.
+`asap hirise notebook_pipeline_make_dem ID1 ID2 STEREO_CONF REFDEM`
+
+where REFDEM is the path to the CTX DEM (not the geoid adjusted "adj.tif" DEM) created before.
 
 Final products from step 3 are located in the `PRODUCTID_PRODUCTID/results/dem_align` folder. The
 `PRODUCTID_PRODUCTID_align_1_0-DEM-adj.tif` is the final DEM product, and the map projected images

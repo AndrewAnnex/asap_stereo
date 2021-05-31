@@ -18,3 +18,4 @@ dependencies:
   - pip
   - pip:
       - moody>=0.0.4
+      - readme-renderer
