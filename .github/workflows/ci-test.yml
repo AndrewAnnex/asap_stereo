@@ -26,7 +26,6 @@ jobs:
           channel-priority: strict
           auto-update-conda: true
           python-version: 3.6
-          auto-activate: false
           use-only-tar-bz2: true
       - name: rsync base kernels
         run: |
@@ -61,7 +60,7 @@ jobs:
         run: |
           mkdir /tmp/sp
           wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
-          tar -xvf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
           ls /tmp/sp
       - name: setup asap conda env
         uses: conda-incubator/setup-miniconda@v2.1.0
@@ -73,7 +72,6 @@ jobs:
           channels: conda-forge,defaults
           auto-update-conda: true
           use-only-tar-bz2: true
-          auto-activate: true
       - name: add ASP and ISIS to PATH of asap conda
         run: |
           conda env config vars set PATH=$PATH:/tmp/sp/bin:$ISISROOT/bin
@@ -81,6 +79,7 @@ jobs:
         run: pip install -e .
       - name: conda info
         run: |
+          echo $PATH
           conda info
           conda list
       - name: check isis shared libraries

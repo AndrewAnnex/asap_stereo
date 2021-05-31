@@ -26,13 +26,12 @@ jobs:
           channel-priority: strict
           auto-update-conda: true
           python-version: 3.6
-          auto-activate: false
           use-only-tar-bz2: true
       - name: download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
           wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
-          tar -xvf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
           ls /tmp/sp
       - name: setup asap conda env
         uses: conda-incubator/setup-miniconda@v2.1.0
@@ -52,6 +51,7 @@ jobs:
         run: pip install -e .
       - name: conda info
         run: |
+          echo $PATH
           conda info
           conda list
       - name: check isis shared libraries
