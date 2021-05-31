@@ -16,18 +16,37 @@ jobs:
           CACHE_NUMBER: 0
         with:
           path: ~/conda_pkgs_dir
-          key: ${{ runner.os }}-${{ hashFiles('asp.yml') }}
-      - name: setup miniconda
+          key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
+      - name: setup isis conda env
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
-          activate-environment: asp
-          environment-file: asp.yml
-          python-version: 3.6
-          channels: nasa-ames-stereo-pipeline,usgs-astrogeology,conda-forge,defaults
+          active-environment: isis_for_asp
+          environment-file: isis.yml
           channel-priority: strict
           auto-update-conda: true
+          python-version: 3.6
+          auto-activate: false
           use-only-tar-bz2: true
+      - name: download and extract ASP tarball to tmp
+        run: |
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2
+          tar -xvf /tmp/sp.tar.bz2 --directory /tmp/sp
+          ls /tmp/sp
+      - name: setup asap conda env
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          activate-environment: asap
+          environment-file: asap.yml
+          python-version: 3.8
+          channels: conda-forge,defaults
+          auto-update-conda: true
+          use-only-tar-bz2: true
+          auto-activate: true
+      - name: add ASP and ISIS to PATH of asap conda
+        run: |
+          conda env config vars set PATH=$PATH:/tmp/sp/bin:$ISISROOT/bin
       - name: install asap
         run: pip install -e .
       - name: conda info

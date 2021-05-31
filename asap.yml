@@ -1,0 +1,24 @@
+name: asp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=>3.8
+  - pvl
+  - nb_conda_kernels
+  - jupyterlab
+  - requests
+  - fire
+  - tqdm
+  - papermill
+  - rasterio
+  - pyproj
+  - shapely
+  - pip
+  - pip:
+      - moody>=0.0.4
+variables:
+  ASPROOT: /tmp/sp
+  ISISROOT: $CONDA/envs/isis_for_asp
+  ISISDATA: $CONDA/envs/isis_for_asp/data
+  ISISTESTDATA: $CONDA/envs/isis_for_asp/testdata
