@@ -101,10 +101,8 @@ for example `asap ctx notebook_pipeline_make_dem -- --help`.
 
 For CTX:
 ~~~~~~~~
-1. `asap ctx notebook_pipeline_make_dem PRODUCTID1 PRODUCTID2 PEDR_LIST STEREO_CONF`
-2. `asap ctx notebook_pipeline_align_dem --maxdisp 500`
+1. `asap ctx notebook_pipeline_make_dem PRODUCTID1 PRODUCTID2 STEREO_CONF`
 
-note: PEDR_LIST is now optional. ASAP Defaults to use ODE REST API.
 
 Final products from step 2 are located in the `PRODUCTID_PRODUCTID/results_map_ba/dem_align` folder. The
 `PRODUCTID_PRODUCTID_map_ba_align_24_0-DEM-adj.tif` is the final DEM product,
@@ -113,9 +111,8 @@ and `PRODUCTID_PRODUCTID_map_ba_align_6_0-DRG.tif`.
 
 For HiRISE:
 ~~~~~~~~~~~
-1. `asap hirise notebook_pipeline_make_dem ID1 ID2 STEREO_CONF`
-2. `asap hirise notebook_pipeline_align_dem REFDEM --maxdisp 500`
-    where REFDEM is the path to the CTX DEM (non "adj.tif") created before.
+1. `asap hirise notebook_pipeline_make_dem ID1 ID2 STEREO_CONF REFDEM `
+    where REFDEM is the path to the CTX DEM (not the geoid adjusted "adj.tif" DEM) created before.
 
 Final products from step 3 are located in the `PRODUCTID_PRODUCTID/results/dem_align` folder. The
 `PRODUCTID_PRODUCTID_align_1_0-DEM-adj.tif` is the final DEM product, and the map projected images
@@ -123,7 +120,9 @@ are `PRODUCTID_PRODUCTID_align_1_0-DRG.tif` and `PRODUCTID_PRODUCTID_align_0_25-
 
 Estimating Max-Disparity (--maxdisp)
 ------------------------------------
-The maximum disparity parameter used in both `align_dem` steps above can be estimated by loading the reference and target
+*note:*  As of 0.2.0 disparity is estimated for the user by ASAP, this note retained for cases when overrides needed.
+
+The maximum disparity parameter used in both workflows above can be estimated by loading the reference and target
 DEM products into a GIS environment (like QGIS) to determine the distance in the x, y, and z axes between the two products.
 It is good practice to add a hundred meter margin to this estimate. For CTX use the PEDR CSV file to estimate it from MOLA,
 for HiRISE use the final DEM.tif (non-geoid corrected) for the corresponding CTX pair.
