@@ -324,6 +324,12 @@ class CommonSteps(object):
         return out_dict
 
     @staticmethod
+    def get_image_band_stats(img)-> dict:
+        gdalinfocmd = Command('gdalinfo').bake('-json')
+        gdal_info = json.loads(str(gdalinfocmd(img, '-stats')))
+        return gdal_info['bands']
+
+    @staticmethod
     def get_image_gsd(img, opinion='lower')-> float:
         gdalinfocmd = Command('gdalinfo').bake('-json')
         gdal_info = json.loads(str(gdalinfocmd(img)))
@@ -1526,38 +1532,12 @@ class Georef(object):
     
     
     """
-    
-    def __init__(self):
-        self.cs = CommonSteps()
-        
-    def make_gcps(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
-        """
-        Generate GCPs for a mobile image relative to a reference image and echo to std out
-        #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
-        #todo: implement my own normalization
-        :param reference_image: 
-        :param mobile_image: 
-        :param ipfindkwargs: 
-        :param ipmatchkwargs: 
-        :return: 
-        """
-        if ipfindkwargs is None:
-            # todo --output-folder
-            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'.split(' ')
-        # run ipfind
-        self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
-        # get vwip files
-        ref_img_vwip = reference_image.replace('.tif', '.vwip')
-        mob_img_vwip = reference_image.replace('.tif', '.vwip')
-        if ipmatchkwargs is None:
-            ipmatchkwargs = '--debug-image --ransac-constraint homography'.split(' ')
-        # run ipmatch
-        self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
 
     @staticmethod
     def _read_ip_record(mf):
         """
-        Todo: find origin github repo again to cite/ref
+        refactor of https://github.com/friedrichknuth/bare/ utils to use struct
+        source is MIT licenced https://github.com/friedrichknuth/bare/blob/master/LICENSE.rst
         :param mf:
         :return:
         """
@@ -1578,7 +1558,8 @@ class Georef(object):
     @staticmethod
     def _read_match_file(filename):
         """
-        Todo: find origin github repo again to cite/ref
+        refactor of https://github.com/friedrichknuth/bare/ utils to use struct
+        source is MIT licenced https://github.com/friedrichknuth/bare/blob/master/LICENSE.rst
         :param filename:
         :return:
         """
@@ -1602,7 +1583,51 @@ class Georef(object):
         with open(filename, 'r') as src:
             return list(csv.reader(src))[1:]
 
+    def __init__(self):
+        self.cs = CommonSteps()
+
+
+    def normalize(self, image):
+        # iterable of bands
+        band_stats = self.cs.get_image_band_stats(image)
+        # make output name
+        out_name = Path(image).stem + '_normalized.vrt'
+        # get bands scaling iterable, multiply by 1.001 for a little lower range
+        scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["min"])*1.001, float(bandif["max"])*1.001) for bandif in band_stats))
+        # run gdal translate
+        _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales,  _out=sys.stdout, _err=sys.stderr)
+        return _
+
+    def find_matches(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
+        """
+        Generate GCPs for a mobile image relative to a reference image and echo to std out
+        #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
+        #todo: implement my own normalization
+        :param reference_image: reference vis image
+        :param mobile_image: image we want to move to align to reference image
+        :param ipfindkwargs: override kwargs for ASP ipfind
+        :param ipmatchkwargs: override kwarge for ASP ipmatch
+        :return: 
+        """
+        if ipfindkwargs is None:
+            # todo --output-folder
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'.split(' ')
+        # run ipfind
+        self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
+        # get vwip files
+        ref_img_vwip = reference_image.replace('.tif', '.vwip')
+        mob_img_vwip = reference_image.replace('.tif', '.vwip')
+        if ipmatchkwargs is None:
+            ipmatchkwargs = '--debug-image --ransac-constraint homography'.split(' ')
+        # run ipmatch
+        self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
+        # done, todo return tuple of vwip/match files
+        pass
+
     def matches_to_csv(self, match_file):
+        """
+        Convert an ASP .match file from ipmatch to CSV
+        """
         matches = self._read_match_file(match_file)
         filename_out = os.path.splitext(match_file)[0] + '.csv'
         with open(filename_out, 'w') as out:
@@ -1611,6 +1636,13 @@ class Georef(object):
             writer.writerows(matches)
 
     def transform_matches(self, match_file_csv, mobile_img, mobile_other):
+        """
+        Given a csv match file of two images (reference and mobile), and a third image (likely a DEM)
+        create a modified match csv file with the coordinates transformed for the 2nd (mobile) image
+        This works using the CRS of the images and assumes that both mobile images are already co-registered
+        This is particularly useful when the imagery is higher pixel resolution than a DEM, and
+        permits generating duplicated gcps
+        """
         mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
         img_t = get_affine_from_file(mobile_img)
         oth_t = get_affine_from_file(mobile_other)
@@ -1624,7 +1656,13 @@ class Georef(object):
             writer.writerows(mp_for_other)
         return match_other_out
 
-    def create_gcps(self, reference_image, match_file_csv, write=None):
+    def create_gcps(self, reference_image, match_file_csv, out_name=None):
+        """
+        Given a reference image and a match file in csv format,
+        generate a csv of GCPs. By default just prints to stdout
+        but out_name allows you to name the csv file or you can pipe
+        """
+        # get reference affine transform to get world coords (crs coords) of reference rows/cols
         ref_t = get_affine_from_file(reference_image)
         # iterable of [ref_col, ref_row, mob_col, mob_row]
         mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
@@ -1634,28 +1672,36 @@ class Georef(object):
         # get gcps which are tuples of [x1, y1, crs_x, crs_y]
         # I lob off the first two ip_pix points which are the reference row/col, I want mobile row/col
         gcps = [[*ip_pix[2:], *ip_crs] for ip_pix, ip_crs in zip(mp_for_mobile_img, mp_in_ref_crs)]
-        if write is not None:
-            # assume we are given a path to write a csv to
-            with open(write, 'w') as out:
-                w = csv.writer(out)
-                w.writerow(['col', 'row', 'easting', 'northing'])
-                w.writerows(gcps)
-                # pass
-        return gcps
+        # get output file or stdout
+        out = open(out_name, 'w') if out_name is not None else sys.stdout
+        w = csv.writer(out, delimiter=',')
+        w.writerow(['col', 'row', 'easting', 'northing'])
+        w.writerows(gcps)
+        if out is not sys.stdout:
+            out.close()
 
-    def add_gcps(self, gcp_file, mobile_file):
-        # get gcps
-        gcps = self._read_gcp_file_csv(gcp_file)
+    def add_gcps(self, gcp_csv_file, mobile_file):
+        """
+        Given a gcp file in csv format (can have Z values or different extension)
+        use gdaltranslate to add the GCPs to the provided mobile file by creating
+        a VRT raster
+        """
+        # get gcps fom gcp_csv_file
+        gcps = self._read_gcp_file_csv(gcp_csv_file)
         # format gcps for gdal
         gcps = itertools.chain.from_iterable([['-gcp', *_] for _ in gcps])
         # use gdaltransform to update mobile file use VRT for wins
-        mobile_vrt = os.path.splitext(mobile_file)[0] + '_wgcps.vrt'
+        mobile_vrt = Path(mobile_file).stem + '_wgcps.vrt'
         # create a vrt with the gcps
         self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
         return mobile_vrt
 
     @staticmethod
     def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+        """
+        Final step in workflow, given a reference image and a mobile vrt with attached GCPs
+        use gdalwarp to create a modified non-virtual file that is aligned to the reference image
+        """
         if gdal_warp_args is None:
             gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
                               'NUM_THREADS=ALL_CPUS', '-refine_gcps',
@@ -1665,10 +1711,9 @@ class Georef(object):
         refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes
         # update output name
         if out_name is None:
-            out_name = os.path.splitext(mobile_vrt)[0] + '_ref.tif'
+            out_name = Path(mobile_vrt).stem + '_ref.tif'
         # let's do the time warp again
-        sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
-        # we are done!
+        return sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
 
 
 class ASAP(object):
