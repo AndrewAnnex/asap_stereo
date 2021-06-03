@@ -1534,6 +1534,7 @@ class Georef(object):
         """
         Generate GCPs for a mobile image relative to a reference image and echo to std out
         #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
+        #todo: implement my own normalization
         :param reference_image: 
         :param mobile_image: 
         :param ipfindkwargs: 
@@ -1549,7 +1550,7 @@ class Georef(object):
         ref_img_vwip = reference_image.replace('.tif', '.vwip')
         mob_img_vwip = reference_image.replace('.tif', '.vwip')
         if ipmatchkwargs is None:
-            ipmatchkwargs = '--ransac-constraint --debug-image'.split(' ')
+            ipmatchkwargs = '--debug-image --ransac-constraint homography'.split(' ')
         # run ipmatch
         self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
 
@@ -1594,14 +1595,13 @@ class Georef(object):
     @staticmethod
     def _read_match_file_csv(filename):
         with open(filename, 'r') as src:
-            return list(csv.reader(src))[1:]
+            return [list(map(float, _)) for _ in list(csv.reader(src))[1:]]
 
     @staticmethod
     def _read_gcp_file_csv(filename):
         with open(filename, 'r') as src:
             return list(csv.reader(src))[1:]
 
-    @staticmethod
     def matches_to_csv(self, match_file):
         matches = self._read_match_file(match_file)
         filename_out = os.path.splitext(match_file)[0] + '.csv'
@@ -1610,25 +1610,30 @@ class Georef(object):
             writer.writerow(['col1', 'row1', 'col2', 'row2'])
             writer.writerows(matches)
 
-    @staticmethod
     def transform_matches(self, match_file_csv, mobile_img, mobile_other):
         mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
         img_t = get_affine_from_file(mobile_img)
         oth_t = get_affine_from_file(mobile_other)
         # todo: either here or below I may be making a mistaken row/col/x/y swap
         mp_for_other = [[*_[0:2], *(~oth_t * (img_t * _[2:4]))] for _ in mp_for_mobile_img]
-        return mp_for_other
+        # write output csv
+        match_other_out = Path(match_file_csv).name.replace(Path(mobile_img).stem, Path(mobile_other).stem)
+        with open(match_other_out, 'w') as out:
+            writer = csv.writer(out, delimiter=',')
+            writer.writerow(['col1', 'row1', 'col2', 'row2'])
+            writer.writerows(mp_for_other)
+        return match_other_out
 
-    @staticmethod
     def create_gcps(self, reference_image, match_file_csv, write=None):
         ref_t = get_affine_from_file(reference_image)
         # iterable of [ref_col, ref_row, mob_col, mob_row]
         mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
-        # get reference matchpoint positions in reference crs
+        # get reference image matchpoint positions in reference crs
         # todo: either here or below I may be making a mistaken row/col/x/y swap
         mp_in_ref_crs = [ref_t * (c, r) for c, r, _, _ in mp_for_mobile_img]
-        # get gcps
-        gcps = [[*ip_pix, ip_crs] for ip_pix, ip_crs in zip(mp_for_mobile_img, mp_in_ref_crs)]
+        # get gcps which are tuples of [x1, y1, crs_x, crs_y]
+        # I lob off the first two ip_pix points which are the reference row/col, I want mobile row/col
+        gcps = [[*ip_pix[2:], *ip_crs] for ip_pix, ip_crs in zip(mp_for_mobile_img, mp_in_ref_crs)]
         if write is not None:
             # assume we are given a path to write a csv to
             with open(write, 'w') as out:
@@ -1644,7 +1649,7 @@ class Georef(object):
         # format gcps for gdal
         gcps = itertools.chain.from_iterable([['-gcp', *_] for _ in gcps])
         # use gdaltransform to update mobile file use VRT for wins
-        mobile_vrt = os.path.splitext(mobile_file)[0] + '_gt.vrt'
+        mobile_vrt = os.path.splitext(mobile_file)[0] + '_wgcps.vrt'
         # create a vrt with the gcps
         self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
         return mobile_vrt
@@ -1654,10 +1659,10 @@ class Georef(object):
         if gdal_warp_args is None:
             gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
                               'NUM_THREADS=ALL_CPUS', '-refine_gcps',
-                              0.25, 120, '-order', 3, '-r', 'cubic',
+                              '0.25, 120', '-order', 3, '-r', 'cubic',
                               '-tr', 1.0, 1.0, ]
         # get reference image crs
-        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip()[1:-2]
+        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes
         # update output name
         if out_name is None:
             out_name = os.path.splitext(mobile_vrt)[0] + '_ref.tif'
@@ -1690,6 +1695,7 @@ class ASAP(object):
         self.hirise = HiRISE(self.https, datum=datum)
         self.ctx    = CTX(self.https, datum=datum)
         self.common = CommonSteps()
+        self.georef = Georef()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
 
