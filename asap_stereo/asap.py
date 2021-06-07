@@ -219,6 +219,7 @@ class CommonSteps(object):
           asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -708,6 +709,7 @@ class CTX(object):
           asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -1082,6 +1084,7 @@ class HiRISE(object):
           asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -1510,6 +1513,7 @@ class ASAP(object):
           asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
