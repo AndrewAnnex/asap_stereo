@@ -32,6 +32,7 @@ import struct
 import csv
 import fire
 import sh
+import tqdm
 from sh import Command
 from contextlib import contextmanager
 import functools
@@ -1637,8 +1638,9 @@ class Georef(object):
             writer = csv.writer(out, delimiter=',')
             writer.writerow(['col1', 'row1', 'col2', 'row2'])
             writer.writerows(matches)
+        return filename_out
 
-    def transform_matches(self, match_file_csv, mobile_img, mobile_other):
+    def transform_matches(self, match_file_csv, mobile_img, mobile_other, outname=None):
         """
         Given a csv match file of two images (reference and mobile), and a third image (likely a DEM)
         create a modified match csv file with the coordinates transformed for the 2nd (mobile) image
@@ -1652,12 +1654,13 @@ class Georef(object):
         # todo: either here or below I may be making a mistaken row/col/x/y swap
         mp_for_other = [[*_[0:2], *(~oth_t * (img_t * _[2:4]))] for _ in mp_for_mobile_img]
         # write output csv
-        match_other_out = Path(match_file_csv).name.replace(Path(mobile_img).stem, Path(mobile_other).stem)
-        with open(match_other_out, 'w') as out:
+        if not outname:
+            outname = Path(match_file_csv).name.replace(Path(mobile_img).stem, Path(mobile_other).stem)
+        with open(outname, 'w') as out:
             writer = csv.writer(out, delimiter=',')
             writer.writerow(['col1', 'row1', 'col2', 'row2'])
             writer.writerows(mp_for_other)
-        return match_other_out
+        return outname
 
     def create_gcps(self, reference_image, match_file_csv, out_name=None):
         """
@@ -1717,6 +1720,26 @@ class Georef(object):
             out_name = Path(mobile_vrt).stem + '_ref.tif'
         # let's do the time warp again
         return sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
+
+    def im_feeling_lucky(self, ref_img, mobile_image, *other_mobile, ipfindkwargs=None, ipmatchkwargs=None, gdal_warp_args=None):
+        """
+        Do it all in one go, can take N mobile datasets but assumes the first is the mobile image.
+        If unsure normalize your data ahead of time
+        """
+        # get the matches
+        self.find_matches(ref_img, mobile_image, ipfindkwargs=ipfindkwargs, ipmatchkwargs=ipmatchkwargs)
+        # convert matches to csv
+        match_csv = self.matches_to_csv(f'{Path(ref_img).stem}__{Path(mobile_image).stem}.match')
+        # loop through all the mobile data
+        for i, mobile in tqdm.tqdm(enumerate([mobile_image, *other_mobile])):
+            # transform matches # todo: make sure I don't overwrite anything here
+            new_match_csv = self.transform_matches(match_csv, mobile_image, mobile, outname=f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.csv')
+            # create gcps from matches csv
+            self.create_gcps(ref_img, new_match_csv, out_name=f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps')
+            # add gcps to mobile file
+            vrt_with_gcps = self.add_gcps(f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps', mobile)
+            # warp file
+            self.warp(ref_img, vrt_with_gcps, out_name=gdal_warp_args)
 
 
 class ASAP(object):
