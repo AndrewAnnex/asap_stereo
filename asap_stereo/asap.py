@@ -1593,9 +1593,9 @@ class Georef(object):
         # make output name
         out_name = Path(image).stem + '_normalized.vrt'
         # get bands scaling iterable, multiply by 1.001 for a little lower range
-        scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["min"])*1.001, float(bandif["max"])*1.001) for bandif in band_stats))
+        scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["min"])*1.001, float(bandif["max"])*1.001, 1, 255) for bandif in band_stats))
         # run gdal translate
-        _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales,  _out=sys.stdout, _err=sys.stderr)
+        _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
         return _
 
     def find_matches(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
@@ -1616,10 +1616,12 @@ class Georef(object):
         # run ipfind
         self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
         # get vwip files
-        ref_img_vwip = reference_image.replace('.tif', '.vwip')
-        mob_img_vwip = mobile_image.replace('.tif', '.vwip')
+        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
+        mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
+        # set default ipmatchkwargs if needed
         if ipmatchkwargs is None:
-            ipmatchkwargs = '--debug-image --ransac-constraint homography'.split(' ')
+            ipmatchkwargs = '--debug-image --ransac-constraint homography'
+        ipmatchkwargs = ipmatchkwargs.split(' ')
         # run ipmatch
         self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
         # done, todo return tuple of vwip/match files
