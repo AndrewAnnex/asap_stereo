@@ -325,8 +325,8 @@ class CommonSteps(object):
 
     @staticmethod
     def get_image_band_stats(img)-> dict:
-        gdalinfocmd = Command('gdalinfo').bake('-json')
-        gdal_info = json.loads(str(gdalinfocmd(img, '-stats')))
+        gdalinfocmd = Command('gdalinfo')
+        gdal_info = json.loads(str(gdalinfocmd('-json', '-stats', img)))
         return gdal_info['bands']
 
     @staticmethod
@@ -1611,12 +1611,13 @@ class Georef(object):
         """
         if ipfindkwargs is None:
             # todo --output-folder
-            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'.split(' ')
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'
+        ipfindkwargs = ipfindkwargs.split(' ')
         # run ipfind
         self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
         # get vwip files
         ref_img_vwip = reference_image.replace('.tif', '.vwip')
-        mob_img_vwip = reference_image.replace('.tif', '.vwip')
+        mob_img_vwip = mobile_image.replace('.tif', '.vwip')
         if ipmatchkwargs is None:
             ipmatchkwargs = '--debug-image --ransac-constraint homography'.split(' ')
         # run ipmatch
