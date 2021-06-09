@@ -1511,27 +1511,23 @@ class HiRISE(object):
 
 
 class Georef(object):
-    """
-    Georeferencing command line tool
-    
-    suppose I have two dem's paired with two dems, one is a reference set, another is a mobile set that I want to register
-    with the reference set. Don't assume the images have the same pixel sizes, but do have the same CRS within each set.
-    ie reference pair has a 0.25m DRG and 1m DEM and the mobile pair has 1m DRG and 1m DEM. 
-    
-    We need to find GCPS between the two pairs using only the image data, but be able to transform the mobile DEM as well. 
-    In this case, we actually don't need a reference DEM at all. So really all we need are the 2 images, and a way of updating the GCPs
-    for the mobile image to be for the mobile DEM instead. All that should take is a CRS transform of the map/pixel points between the 
-    two mobile images and should require no additional information from the reference image/crs
-    
-    plan:
-    1. use ipfind/ipmatch to collect match points between a reference and mobile image
-    2. convert vwip points to a more normal gcp format/provide csv output
-    2.5 provide a way to convert mobile image GCP points to another mobile image with different size/crs but assuming they are corregistered already
-    3. provide output at this stage on residuals etc given different transform options if gdal gives a way to do this/use python
-    4. create an apply command that takes given gcps' and applys the warp/transform using gdalwarp and gdaltranslate
-    
-    
-    
+    r"""
+    ASAP Stereo Pipeline - Georef Tools
+
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.2.0)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
+
+    █████████████████████████████████████████████████████████████
     """
 
     @staticmethod
@@ -1700,6 +1696,7 @@ class Georef(object):
         mobile_vrt = Path(mobile_file).stem + '_wgcps.vrt'
         # create a vrt with the gcps
         self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
+        # todo: here or as a new command would be a good place to display residuals for gcps given different transform options
         return mobile_vrt
 
     @staticmethod
@@ -1714,7 +1711,7 @@ class Georef(object):
                               '0.25, 120', '-order', 3, '-r', 'cubic',
                               '-tr', 1.0, 1.0, ]
         # get reference image crs
-        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes
+        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes, not sure I could be mis-remembering
         # update output name
         if out_name is None:
             out_name = Path(mobile_vrt).stem + '_ref.tif'
@@ -1723,6 +1720,7 @@ class Georef(object):
 
     def im_feeling_lucky(self, ref_img, mobile_image, *other_mobile, ipfindkwargs=None, ipmatchkwargs=None, gdal_warp_args=None):
         """
+        Georeference an mobile dataset against a reference image.
         Do it all in one go, can take N mobile datasets but assumes the first is the mobile image.
         If unsure normalize your data ahead of time
         """
