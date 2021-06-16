@@ -1585,6 +1585,12 @@ class Georef(object):
     def __init__(self):
         self.cs = CommonSteps()
 
+    def match_gsds(self, ref_image, *images):
+        ref_gsd = int(self.cs.get_image_gsd(ref_image))
+        for img in images:
+            out_name = Path(img).stem + f'_{ref_gsd}.vrt'
+            _ = sh.gdal_translate(img, out_name, '-of', 'vrt', '-tr', ref_gsd, ref_gsd, '-r', 'cubic')
+            yield out_name
 
     def normalize(self, image):
         # iterable of bands
@@ -1595,15 +1601,15 @@ class Georef(object):
         scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["minimum"])*1.001, float(bandif["maximum"])*1.001, 1, 255) for bandif in band_stats))
         # run gdal translate
         _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
-        return _
+        return out_name
 
-    def find_matches(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
+    def find_matches(self, reference_image, *mobile_images, ipfindkwargs=None, ipmatchkwargs=None):
         """
         Generate GCPs for a mobile image relative to a reference image and echo to std out
         #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
         #todo: implement my own normalization
         :param reference_image: reference vis image
-        :param mobile_image: image we want to move to align to reference image
+        :param mobile_images: image we want to move to align to reference image
         :param ipfindkwargs: override kwargs for ASP ipfind
         :param ipmatchkwargs: override kwarge for ASP ipmatch
         :return: 
@@ -1612,19 +1618,23 @@ class Georef(object):
             # todo --output-folder
             ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'
         ipfindkwargs = ipfindkwargs.split(' ')
-        # run ipfind
-        self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
-        # get vwip files
-        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
-        mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
         # set default ipmatchkwargs if needed
         if ipmatchkwargs is None:
             ipmatchkwargs = '--debug-image --ransac-constraint homography'
         ipmatchkwargs = ipmatchkwargs.split(' ')
-        # run ipmatch
-        self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
-        # done, todo return tuple of vwip/match files
-        pass
+        # run ipfind on the reference image
+        self.cs.ipfind(*ipfindkwargs, reference_image)
+        # get vwip file
+        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
+        for mobile_image in mobile_images:
+            # run ipfind on the mobile image
+            self.cs.ipfind(*ipfindkwargs, mobile_image)
+            # get vwip file
+            mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
+            # run ipmatch
+            self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
+            # done, todo return tuple of vwip/match files
+            yield f'{Path(reference_image).stem}__{Path(mobile_image).stem}.match'
 
     def matches_to_csv(self, match_file):
         """
@@ -1785,6 +1795,11 @@ class Georef(object):
         lr_left = rasterio.open(lr_left_name)
         lr_right = rasterio.open(lr_right_name)
         gcps = []
+        reference_gsd = round(self.cs.get_image_gsd(ref_img), 1)
+        left_gsd = round(self.cs.get_image_gsd(left_name), 2)
+        right_gsd = round(self.cs.get_image_gsd(right_name), 2)
+        left_std = round(reference_gsd/left_gsd, 1)
+        right_std = round(reference_gsd / right_gsd, 1)
         # start loop
         for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
             # crsxy needs to be in lon lat
@@ -1796,12 +1811,11 @@ class Georef(object):
             lr_right_in_crs = lr_right.xy(*right_rc)
             right_row, right_col = right.index(*lr_right_in_crs, op=lambda x: x)  # no rounding
             # left/right rc might need to be flipped
-            # 6.0 is just a guess, might be too loose, todo: ask asp devs about specifics
-            # need to transform 6m hirise row/col to true row col position. easy with crs_xy
+            # todo: xyz stds might be too lax, could likely divide them by 3
             this_gcp = [
-                i, lat, lon, round(float(z), 1), 6.0, 6.0, 6.0,  # gcp number, lat, lon, height, x std, y std, z std,
-                left_name, left_col, left_row, 24.0, 24.0,  # left image, column index, row index, column std, row std,
-                right_name, right_col, right_row, 24.0, 24.0  # right image, column index, row index, column std, row std,
+                i, lat, lon, round(float(z), 1), reference_gsd, reference_gsd, reference_gsd, # gcp number, lat, lon, height, x std, y std, z std,
+                left_name, left_col, left_row, left_std, left_std,  # left image, column index, row index, column std, row std,
+                right_name, right_col, right_row, right_std , right_std   # right image, column index, row index, column std, row std,
             ]
             gcps.append(this_gcp)
         out = open(out_name, 'w') if out_name is not None else sys.stdout
@@ -1809,6 +1823,40 @@ class Georef(object):
         w.writerows(gcps)
         if out is not sys.stdout:
             out.close()
+
+
+    def make_gcps_for_ba(self, ref_img, ref_dem, left, right, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None):
+        """
+        Given a reference image and dem, and two images for a stereopair,
+         automatically create GCPs for ASP's BA by finding ip match points
+         common between the reference image and the left and right images for the new pair
+         and sampling the z values from the reference DEM.
+
+         note that this will create several vrt files because we want to make normalized downsampled images
+         to find a good number of matches and to save time between images of large resolution differences
+        """
+        # normalize the data
+        ref_norm = self.normalize(ref_img)
+        left_norm = self.normalize(left)
+        right_norm = self.normalize(right)
+        # make the left/right the same gsd as the reference data
+        lr_left, lr_right = list(self.match_gsds(ref_norm, left_norm, right_norm))
+        # compute matches
+        ref_left_match, ref_right_match = list(self.find_matches(ref_norm, (lr_left, lr_right)))
+        # make gcps for ba
+        self.make_ba_gcps(
+            ref_img,
+            ref_dem,
+            ref_left_match,
+            ref_right_match,
+            left,
+            lr_left,
+            right,
+            lr_right,
+            eoid=eoid,
+            out_name=out_name
+        )
+
 
 
 class ASAP(object):
