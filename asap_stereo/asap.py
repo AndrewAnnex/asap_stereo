@@ -27,10 +27,12 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
+import affine
+import struct
+import csv
 import fire
 import sh
+import tqdm
 from sh import Command
 from contextlib import contextmanager
 import functools
@@ -140,6 +142,13 @@ def isis3_to_dict(instr: str)-> Dict:
         out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
     return out
 
+
+def get_affine_from_file(file):
+    md = json.loads(str(sh.gdalinfo(file, '-json')))
+    gt = md['geoTransform']
+    return affine.Affine.from_gdal(*gt)
+
+
 def rich_logger(func: Callable):
     """
     rich logger decorator, wraps a function and writes nice log statements
@@ -179,7 +188,6 @@ def rich_logger(func: Callable):
         # no return at this point
     return wrapper
 
-
 def par_do(func, all_calls_args):
     """
     Parallel execution helper function for sh.py Commands
@@ -203,6 +211,7 @@ def par_do(func, all_calls_args):
             procs.append(do(call_args))
 
     return [p.wait() for p in procs]
+
 
 class CommonSteps(object):
     r"""
@@ -263,6 +272,9 @@ class CommonSteps(object):
         self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
         self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
+        self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr)
+        self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
@@ -312,6 +324,12 @@ class CommonSteps(object):
             out = str(camrange(f'from={str(Path(img).name)}').stdout)
             out_dict = isis3_to_dict(out)
         return out_dict
+
+    @staticmethod
+    def get_image_band_stats(img)-> dict:
+        gdalinfocmd = Command('gdalinfo')
+        gdal_info = json.loads(str(gdalinfocmd('-json', '-stats', img)))
+        return gdal_info['bands']
 
     @staticmethod
     def get_image_gsd(img, opinion='lower')-> float:
@@ -693,7 +711,6 @@ class CommonSteps(object):
         return med_d, abs(med_d)
         
 
-
 class CTX(object):
     r"""
     ASAP Stereo Pipeline - CTX workflow
@@ -1068,6 +1085,7 @@ class CTX(object):
             file = next(Path.cwd().glob('*-DEM.tif'))
             args = kwargs_to_args(clean_kwargs(kwargs))
             return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
+
 
 class HiRISE(object):
     r"""
@@ -1498,6 +1516,236 @@ class HiRISE(object):
             return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
 
 
+class Georef(object):
+    r"""
+    ASAP Stereo Pipeline - Georef Tools
+
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.2.0)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
+
+    █████████████████████████████████████████████████████████████
+    """
+
+    @staticmethod
+    def _read_ip_record(mf):
+        """
+        refactor of https://github.com/friedrichknuth/bare/ utils to use struct
+        source is MIT licenced https://github.com/friedrichknuth/bare/blob/master/LICENSE.rst
+        :param mf:
+        :return:
+        """
+        x, y = struct.unpack('ff', mf.read(8))
+        xi, yi = struct.unpack('ff', mf.read(8))
+        orientation, scale, interest = struct.unpack('fff', mf.read(12))
+        polarity, = struct.unpack('?', mf.read(1))
+        octave, scale_lvl = struct.unpack('II', mf.read(8))
+        ndesc = struct.unpack('Q', mf.read(8))[0]
+        desc_len = int(ndesc * 4)
+        desc_fmt = 'f' * ndesc
+        desc = struct.unpack(desc_fmt, mf.read(desc_len))
+        iprec = [x, y, xi, yi, orientation,
+                 scale, interest, polarity,
+                 octave, scale_lvl, ndesc, *desc]
+        return iprec
+
+    @staticmethod
+    def _read_match_file(filename):
+        """
+        refactor of https://github.com/friedrichknuth/bare/ utils to use struct
+        source is MIT licenced https://github.com/friedrichknuth/bare/blob/master/LICENSE.rst
+        :param filename:
+        :return:
+        """
+        with open(filename, 'rb') as mf:
+            size1 = struct.unpack('q', mf.read(8))[0]
+            size2 = struct.unpack('q', mf.read(8))[0]
+            im1_ip = [Georef._read_ip_record(mf) for _ in range(size1)]
+            im2_ip = [Georef._read_ip_record(mf) for _ in range(size2)]
+            for i in range(len(im1_ip)):
+                #'col1 row1 col2 row2'
+                # todo: either here or below I may be making a mistaken row/col/x/y swap
+                yield (im1_ip[i][0], im1_ip[i][1], im2_ip[i][0], im2_ip[i][1])
+
+    @staticmethod
+    def _read_match_file_csv(filename):
+        with open(filename, 'r') as src:
+            return [list(map(float, _)) for _ in list(csv.reader(src))[1:]]
+
+    @staticmethod
+    def _read_gcp_file_csv(filename):
+        with open(filename, 'r') as src:
+            return list(csv.reader(src))[1:]
+
+    def __init__(self):
+        self.cs = CommonSteps()
+
+
+    def normalize(self, image):
+        # iterable of bands
+        band_stats = self.cs.get_image_band_stats(image)
+        # make output name
+        out_name = Path(image).stem + '_normalized.vrt'
+        # get bands scaling iterable, multiply by 1.001 for a little lower range
+        scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["minimum"])*1.001, float(bandif["maximum"])*1.001, 1, 255) for bandif in band_stats))
+        # run gdal translate
+        _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
+        return _
+
+    def find_matches(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
+        """
+        Generate GCPs for a mobile image relative to a reference image and echo to std out
+        #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
+        #todo: implement my own normalization
+        :param reference_image: reference vis image
+        :param mobile_image: image we want to move to align to reference image
+        :param ipfindkwargs: override kwargs for ASP ipfind
+        :param ipmatchkwargs: override kwarge for ASP ipmatch
+        :return: 
+        """
+        if ipfindkwargs is None:
+            # todo --output-folder
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'
+        ipfindkwargs = ipfindkwargs.split(' ')
+        # run ipfind
+        self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
+        # get vwip files
+        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
+        mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
+        # set default ipmatchkwargs if needed
+        if ipmatchkwargs is None:
+            ipmatchkwargs = '--debug-image --ransac-constraint homography'
+        ipmatchkwargs = ipmatchkwargs.split(' ')
+        # run ipmatch
+        self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
+        # done, todo return tuple of vwip/match files
+        pass
+
+    def matches_to_csv(self, match_file):
+        """
+        Convert an ASP .match file from ipmatch to CSV
+        """
+        matches = self._read_match_file(match_file)
+        filename_out = os.path.splitext(match_file)[0] + '.csv'
+        with open(filename_out, 'w') as out:
+            writer = csv.writer(out, delimiter=',')
+            writer.writerow(['col1', 'row1', 'col2', 'row2'])
+            writer.writerows(matches)
+        return filename_out
+
+    def transform_matches(self, match_file_csv, mobile_img, mobile_other, outname=None):
+        """
+        Given a csv match file of two images (reference and mobile), and a third image (likely a DEM)
+        create a modified match csv file with the coordinates transformed for the 2nd (mobile) image
+        This works using the CRS of the images and assumes that both mobile images are already co-registered
+        This is particularly useful when the imagery is higher pixel resolution than a DEM, and
+        permits generating duplicated gcps
+        """
+        mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
+        img_t = get_affine_from_file(mobile_img)
+        oth_t = get_affine_from_file(mobile_other)
+        # todo: either here or below I may be making a mistaken row/col/x/y swap
+        mp_for_other = [[*_[0:2], *(~oth_t * (img_t * _[2:4]))] for _ in mp_for_mobile_img]
+        # write output csv
+        if not outname:
+            outname = Path(match_file_csv).name.replace(Path(mobile_img).stem, Path(mobile_other).stem)
+        with open(outname, 'w') as out:
+            writer = csv.writer(out, delimiter=',')
+            writer.writerow(['col1', 'row1', 'col2', 'row2'])
+            writer.writerows(mp_for_other)
+        return outname
+
+    def create_gcps(self, reference_image, match_file_csv, out_name=None):
+        """
+        Given a reference image and a match file in csv format,
+        generate a csv of GCPs. By default just prints to stdout
+        but out_name allows you to name the csv file or you can pipe
+        """
+        # get reference affine transform to get world coords (crs coords) of reference rows/cols
+        ref_t = get_affine_from_file(reference_image)
+        # iterable of [ref_col, ref_row, mob_col, mob_row]
+        mp_for_mobile_img = self._read_match_file_csv(match_file_csv)
+        # get reference image matchpoint positions in reference crs
+        # todo: either here or below I may be making a mistaken row/col/x/y swap
+        mp_in_ref_crs = [ref_t * (c, r) for c, r, _, _ in mp_for_mobile_img]
+        # get gcps which are tuples of [x1, y1, crs_x, crs_y]
+        # I lob off the first two ip_pix points which are the reference row/col, I want mobile row/col
+        gcps = [[*ip_pix[2:], *ip_crs] for ip_pix, ip_crs in zip(mp_for_mobile_img, mp_in_ref_crs)]
+        # get output file or stdout
+        out = open(out_name, 'w') if out_name is not None else sys.stdout
+        w = csv.writer(out, delimiter=',')
+        w.writerow(['col', 'row', 'easting', 'northing'])
+        w.writerows(gcps)
+        if out is not sys.stdout:
+            out.close()
+
+    def add_gcps(self, gcp_csv_file, mobile_file):
+        """
+        Given a gcp file in csv format (can have Z values or different extension)
+        use gdaltranslate to add the GCPs to the provided mobile file by creating
+        a VRT raster
+        """
+        # get gcps fom gcp_csv_file
+        gcps = self._read_gcp_file_csv(gcp_csv_file)
+        # format gcps for gdal
+        gcps = itertools.chain.from_iterable([['-gcp', *_] for _ in gcps])
+        # use gdaltransform to update mobile file use VRT for wins
+        mobile_vrt = Path(mobile_file).stem + '_wgcps.vrt'
+        # create a vrt with the gcps
+        self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
+        # todo: here or as a new command would be a good place to display residuals for gcps given different transform options
+        return mobile_vrt
+
+    @staticmethod
+    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+        """
+        Final step in workflow, given a reference image and a mobile vrt with attached GCPs
+        use gdalwarp to create a modified non-virtual file that is aligned to the reference image
+        """
+        if gdal_warp_args is None:
+            gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
+                              'NUM_THREADS=ALL_CPUS', '-refine_gcps',
+                              '0.25, 120', '-order', 3, '-r', 'cubic',
+                              '-tr', 1.0, 1.0, ]
+        # get reference image crs
+        refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes, not sure I could be mis-remembering
+        # update output name
+        if out_name is None:
+            out_name = Path(mobile_vrt).stem + '_ref.tif'
+        # let's do the time warp again
+        return sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
+
+    def im_feeling_lucky(self, ref_img, mobile_image, *other_mobile, ipfindkwargs=None, ipmatchkwargs=None, gdal_warp_args=None):
+        """
+        Georeference an mobile dataset against a reference image.
+        Do it all in one go, can take N mobile datasets but assumes the first is the mobile image.
+        If unsure normalize your data ahead of time
+        """
+        # get the matches
+        self.find_matches(ref_img, mobile_image, ipfindkwargs=ipfindkwargs, ipmatchkwargs=ipmatchkwargs)
+        # convert matches to csv
+        match_csv = self.matches_to_csv(f'{Path(ref_img).stem}__{Path(mobile_image).stem}.match')
+        # loop through all the mobile data
+        for i, mobile in tqdm.tqdm(enumerate([mobile_image, *other_mobile])):
+            # transform matches # todo: make sure I don't overwrite anything here
+            new_match_csv = self.transform_matches(match_csv, mobile_image, mobile, outname=f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.csv')
+            # create gcps from matches csv
+            self.create_gcps(ref_img, new_match_csv, out_name=f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps')
+            # add gcps to mobile file
+            vrt_with_gcps = self.add_gcps(f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps', mobile)
+            # warp file
+            self.warp(ref_img, vrt_with_gcps, out_name=gdal_warp_args)
+
+
 class ASAP(object):
     r"""
     ASAP Stereo Pipeline
@@ -1523,6 +1771,7 @@ class ASAP(object):
         self.hirise = HiRISE(self.https, datum=datum)
         self.ctx    = CTX(self.https, datum=datum)
         self.common = CommonSteps()
+        self.georef = Georef()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
 
