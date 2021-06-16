@@ -1753,10 +1753,10 @@ class Georef(object):
 
 
     def get_common_matches(self, ref_left_match, ref_right_match):
-        left_matches = self._read_match_file_csv(ref_left_match)
-        right_matches = self._read_match_file_csv(ref_right_match)
-        ref_left = [_[0:2] for _ in left_matches]
-        ref_right = [_[0:2] for _ in right_matches]
+        left_matches = self._read_match_file_csv(ref_left_match if ref_left_match.endswith('.csv') else self.matches_to_csv(ref_left_match))
+        right_matches = self._read_match_file_csv(ref_right_match if ref_right_match.endswith('.csv') else self.matches_to_csv(ref_right_match))
+        ref_left = [tuple(_[0:2]) for _ in left_matches]
+        ref_right = [tuple(_[0:2]) for _ in right_matches]
         ref_set_left = set(ref_left)
         ref_set_right = set(ref_right)
         ref_common_i_left = [i for i, pixel in enumerate(ref_left) if pixel in ref_set_right]
@@ -1798,8 +1798,10 @@ class Georef(object):
         reference_gsd = round(self.cs.get_image_gsd(ref_img), 1)
         left_gsd = round(self.cs.get_image_gsd(left_name), 2)
         right_gsd = round(self.cs.get_image_gsd(right_name), 2)
-        left_std = round(reference_gsd/left_gsd, 1)
+        left_std = round(reference_gsd / left_gsd, 1)
         right_std = round(reference_gsd / right_gsd, 1)
+        left_name = Path(left_name).name
+        right_name = Path(right_name).name
         # start loop
         for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
             # crsxy needs to be in lon lat
@@ -1825,7 +1827,7 @@ class Georef(object):
             out.close()
 
 
-    def make_gcps_for_ba(self, ref_img, ref_dem, left, right, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None):
+    def make_gcps_for_ba(self, ref_img, ref_dem, left, right, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None, ipfindkwargs=None):
         """
         Given a reference image and dem, and two images for a stereopair,
          automatically create GCPs for ASP's BA by finding ip match points
@@ -1835,6 +1837,8 @@ class Georef(object):
          note that this will create several vrt files because we want to make normalized downsampled images
          to find a good number of matches and to save time between images of large resolution differences
         """
+        if ipfindkwargs is None:
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 1000'
         # normalize the data
         ref_norm = self.normalize(ref_img)
         left_norm = self.normalize(left)
@@ -1842,7 +1846,7 @@ class Georef(object):
         # make the left/right the same gsd as the reference data
         lr_left, lr_right = list(self.match_gsds(ref_norm, left_norm, right_norm))
         # compute matches
-        ref_left_match, ref_right_match = list(self.find_matches(ref_norm, (lr_left, lr_right)))
+        ref_left_match, ref_right_match = list(self.find_matches(ref_norm, lr_left, lr_right, ipfindkwargs=ipfindkwargs))
         # make gcps for ba
         self.make_ba_gcps(
             ref_img,
