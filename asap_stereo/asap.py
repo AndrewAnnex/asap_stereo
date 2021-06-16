@@ -31,6 +31,7 @@ import affine
 import struct
 import csv
 import fire
+import rasterio
 import sh
 import tqdm
 from sh import Command
@@ -48,6 +49,7 @@ from threading import Semaphore
 import math
 import json
 import warnings
+import pyproj
 import papermill as pm
 
 here = os.path.dirname(__file__)
@@ -1738,6 +1740,75 @@ class Georef(object):
             vrt_with_gcps = self.add_gcps(f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps', mobile)
             # warp file
             self.warp(ref_img, vrt_with_gcps, out_name=gdal_warp_args)
+
+
+    def get_common_matches(self, ref_left_match, ref_right_match):
+        left_matches = self._read_match_file_csv(ref_left_match)
+        right_matches = self._read_match_file_csv(ref_right_match)
+        ref_left = [_[0:2] for _ in left_matches]
+        ref_right = [_[0:2] for _ in right_matches]
+        ref_set_left = set(ref_left)
+        ref_set_right = set(ref_right)
+        ref_common_i_left = [i for i, pixel in enumerate(ref_left) if pixel in ref_set_right]
+        ref_common_i_right = [i for i, pixel in enumerate(ref_right) if pixel in ref_set_left]
+        common_left = [left_matches[_][2:] for _ in ref_common_i_left]
+        common_right = [right_matches[_][2:] for _ in ref_common_i_right]
+        common_ref_left = [ref_left[_] for _ in ref_common_i_left]
+        common_ref_right = [ref_right[_] for _ in ref_common_i_right]
+        return common_ref_left, common_ref_right, common_left, common_right
+
+
+    def ref_in_crs(self, common_ref_left, ref_img):
+        with rasterio.open(ref_img) as src:
+            for _ in common_ref_left:
+                yield src.xy(*_)
+
+
+    def get_ref_z(self, common_ref_left_crs, ref_dem):
+        f = sh.gdallocationinfo.bake(ref_dem, '-valonly', '-geoloc')
+        for _ in common_ref_left_crs:
+            yield f(*_)
+
+
+    def make_ba_gcps(self, ref_img, ref_dem, ref_left_match, ref_right_match, left_name, lr_left_name, right_name, lr_right_name, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None):
+        # get common points
+        common_ref_left, common_ref_right, common_left, common_right = self.get_common_matches(ref_left_match, ref_right_match)
+        common_ref_left_crs = self.ref_in_crs(common_ref_left, ref_img)
+        common_ref_left_z   = self.get_ref_z(common_ref_left_crs, ref_dem)
+        # setup
+        eoid_crs = pyproj.CRS(eoid)
+        with rasterio.open(ref_img, 'r') as ref:
+            ref_crs = ref.crs
+        ref_to_eoid_crs = pyproj.Transformer.from_crs(ref_crs, eoid_crs)
+        left = rasterio.open(left_name)
+        right = rasterio.open(right_name)
+        lr_left = rasterio.open(lr_left_name)
+        lr_right = rasterio.open(lr_right_name)
+        gcps = []
+        # start loop
+        for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
+            # crsxy needs to be in lon lat
+            lon, lat = ref_to_eoid_crs.transform(*crs_xy)
+            # hirise left and right are in rowcol space of the lowres images, and the lr and nr images have the same CRS
+            # this is a bit lengthy/complicated, but I think it is the safest bet
+            lr_left_in_crs = lr_left.xy(*left_rc)
+            left_row, left_col = left.index(*lr_left_in_crs, op=lambda x: x)  # no rounding
+            lr_right_in_crs = lr_right.xy(*right_rc)
+            right_row, right_col = right.index(*lr_right_in_crs, op=lambda x: x)  # no rounding
+            # left/right rc might need to be flipped
+            # 6.0 is just a guess, might be too loose, todo: ask asp devs about specifics
+            # need to transform 6m hirise row/col to true row col position. easy with crs_xy
+            this_gcp = [
+                i, lat, lon, round(float(z), 1), 6.0, 6.0, 6.0,  # gcp number, lat, lon, height, x std, y std, z std,
+                left_name, left_col, left_row, 24.0, 24.0,  # left image, column index, row index, column std, row std,
+                right_name, right_col, right_row, 24.0, 24.0  # right image, column index, row index, column std, row std,
+            ]
+            gcps.append(this_gcp)
+        out = open(out_name, 'w') if out_name is not None else sys.stdout
+        w = csv.writer(out, delimiter=' ')
+        w.writerows(gcps)
+        if out is not sys.stdout:
+            out.close()
 
 
 class ASAP(object):
