@@ -1819,12 +1819,16 @@ class Georef(object):
             # crsxy needs to be in lon lat
             lon, lat = ref_to_eoid_crs.transform(*crs_xy)
             # left and right are in col row space of the lowres images, and the lr and nr images have the same CRS
+            # convert the row col index points to the CRS coordinates, then index the full res raster using the CRS points
+            # to get the row col for the full resolution left/right images
             # rasterio expects row col space so flip the coordinates. I should probably use named tuples for safety
             left_rc, right_rc = left_cr[::-1], right_cr[::-1]
             lr_left_in_crs = lr_left.xy(*left_rc)
-            left_row, left_col = left.index(*lr_left_in_crs, op=lambda x: x)  # no rounding
+            left_row, left_col = left.index(*lr_left_in_crs)
             lr_right_in_crs = lr_right.xy(*right_rc)
-            right_row, right_col = right.index(*lr_right_in_crs, op=lambda x: x)  # no rounding
+            right_row, right_col = right.index(*lr_right_in_crs)
+            # todo: double check to ensure row/col is inside possible shape of full res images
+            # todo: I checked and this seems to be the correct way to convert, but the cnet from BA says otherwise
             # left/right rc might need to be flipped
             # todo: xyz stds might be too lax, could likely divide them by 3
             this_gcp = [
