@@ -1579,6 +1579,7 @@ class Georef(object):
 
     @staticmethod
     def _read_match_file_csv(filename):
+        # returns col, row
         with open(filename, 'r') as src:
             return [list(map(float, _)) for _ in list(csv.reader(src))[1:]]
 
@@ -1758,25 +1759,31 @@ class Georef(object):
 
 
     def get_common_matches(self, ref_left_match, ref_right_match):
-        left_matches = self._read_match_file_csv(ref_left_match if ref_left_match.endswith('.csv') else self.matches_to_csv(ref_left_match))
-        right_matches = self._read_match_file_csv(ref_right_match if ref_right_match.endswith('.csv') else self.matches_to_csv(ref_right_match))
-        ref_left = [tuple(_[0:2]) for _ in left_matches]
-        ref_right = [tuple(_[0:2]) for _ in right_matches]
-        ref_set_left = set(ref_left)
-        ref_set_right = set(ref_right)
-        ref_common_i_left = [i for i, pixel in enumerate(ref_left) if pixel in ref_set_right]
-        ref_common_i_right = [i for i, pixel in enumerate(ref_right) if pixel in ref_set_left]
-        common_left = [left_matches[_][2:] for _ in ref_common_i_left]
-        common_right = [right_matches[_][2:] for _ in ref_common_i_right]
-        common_ref_left = [ref_left[_] for _ in ref_common_i_left]
-        common_ref_right = [ref_right[_] for _ in ref_common_i_right]
+        """
+        returns coordinates as column row (x, y).
+        rasterio xy expects row column
+        """
+        left_matches_cr = self._read_match_file_csv(ref_left_match if ref_left_match.endswith('.csv') else self.matches_to_csv(ref_left_match))
+        right_matches_cr = self._read_match_file_csv(ref_right_match if ref_right_match.endswith('.csv') else self.matches_to_csv(ref_right_match))
+        ref_left_cr = [tuple(_[0:2]) for _ in left_matches_cr]
+        ref_right_cr = [tuple(_[0:2]) for _ in right_matches_cr]
+        ref_set_left = set(ref_left_cr)
+        ref_set_right = set(ref_right_cr)
+        ref_common_i_left = [i for i, pixel in enumerate(ref_left_cr) if pixel in ref_set_right]
+        ref_common_i_right = [i for i, pixel in enumerate(ref_right_cr) if pixel in ref_set_left]
+        common_left = [left_matches_cr[_][2:] for _ in ref_common_i_left]
+        common_right = [right_matches_cr[_][2:] for _ in ref_common_i_right]
+        common_ref_left = [ref_left_cr[_] for _ in ref_common_i_left]
+        common_ref_right = [ref_right_cr[_] for _ in ref_common_i_right]
         return common_ref_left, common_ref_right, common_left, common_right
 
 
-    def ref_in_crs(self, common_ref_left, ref_img):
+    def ref_in_crs(self, common, ref_img, cr=True):
         with rasterio.open(ref_img) as src:
-            for _ in common_ref_left:
-                yield src.xy(*_)
+            for _ in common:
+                # rasterio xy expects row, col always
+                # if coords provided as col row flip them
+                yield src.xy(*(_[::-1] if cr else _))
 
 
     def get_ref_z(self, common_ref_left_crs, ref_dem):
@@ -1794,7 +1801,7 @@ class Georef(object):
         eoid_crs = pyproj.CRS(eoid)
         with rasterio.open(ref_img, 'r') as ref:
             ref_crs = ref.crs
-        ref_to_eoid_crs = pyproj.Transformer.from_crs(ref_crs, eoid_crs)
+        ref_to_eoid_crs = pyproj.Transformer.from_crs(ref_crs, eoid_crs, always_xy=True)
         left = rasterio.open(left_name)
         right = rasterio.open(right_name)
         lr_left = rasterio.open(lr_left_name)
@@ -1808,11 +1815,12 @@ class Georef(object):
         left_name = Path(left_name).name
         right_name = Path(right_name).name
         # start loop
-        for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
+        for i, (crs_xy, z, left_cr, right_cr) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
             # crsxy needs to be in lon lat
             lon, lat = ref_to_eoid_crs.transform(*crs_xy)
-            # hirise left and right are in rowcol space of the lowres images, and the lr and nr images have the same CRS
-            # this is a bit lengthy/complicated, but I think it is the safest bet
+            # left and right are in col row space of the lowres images, and the lr and nr images have the same CRS
+            # rasterio expects row col space so flip the coordinates. I should probably use named tuples for safety
+            left_rc, right_rc = left_cr[::-1], right_cr[::-1]
             lr_left_in_crs = lr_left.xy(*left_rc)
             left_row, left_col = left.index(*lr_left_in_crs, op=lambda x: x)  # no rounding
             lr_right_in_crs = lr_right.xy(*right_rc)
