@@ -585,10 +585,13 @@ class CommonSteps(object):
             sh.awk(sh.sed(proj_tab, 's/\\t/,/g'),'-F,','{print($5","$4","$3","$1","$2","$6)}', _out=f'./{out_name}_pedr4align.csv')
 
     @rich_logger
-    def bundle_adjust(self, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
+    def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Bundle adjustment wrapper
 
+        #TODO: make function that attempts to find absolute paths to vargs if they are files?
+
+        :param vargs: any number of additional positional arguments (including GCPs)
         :param postfix: postfix of images to bundle adjust
         :param bundle_adjust_prefix: where to save out bundle adjust results
         :param kwargs: kwargs to pass to bundle_adjust
@@ -601,7 +604,7 @@ class CommonSteps(object):
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.ba(f'{left}{postfix}',f'{right}{postfix}', '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+            return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
     def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
@@ -853,15 +856,16 @@ class CTX(object):
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
-    def step_four(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_four(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
 
         Run bundle adjustment on the CTX map projected data
 
+        :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix: prefix for bundle adjust output
         """
-        return self.cs.bundle_adjust(postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
     def step_five(self, stereo_conf, **kwargs):
@@ -1295,15 +1299,16 @@ class HiRISE(object):
             _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_six(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust HiRISE
 
         Run bundle adjustment on the HiRISE map projected data
 
+        :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
-        return self.cs.bundle_adjust(postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
     def step_seven(self, stereo_conf, **kwargs):
