@@ -1706,7 +1706,7 @@ class Georef(object):
         return mobile_vrt
 
     @staticmethod
-    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None, tr=1.0):
         """
         Final step in workflow, given a reference image and a mobile vrt with attached GCPs
         use gdalwarp to create a modified non-virtual file that is aligned to the reference image
@@ -1715,7 +1715,7 @@ class Georef(object):
             gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
                               'NUM_THREADS=ALL_CPUS', '-refine_gcps',
                               '0.25, 120', '-order', 3, '-r', 'cubic',
-                              '-tr', 1.0, 1.0, ]
+                              '-tr', tr, tr, ]
         # get reference image crs
         refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes, not sure I could be mis-remembering
         # update output name
