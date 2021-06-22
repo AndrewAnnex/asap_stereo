@@ -22,7 +22,10 @@ copyright = '2020, Andrew M. Annex'
 author = 'Andrew M. Annex'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = '0.2.0'
+
+# set latex engine for unicode
+latex_engine = 'xelatex'
 
 
 # -- General configuration ---------------------------------------------------

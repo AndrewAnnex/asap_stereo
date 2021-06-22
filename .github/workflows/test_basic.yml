@@ -1,0 +1,72 @@
+# Trigger the workflow on push or pull request
+on: [push, pull_request]
+jobs:
+  test_runner:
+    name: Ubuntu 
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache conda
+        uses: actions/cache@v2
+        env:
+          # Increase this value to reset cache
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
+      - name: setup isis conda env
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          use-mamba: true
+          activate-environment: isis_for_asp
+          environment-file: isis.yml
+          channel-priority: strict
+          auto-update-conda: true
+          python-version: 3.6
+          use-only-tar-bz2: true
+      - name: download and extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          ls /tmp/sp
+      - name: setup asap conda env
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          use-mamba: true
+          activate-environment: asap
+          environment-file: asap.yml
+          python-version: 3.8
+          channels: conda-forge,defaults
+          use-only-tar-bz2: true
+      - name: add ASP and ISIS to PATH of asap conda
+        run: |
+          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
+          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
+          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
+          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
+      - name: install asap
+        run: pip install -e .
+      - name: conda info
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: check isis shared libraries
+        run: |
+          ldd `which qview`
+      - name: test for asap
+        run: |
+          asap
+          asap ctx
+          asap hirise
+          asap common
+      - name: Test readme rendering
+        run: |
+          python -m readme_renderer README.rst

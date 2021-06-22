@@ -12,18 +12,32 @@ Part 1: notebook_pipeline_make_dem
 
 First define all the parameters for the notebook for papermill. The notebook includes a cell metadata tag for papermill to allow these parameters to be defined at runtime.
 First we need the left and right image ids, the left image typically has the lower emission angle.
-The pedr_list variable points to the local copy of a file containing a list of all the paths to all of the PEDR data, but can be left as None to use the ODE REST API which is much faster anyways.
+ASAP will check the metadata of the images to ensure the correct order is provided.
 The config1 and config2 parameters are paths to stereo.default files the user has to configure the Ames Stereo Pipeline.
+The first config file is the only required parameter, config2 gives you to use higher quality parameters for the 2nd pass CTX DEM.
+The "dem_gsd" and "img_gsd" parameters control the number of pixels per pixel the final DEM and orthorectified images have.
+These default to 24 and 6 meters per pixel which works for generally any CTX image pair.
+Generally, most CTX images are captured at around 5.5 meters per pixel (GSD) so we pick 6 mpp as a reasonable default.
+By convention, the DEM post spacing `should be at least 3X the image GSD <https://stereopipeline.readthedocs.io/en/latest/tools/point2dem.html?highlight=post%20spacing#post-spacing>`_.
+ASAP defaults to 4X the image GSD to be a bit more conservative, resulting in 24 meters per pixel.
 Output_path is typically left blank to default to the current working directory.
+The maxdisp parameter controls the maximum expected disparity (distance) between the intermediate CTX DEM and the reference topography. Leaving this as 'None' will allow ASAP to estimate the disparity for you.
+The downsample parameter allows you to downsample the imagery by a factor of the value to reduce processing times, a downsample of 4 will reduce the number of pixels by a factor of 4.
+The pedr_list variable points to the local copy of a file containing a list of all the paths to all of the MOLA PEDR data.
+By default this is set to None to use the ODE REST API to grab the necessary PEDR data, which is much faster anyways.
 
 .. code:: ipython3
 
     left  = None
     right = None
-    pedr_list = None
     config1 = None
     config2 = None
+    dem_gsd  = 24.0
+    img_gsd  = 6.0
     output_path = None
+    maxdisp = None
+    downsample = None
+    pedr_list = None
 
 Check if config2 was defined, if it was not just use the first config file again
 
@@ -47,7 +61,9 @@ Import a few python things to use later on, including the Image function to rend
 .. code:: ipython3
 
     from IPython.display import Image
+    from pathlib import Path
     from asap_stereo import asap
+    import math
 
 If the user did not specify a output directory, make one. Note this step only does something if the output_path is explicitly set to None.
 By default from the command-line interface ASAP will use the current working directory.
@@ -199,7 +215,7 @@ We now map-project our ctx images against our low resolution DEM to reduce image
 
 .. code:: ipython3
 
-    !asap ctx step-nine 2>&1 | tee -i -a ./5_mapproject_to_100m_dem.log ./full_log.log
+    !asap ctx step-nine --mpp {img_gsd} 2>&1 | tee -i -a ./5_mapproject_to_100m_dem.log ./full_log.log
 
 Step 10: Stereo second run (steps 1-3 of stereo in ASP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -292,17 +308,9 @@ If the final line is less than a few hundred we could be in a bad situation.
 Now that we have finished the first half of the workflow we can inspect the output products for issues before moving forwards.
 If there are issues noted in the log or after a particular step, that step can be re-run with different parameters until a good solution is found.
 
-
-Part 2: notebook_pipeline_align_dem
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-In part 2, we have a completed DEM and PEDR data or some other reference DEM to use `to correct the position of the CTX DEM <https://stereopipeline.readthedocs.io/en/latest/next_steps.html?highlight=ortho#alignment-to-point-clouds-from-a-different-source>`_.
-Like before, we have to define a few parameters for papermill to use, but this time we can work with some defaults that generally work for CTX.
-The second two parameters, "demgsd" and "imggsd" default to 24 and 6 meters per pixel which works for generally any CTX image pair.
-These parameters control the number of pixels per pixel the final DEM and orthorectified images have.
-Generally, most CTX images are captured at around 5.5 meters per pixel (GSD) so we pick 6 mpp as a reasonable default.
-By convention, the DEM post spacing `should be at least 3X the image GSD <https://stereopipeline.readthedocs.io/en/latest/tools/point2dem.html?highlight=post%20spacing#post-spacing>`_.
-ASAP defaults to 4X the image GSD to be a bit more conservative, resulting in 24 meters per pixel.
+At this point, we have a completed DEM! However, it's absolute position in space maybe off from the correct position.
+Therefore, we must now perform a point cloud alignment to align our DEM with reference topography, in this case MOLA PEDR data `to correct the position of the CTX DEM <https://stereopipeline.readthedocs.io/en/latest/next_steps.html?highlight=ortho#alignment-to-point-clouds-from-a-different-source>`_.
+In older versions of ASAP, this point is the dividing line between the make_dem and align_dem pipelines.
 
 The "maxdisp" parameter in particular deserves attention.
 It is the number passed to `pc_align's --max-displacement <https://stereopipeline.readthedocs.io/en/latest/tools/pc_align.html>`_ parameter in the Ames Stereo Pipeline.
@@ -310,18 +318,6 @@ Basically, it is the value of the distance you expect to move the CTX DEM to bec
 It is generally worth estimating this number using a GIS to sample points in both the DEM and reference file, and seeing how far away they are from each other.
 But, CTX can be well behaved with ASP, so we pick a default of 500 meters which can be large enough for many situations.
 
-.. code:: ipython3
-
-    maxdisp = 500
-    demgsd  = 24.0
-    imggsd  = 6.0
-
-Imports for some things in the workflow
-
-.. code:: ipython3
-
-    from IPython.display import Image
-    from pathlib import Path
 
 Step 13: Align the DEM to MOLA
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -329,7 +325,7 @@ Step 13: Align the DEM to MOLA
 This is the most important step in the 2nd half of the workflow as all the remaining steps are just producing final science products and visuals for the logs.
 This step runs `pc_align <https://stereopipeline.readthedocs.io/en/latest/tools/pc_align.html>`_ using the provided max displacement (aka disparity). If the
 logs indicate a larger displacement was observed than the user provided value it will need to be re-run using larger values or with other advanced parameters.
-If users see issues it is generally easyier to re-run the pipeline at this step repeatedly in the command line or via Jupyter.
+If users see issues it is generally easyier to re-run the pipeline at this step repeatedly in the command line or inside the Jupyter notebook.
 
 .. code:: ipython3
 

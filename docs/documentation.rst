@@ -8,6 +8,12 @@ ASAP
     :undoc-members:
     :show-inheritance:
 
+.. automodule:: asap_stereo.stereo_quality
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 ASAP (module level)
 -------------------
 .. automethod:: asap_stereo.asap.isis3_to_dict

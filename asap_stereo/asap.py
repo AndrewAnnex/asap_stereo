@@ -227,9 +227,10 @@ class CommonSteps(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -727,9 +728,10 @@ class CTX(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -767,7 +769,7 @@ class CTX(object):
 
     @staticmethod
     def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
-                                   config2: Optional[str] = None, demgsd = 24.0, imggsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
+                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
@@ -783,8 +785,8 @@ class CTX(object):
         :param right: Second image id
         :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
         :param downsample: Factor to downsample images for faster production
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
+        :param dem_gsd: desired GSD of output DEMs (4x image GSD)
+        :param img_gsd: desired GSD of output ortho images
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
@@ -799,8 +801,8 @@ class CTX(object):
                 'config2': config2,
                 'output_path' : working_dir,
                 'maxdisp': maxdisp,
-                'demgsd' : demgsd,
-                'imggsd' : imggsd,
+                'dem_gsd' : dem_gsd,
+                'img_gsd' : img_gsd,
                 'downsample' : downsample,
             },
             request_save_on_cell_execute=True,
@@ -945,6 +947,9 @@ class CTX(object):
         else:
             refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
+            # double check provided gsd
+            self.cs.check_mpp_against_true_gsd(f'{left}.lev1eo.cub', mpp)
+            self.cs.check_mpp_against_true_gsd(f'{right}.lev1eo.cub', mpp)
             # map project both ctx images against the reference dem
             # might need to do par do here
             self.cs.mapproject('-t', 'isis', refdem, f'{left}.lev1eo.cub', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
@@ -1100,9 +1105,10 @@ class HiRISE(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """
@@ -1718,7 +1724,7 @@ class Georef(object):
         return mobile_vrt
 
     @staticmethod
-    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None):
+    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None, tr=1.0):
         """
         Final step in workflow, given a reference image and a mobile vrt with attached GCPs
         use gdalwarp to create a modified non-virtual file that is aligned to the reference image
@@ -1727,7 +1733,7 @@ class Georef(object):
             gdal_warp_args = ['-overwrite', '-tap', '-multi', '-wo',
                               'NUM_THREADS=ALL_CPUS', '-refine_gcps',
                               '0.25, 120', '-order', 3, '-r', 'cubic',
-                              '-tr', 1.0, 1.0, ]
+                              '-tr', tr, tr, ]
         # get reference image crs
         refimgcrs = str(sh.gdalsrsinfo(reference_image, '-o', 'proj4')).strip() # todo: on some systems I end up with an extract space or quotes, not sure I could be mis-remembering
         # update output name
@@ -1892,9 +1898,10 @@ class ASAP(object):
            / ___ |___/ / ___ |/ ____/                            
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂               
 
-          asap_stereo (0.1.0)
+          asap_stereo (0.2.0)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
 
     █████████████████████████████████████████████████████████████
     """

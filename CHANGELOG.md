@@ -4,6 +4,22 @@ All notable changes to ASAP-Stereo will be documented here
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## [0.2.0] - 2021-05-31
+### Added
+- Stereo quality report functions, adds pvl as dependency
+- Downscale parameter to both pipelines for faster processing
+- maxdisp estimation using geodiff for ctx and hirise
+
+### Changed
+- Changed 2 stage pipeline to use geodiff for max disparity, simplifying pipeline to single step
+- Documentation updates for new workflows/install guide
+- renamed github workflows
+
+### Removed
+- removed 2nd pc_align step for both ctx/hirise, single step pipeline
+
+### Fixed
+- fix for negatives in PEDR file names
 
 ## [0.1.0] - 2020-10-31
 ### Added
