@@ -1821,8 +1821,8 @@ class Georef(object):
                      out_name=None):
         # get common points
         common_ref_left, common_ref_right, common_left, common_right = self.get_common_matches(ref_left_match, ref_right_match)
-        common_ref_left_crs = self.ref_in_crs(common_ref_left, ref_img)
-        common_ref_left_z   = self.get_ref_z(common_ref_left_crs, ref_dem)
+        common_ref_left_crs = list(self.ref_in_crs(common_ref_left, ref_img))
+        common_ref_left_z   = list(self.get_ref_z(common_ref_left_crs, ref_dem))
         # setup
         eoid_crs = pyproj.CRS(eoid)
         with rasterio.open(ref_img, 'r') as ref:
@@ -1846,8 +1846,6 @@ class Georef(object):
             lon, lat = ref_to_eoid_crs.transform(*crs_xy)
             left_row, left_col = left_rc
             right_row, right_col = right_rc
-            # todo: double check to ensure row/col is inside possible shape of full res images
-            # todo: I checked and this seems to be the correct way to convert, but the cnet from BA says otherwise
             # left/right rc might need to be flipped
             # todo: xyz stds might be too lax, could likely divide them by 3
             this_gcp = [
@@ -1856,6 +1854,7 @@ class Georef(object):
                 right_name, right_col, right_row, right_std, right_std   # right image, column index, row index, column std, row std,
             ]
             gcps.append(this_gcp)
+        print(len(gcps))
         out = open(out_name, 'w') if out_name is not None else sys.stdout
         w = csv.writer(out, delimiter=' ')
         w.writerows(gcps)
