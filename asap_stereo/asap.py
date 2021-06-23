@@ -1771,8 +1771,10 @@ class Georef(object):
         """
         left_matches_cr = self._read_match_file_csv(ref_left_match if ref_left_match.endswith('.csv') else self.matches_to_csv(ref_left_match))
         right_matches_cr = self._read_match_file_csv(ref_right_match if ref_right_match.endswith('.csv') else self.matches_to_csv(ref_right_match))
-        ref_left_cr = [tuple(_[0:2]) for _ in left_matches_cr]
-        ref_right_cr = [tuple(_[0:2]) for _ in right_matches_cr]
+        left_matches_cr = sorted(list(map(tuple, left_matches_cr)))
+        right_matches_cr = sorted(list(map(tuple, right_matches_cr)))
+        ref_left_cr = [_[0:2] for _ in left_matches_cr]
+        ref_right_cr = [_[0:2] for _ in right_matches_cr]
         ref_set_left = set(ref_left_cr)
         ref_set_right = set(ref_right_cr)
         ref_common_i_left = [i for i, pixel in enumerate(ref_left_cr) if pixel in ref_set_right]
@@ -1797,8 +1799,26 @@ class Georef(object):
         for _ in common_ref_left_crs:
             yield f(*_)
 
+    def _small_cr_to_large_rc(self, smaller, larger, cr):
+        # convert the row col index points to the CRS coordinates, then index the full res raster using the CRS points
+        # to get the row col for the full resolution left/right images
+        # rasterio expects row col space so flip the coordinates. I should probably use named tuples for safety
+        rc = cr[::-1]
+        in_crs = smaller.xy(*rc)
+        row, col = larger.index(*in_crs)
+        return row, col
 
-    def make_ba_gcps(self, ref_img, ref_dem, ref_left_match, ref_right_match, left_name, lr_left_name, right_name, lr_right_name, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None):
+    def make_ba_gcps(self,
+                     ref_img,
+                     ref_dem,
+                     ref_left_match,
+                     ref_right_match,
+                     left_name,
+                     lr_left_name,
+                     right_name,
+                     lr_right_name,
+                     eoid='+proj=longlat +R=3396190 +no_defs',
+                     out_name=None):
         # get common points
         common_ref_left, common_ref_right, common_left, common_right = self.get_common_matches(ref_left_match, ref_right_match)
         common_ref_left_crs = self.ref_in_crs(common_ref_left, ref_img)
@@ -1808,10 +1828,10 @@ class Georef(object):
         with rasterio.open(ref_img, 'r') as ref:
             ref_crs = ref.crs
         ref_to_eoid_crs = pyproj.Transformer.from_crs(ref_crs, eoid_crs, always_xy=True)
-        left = rasterio.open(left_name)
-        right = rasterio.open(right_name)
-        lr_left = rasterio.open(lr_left_name)
-        lr_right = rasterio.open(lr_right_name)
+        with rasterio.open(left_name) as left, rasterio.open(right_name) as right, rasterio.open(lr_left_name) as lr_left, rasterio.open(lr_right_name) as lr_right:
+            # left and right are in col row space of the lowres images, and the lr and nr images have the same CRS
+            common_left_full = [self._small_cr_to_large_rc(lr_left, left, _) for _ in common_left]
+            common_right_full = [self._small_cr_to_large_rc(lr_right, right, _) for _ in common_left]
         gcps = []
         reference_gsd = round(self.cs.get_image_gsd(ref_img), 1)
         left_gsd = round(self.cs.get_image_gsd(left_name), 2)
@@ -1821,18 +1841,11 @@ class Georef(object):
         left_name = Path(left_name).name
         right_name = Path(right_name).name
         # start loop
-        for i, (crs_xy, z, left_cr, right_cr) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left, common_right)):
+        for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left_full, common_right_full)):
             # crsxy needs to be in lon lat
             lon, lat = ref_to_eoid_crs.transform(*crs_xy)
-            # left and right are in col row space of the lowres images, and the lr and nr images have the same CRS
-            # convert the row col index points to the CRS coordinates, then index the full res raster using the CRS points
-            # to get the row col for the full resolution left/right images
-            # rasterio expects row col space so flip the coordinates. I should probably use named tuples for safety
-            left_rc, right_rc = left_cr[::-1], right_cr[::-1]
-            lr_left_in_crs = lr_left.xy(*left_rc)
-            left_row, left_col = left.index(*lr_left_in_crs)
-            lr_right_in_crs = lr_right.xy(*right_rc)
-            right_row, right_col = right.index(*lr_right_in_crs)
+            left_row, left_col = left_rc
+            right_row, right_col = right_rc
             # todo: double check to ensure row/col is inside possible shape of full res images
             # todo: I checked and this seems to be the correct way to convert, but the cnet from BA says otherwise
             # left/right rc might need to be flipped
@@ -1840,7 +1853,7 @@ class Georef(object):
             this_gcp = [
                 i, lat, lon, round(float(z), 1), reference_gsd, reference_gsd, reference_gsd, # gcp number, lat, lon, height, x std, y std, z std,
                 left_name, left_col, left_row, left_std, left_std,  # left image, column index, row index, column std, row std,
-                right_name, right_col, right_row, right_std , right_std   # right image, column index, row index, column std, row std,
+                right_name, right_col, right_row, right_std, right_std   # right image, column index, row index, column std, row std,
             ]
             gcps.append(this_gcp)
         out = open(out_name, 'w') if out_name is not None else sys.stdout
