@@ -621,8 +621,7 @@ class CommonSteps(object):
         stereo_conf = Path(stereo_conf).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.defaults_ps1, **clean_kwargs(kwargs)})
-            print(args)
-            #return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
+            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
 
     @rich_logger
     def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
