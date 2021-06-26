@@ -127,7 +127,7 @@ def kwargs_to_args(kwargs: Dict)-> List:
             keys.append(f'-{key}')
         else:
             keys.append(key)
-    return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x]
+    return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x is not None]
 
 def isis3_to_dict(instr: str)-> Dict:
     """
@@ -621,7 +621,8 @@ class CommonSteps(object):
         stereo_conf = Path(stereo_conf).absolute()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**self.defaults_ps1, **clean_kwargs(kwargs)})
-            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
+            print(args)
+            #return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
 
     @rich_logger
     def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
