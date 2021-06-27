@@ -31,6 +31,7 @@ import affine
 import struct
 import csv
 import fire
+import rasterio
 import sh
 import tqdm
 from sh import Command
@@ -48,6 +49,7 @@ from threading import Semaphore
 import math
 import json
 import warnings
+import pyproj
 import papermill as pm
 
 here = os.path.dirname(__file__)
@@ -125,7 +127,7 @@ def kwargs_to_args(kwargs: Dict)-> List:
             keys.append(f'-{key}')
         else:
             keys.append(key)
-    return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x]
+    return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x is not None]
 
 def isis3_to_dict(instr: str)-> Dict:
     """
@@ -584,10 +586,13 @@ class CommonSteps(object):
             sh.awk(sh.sed(proj_tab, 's/\\t/,/g'),'-F,','{print($5","$4","$3","$1","$2","$6)}', _out=f'./{out_name}_pedr4align.csv')
 
     @rich_logger
-    def bundle_adjust(self, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
+    def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Bundle adjustment wrapper
 
+        #TODO: make function that attempts to find absolute paths to vargs if they are files?
+
+        :param vargs: any number of additional positional arguments (including GCPs)
         :param postfix: postfix of images to bundle adjust
         :param bundle_adjust_prefix: where to save out bundle adjust results
         :param kwargs: kwargs to pass to bundle_adjust
@@ -600,7 +605,7 @@ class CommonSteps(object):
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.ba(f'{left}{postfix}',f'{right}{postfix}', '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+            return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
     def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
@@ -853,15 +858,16 @@ class CTX(object):
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
-    def step_four(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_four(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
 
         Run bundle adjustment on the CTX map projected data
 
+        :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix: prefix for bundle adjust output
         """
-        return self.cs.bundle_adjust(postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
     def step_five(self, stereo_conf, **kwargs):
@@ -1299,15 +1305,16 @@ class HiRISE(object):
             _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_six(self, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_six(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust HiRISE
 
         Run bundle adjustment on the HiRISE map projected data
 
+        :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
-        return self.cs.bundle_adjust(postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
     def step_seven(self, stereo_conf, **kwargs):
@@ -1578,6 +1585,7 @@ class Georef(object):
 
     @staticmethod
     def _read_match_file_csv(filename):
+        # returns col, row
         with open(filename, 'r') as src:
             return [list(map(float, _)) for _ in list(csv.reader(src))[1:]]
 
@@ -1589,6 +1597,12 @@ class Georef(object):
     def __init__(self):
         self.cs = CommonSteps()
 
+    def match_gsds(self, ref_image, *images):
+        ref_gsd = int(self.cs.get_image_gsd(ref_image))
+        for img in images:
+            out_name = Path(img).stem + f'_{ref_gsd}.vrt'
+            _ = sh.gdal_translate(img, out_name, '-of', 'vrt', '-tr', ref_gsd, ref_gsd, '-r', 'cubic')
+            yield out_name
 
     def normalize(self, image):
         # iterable of bands
@@ -1599,15 +1613,15 @@ class Georef(object):
         scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["minimum"])*1.001, float(bandif["maximum"])*1.001, 1, 255) for bandif in band_stats))
         # run gdal translate
         _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
-        return _
+        return out_name
 
-    def find_matches(self, reference_image, mobile_image, ipfindkwargs=None, ipmatchkwargs=None):
+    def find_matches(self, reference_image, *mobile_images, ipfindkwargs=None, ipmatchkwargs=None):
         """
         Generate GCPs for a mobile image relative to a reference image and echo to std out
         #todo: do we always assume the mobile_dem has the same srs/crs and spatial resolution as the mobile image?
         #todo: implement my own normalization
         :param reference_image: reference vis image
-        :param mobile_image: image we want to move to align to reference image
+        :param mobile_images: image we want to move to align to reference image
         :param ipfindkwargs: override kwargs for ASP ipfind
         :param ipmatchkwargs: override kwarge for ASP ipmatch
         :return: 
@@ -1616,19 +1630,23 @@ class Georef(object):
             # todo --output-folder
             ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 50'
         ipfindkwargs = ipfindkwargs.split(' ')
-        # run ipfind
-        self.cs.ipfind(*ipfindkwargs, reference_image, mobile_image)
-        # get vwip files
-        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
-        mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
         # set default ipmatchkwargs if needed
         if ipmatchkwargs is None:
             ipmatchkwargs = '--debug-image --ransac-constraint homography'
         ipmatchkwargs = ipmatchkwargs.split(' ')
-        # run ipmatch
-        self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
-        # done, todo return tuple of vwip/match files
-        pass
+        # run ipfind on the reference image
+        self.cs.ipfind(*ipfindkwargs, reference_image)
+        # get vwip file
+        ref_img_vwip = Path(reference_image).with_suffix('.vwip').absolute()
+        for mobile_image in mobile_images:
+            # run ipfind on the mobile image
+            self.cs.ipfind(*ipfindkwargs, mobile_image)
+            # get vwip file
+            mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
+            # run ipmatch
+            self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
+            # done, todo return tuple of vwip/match files
+            yield f'{Path(reference_image).stem}__{Path(mobile_image).stem}.match'
 
     def matches_to_csv(self, match_file):
         """
@@ -1744,6 +1762,140 @@ class Georef(object):
             vrt_with_gcps = self.add_gcps(f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.gcps', mobile)
             # warp file
             self.warp(ref_img, vrt_with_gcps, out_name=gdal_warp_args)
+
+
+    def get_common_matches(self, ref_left_match, ref_right_match):
+        """
+        returns coordinates as column row (x, y).
+        rasterio xy expects row column
+        """
+        left_matches_cr = self._read_match_file_csv(ref_left_match if ref_left_match.endswith('.csv') else self.matches_to_csv(ref_left_match))
+        right_matches_cr = self._read_match_file_csv(ref_right_match if ref_right_match.endswith('.csv') else self.matches_to_csv(ref_right_match))
+        left_matches_cr = sorted(list(map(tuple, left_matches_cr)))
+        right_matches_cr = sorted(list(map(tuple, right_matches_cr)))
+        ref_left_cr = [_[0:2] for _ in left_matches_cr]
+        ref_right_cr = [_[0:2] for _ in right_matches_cr]
+        ref_set_left = set(ref_left_cr)
+        ref_set_right = set(ref_right_cr)
+        ref_common_i_left = [i for i, pixel in enumerate(ref_left_cr) if pixel in ref_set_right]
+        ref_common_i_right = [i for i, pixel in enumerate(ref_right_cr) if pixel in ref_set_left]
+        common_left = [left_matches_cr[_][2:] for _ in ref_common_i_left]
+        common_right = [right_matches_cr[_][2:] for _ in ref_common_i_right]
+        common_ref_left = [ref_left_cr[_] for _ in ref_common_i_left]
+        common_ref_right = [ref_right_cr[_] for _ in ref_common_i_right]
+        return common_ref_left, common_ref_right, common_left, common_right
+
+
+    def ref_in_crs(self, common, ref_img, cr=True):
+        with rasterio.open(ref_img) as src:
+            for _ in common:
+                # rasterio xy expects row, col always
+                # if coords provided as col row flip them
+                yield src.xy(*(_[::-1] if cr else _))
+
+
+    def get_ref_z(self, common_ref_left_crs, ref_dem):
+        f = sh.gdallocationinfo.bake(ref_dem, '-valonly', '-geoloc')
+        for _ in common_ref_left_crs:
+            yield f(*_)
+
+    def _small_cr_to_large_rc(self, smaller, larger, cr):
+        # convert the row col index points to the CRS coordinates, then index the full res raster using the CRS points
+        # to get the row col for the full resolution left/right images
+        # rasterio expects row col space so flip the coordinates. I should probably use named tuples for safety
+        rc = cr[::-1]
+        in_crs = smaller.xy(*rc)
+        row, col = larger.index(*in_crs)
+        return row, col
+
+    def make_ba_gcps(self,
+                     ref_img,
+                     ref_dem,
+                     ref_left_match,
+                     ref_right_match,
+                     left_name,
+                     lr_left_name,
+                     right_name,
+                     lr_right_name,
+                     eoid='+proj=longlat +R=3396190 +no_defs',
+                     out_name=None):
+        # get common points
+        common_ref_left, common_ref_right, common_left, common_right = self.get_common_matches(ref_left_match, ref_right_match)
+        common_ref_left_crs = list(self.ref_in_crs(common_ref_left, ref_img))
+        common_ref_left_z   = list(self.get_ref_z(common_ref_left_crs, ref_dem))
+        # setup
+        eoid_crs = pyproj.CRS(eoid)
+        with rasterio.open(ref_img, 'r') as ref:
+            ref_crs = ref.crs
+        ref_to_eoid_crs = pyproj.Transformer.from_crs(ref_crs, eoid_crs, always_xy=True)
+        with rasterio.open(left_name) as left, rasterio.open(right_name) as right, rasterio.open(lr_left_name) as lr_left, rasterio.open(lr_right_name) as lr_right:
+            # left and right are in col row space of the lowres images, and the lr and nr images have the same CRS
+            common_left_full = [self._small_cr_to_large_rc(lr_left, left, _) for _ in common_left]
+            common_right_full = [self._small_cr_to_large_rc(lr_right, right, _) for _ in common_left]
+        gcps = []
+        reference_gsd = round(self.cs.get_image_gsd(ref_img), 1)
+        left_gsd = round(self.cs.get_image_gsd(left_name), 2)
+        right_gsd = round(self.cs.get_image_gsd(right_name), 2)
+        left_std = round(reference_gsd / left_gsd, 1)
+        right_std = round(reference_gsd / right_gsd, 1)
+        left_name = Path(left_name).name
+        right_name = Path(right_name).name
+        # start loop
+        for i, (crs_xy, z, left_rc, right_rc) in enumerate(zip(common_ref_left_crs, common_ref_left_z, common_left_full, common_right_full)):
+            # crsxy needs to be in lon lat
+            lon, lat = ref_to_eoid_crs.transform(*crs_xy)
+            left_row, left_col = left_rc
+            right_row, right_col = right_rc
+            # left/right rc might need to be flipped
+            # todo: xyz stds might be too lax, could likely divide them by 3
+            this_gcp = [
+                i, lat, lon, round(float(z), 1), reference_gsd, reference_gsd, reference_gsd, # gcp number, lat, lon, height, x std, y std, z std,
+                left_name, left_col, left_row, left_std, left_std,  # left image, column index, row index, column std, row std,
+                right_name, right_col, right_row, right_std, right_std   # right image, column index, row index, column std, row std,
+            ]
+            gcps.append(this_gcp)
+        print(len(gcps))
+        out = open(out_name, 'w') if out_name is not None else sys.stdout
+        w = csv.writer(out, delimiter=' ')
+        w.writerows(gcps)
+        if out is not sys.stdout:
+            out.close()
+
+
+    def make_gcps_for_ba(self, ref_img, ref_dem, left, right, eoid='+proj=longlat +R=3396190 +no_defs', out_name=None, ipfindkwargs=None):
+        """
+        Given a reference image and dem, and two images for a stereopair,
+         automatically create GCPs for ASP's BA by finding ip match points
+         common between the reference image and the left and right images for the new pair
+         and sampling the z values from the reference DEM.
+
+         note that this will create several vrt files because we want to make normalized downsampled images
+         to find a good number of matches and to save time between images of large resolution differences
+        """
+        if ipfindkwargs is None:
+            ipfindkwargs = f'--num-threads {_threads_singleprocess} --normalize --debug-image 1 --ip-per-tile 1000'
+        # normalize the data
+        ref_norm = self.normalize(ref_img)
+        left_norm = self.normalize(left)
+        right_norm = self.normalize(right)
+        # make the left/right the same gsd as the reference data
+        lr_left, lr_right = list(self.match_gsds(ref_norm, left_norm, right_norm))
+        # compute matches
+        ref_left_match, ref_right_match = list(self.find_matches(ref_norm, lr_left, lr_right, ipfindkwargs=ipfindkwargs))
+        # make gcps for ba
+        self.make_ba_gcps(
+            ref_img,
+            ref_dem,
+            ref_left_match,
+            ref_right_match,
+            left,
+            lr_left,
+            right,
+            lr_right,
+            eoid=eoid,
+            out_name=out_name
+        )
+
 
 
 class ASAP(object):
