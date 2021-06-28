@@ -1169,7 +1169,7 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1187,6 +1187,7 @@ class HiRISE(object):
         :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
+        :param max_ba_iterations: maximum number of BA steps to use per run (defaults to 50 for slow running hirise BA)
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
@@ -1204,6 +1205,7 @@ class HiRISE(object):
                 'imggsd'          : imggsd,
                 'alignment_method': alignment_method,
                 'downsample': downsample,
+                'max_ba_iterations': max_ba_iterations,
             },
             request_save_on_cell_execute=True,
             **kwargs
