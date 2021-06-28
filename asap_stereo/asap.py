@@ -1169,7 +1169,7 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, gcps: str = '', maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1184,6 +1184,7 @@ class HiRISE(object):
         :param alignment_method: alignment method to use for pc_align
         :param downsample: Factor to downsample images for faster production
         :param refdem: path to reference DEM or PEDR csv file
+        :param gcps: path to gcp file todo: currently only one gcp file allowed
         :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
         :param demgsd: desired GSD of output DEMs (4x image GSD)
         :param imggsd: desired GSD of output ortho images
@@ -1200,6 +1201,7 @@ class HiRISE(object):
                 'config': config,
                 'output_path' : working_dir,
                 'refdem'          : refdem,
+                'gcps'            : gcps,
                 'maxdisp'         : maxdisp,
                 'demgsd'          : demgsd,
                 'imggsd'          : imggsd,
