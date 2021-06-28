@@ -3,7 +3,7 @@ import io
 
 # some influences here came from https://github.com/audreyr/cookiecutter/blob/master/setup.py
 
-version = '0.2.0'
+version = '0.2.1'
 
 
 with io.open('README.rst', 'r', encoding='utf-8') as readme_file:
@@ -16,14 +16,14 @@ setup(
     packages = ['asap_stereo'],
     include_package_data=True,
     license  = 'BSD-3-Clause',
-    description = 'A high level CLI and reproduceable workflow for the Ames Stereo Pipeline',
+    description = 'A high level CLI and reproducible workflow for the Ames Stereo Pipeline',
     long_description = readme,
     # Author details
     author='Andrew M. Annex',
     author_email='ama6fy@virginia.edu',
     url='https://github.com/AndrewAnnex/asap_stereo/',
 
-    install_requires=['requests', 'fire', 'moody>=0.0.4', 'sh', 'papermill', 'rasterio', 'pyproj'],
+    install_requires=['requests', 'fire', 'moody>=0.2.0', 'sh', 'papermill', 'rasterio', 'pyproj'],
 
     entry_points={
         'console_scripts': [

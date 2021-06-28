@@ -1,6 +1,6 @@
 requests
 fire
-moody>=0.0.4
+moody>=0.2.0
 sh
 pvl
 papermill
