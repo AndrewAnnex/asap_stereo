@@ -517,6 +517,7 @@ class CommonSteps(object):
             projection = self.get_srs_info(cub_path, use_eqc=proj)
             print(projection)
             # reproject to image coordinates for some gis tools
+            # todo: this fails sometimes on the projection string, a proj issue... trying again in command line seems to fix it
             sh.ogr2ogr('-t_srs', projection, '-sql', sql_query, f'./{out_name}_pedr4align.shp', shpfile.name)
 
     @rich_logger
@@ -671,6 +672,9 @@ class CommonSteps(object):
             self.rescale_cub(f'{right}{postfix}', factor=factor, overwrite=True)
 
     def get_pedr_4_pcalign_common(self, postfix, proj, https, pedr_list=None):
+        if postfix.endswith('.cub'):
+            warnings.warn(f'pedr4pcalign_common provided postfix of {postfix}, which should not end with .cub! Removing for you..')
+            postfix = postfix[:-4]
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
             if pedr_list:
@@ -1431,7 +1435,7 @@ class HiRISE(object):
         return cmd_res
 
     @rich_logger
-    def pre_step_ten_pedr(self, pedr_list=None, postfix='_RED.map.cub'):
+    def pre_step_ten_pedr(self, pedr_list=None, postfix='_RED.map'):
         """
         Use MOLA PEDR data to align the HiRISE DEM to in case no CTX DEM is available
 
