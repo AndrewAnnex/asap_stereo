@@ -1275,11 +1275,13 @@ class HiRISE(object):
         sh.mv(next(Path(f'./{right}/').glob(f'{right}*.mos_hijitreged.norm.cub')), both)
 
     @rich_logger
-    def step_five(self):
+    def step_five(self, gsd: float = None):
         """
         Map project HiRISE data for stereo processing
 
         Run cam2map4stereo on the data
+
+        :param gsd: override for final resolution in meters per pixel (mpp)
 
         """
 
@@ -1291,7 +1293,10 @@ class HiRISE(object):
         with cd(both):
             left_im  = next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))
             right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
-            response = str(self.cam2map4stereo('-n', left_im, right_im))
+            cam2map_args = ['-n', left_im, right_im]
+            if gsd is not None:
+                cam2map_args = ['--pixres', 'MPP', '--resolution', str(gsd), *cam2map_args]
+            response = str(self.cam2map4stereo(*cam2map_args))
             left_cam2map_call, right_cam2map_call = response.split('\n')[-4:-2]
             print(left_cam2map_call, flush=True)
             print(right_cam2map_call, flush=True)
