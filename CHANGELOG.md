@@ -4,6 +4,19 @@ All notable changes to ASAP-Stereo will be documented here
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## [0.2.1] - 2021-06-28
+### Added
+- Georef module for making GCPs for georegistration and bundle adjustment
+- gsd argument for hirise step5 cam2map4stereo.py to allow downscaled hirise
+- dois to banners
+- more preview images for hirise workflow
+
+### Changed
+- bumped moody version
+
+### Fixed
+- various typos in hirise workflow
+
 ## [0.2.0] - 2021-05-31
 ### Added
 - Stereo quality report functions, adds pvl as dependency
