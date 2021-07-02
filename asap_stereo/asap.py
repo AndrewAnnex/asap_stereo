@@ -1762,9 +1762,9 @@ class Georef(object):
         If unsure normalize your data ahead of time
         """
         # get the matches
-        self.find_matches(ref_img, mobile_image, ipfindkwargs=ipfindkwargs, ipmatchkwargs=ipmatchkwargs)
+        matches = list(self.find_matches(ref_img, mobile_image, ipfindkwargs=ipfindkwargs, ipmatchkwargs=ipmatchkwargs))
         # convert matches to csv
-        match_csv = self.matches_to_csv(f'{Path(ref_img).stem}__{Path(mobile_image).stem}.match')
+        match_csv = self.matches_to_csv(matches[0])
         # loop through all the mobile data
         for i, mobile in tqdm.tqdm(enumerate([mobile_image, *other_mobile])):
             # transform matches # todo: make sure I don't overwrite anything here
