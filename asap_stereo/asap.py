@@ -609,36 +609,37 @@ class CommonSteps(object):
             return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
-    def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
+    def stereo_1(self, stereo_conf: str, postfix='.lev1eo.cub', posargs='', defaults = None, **kwargs):
         """
         Step 1 of parallel stereo
-
+        :param defaults: 
+        :param posargs: additional positional args 
         :param postfix:
         :param stereo_conf:
         :param kwargs:
         """
+        if defaults is None:
+            defaults = self.defaults_ps1
         left, right, both = self.parse_stereopairs()
         assert both is not None
         stereo_conf = Path(stereo_conf).absolute()
         with cd(Path.cwd() / both):
-            args = kwargs_to_args({**self.defaults_ps1, **clean_kwargs(kwargs)})
-            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
+            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            return self.parallel_stereo(*posargs.split(' '), *args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
 
     @rich_logger
-    def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', **kwargs):
+    def stereo_2(self, stereo_conf: str, postfix='.lev1eo.cub', posargs='', defaults = None, **kwargs):
         """
         Step 2 of parallel stereo
-
+        :param defaults: default kwargs options for parallel stereo
+        :param posargs: additional positional args 
         :param postfix:
         :param stereo_conf:
         :param kwargs:
         """
-        left, right, both = self.parse_stereopairs()
-        assert both is not None
-        stereo_conf = Path(stereo_conf).absolute()
-        with cd(Path.cwd() / both):
-            args = kwargs_to_args({**self.defaults_ps2, **clean_kwargs(kwargs)})
-            return self.parallel_stereo(*args, f'{left}{postfix}', f'{right}{postfix}', '-s', stereo_conf, f'results_ba/{both}_ba')
+        if defaults is None:
+            defaults = self.defaults_ps2
+        self.stereo_1(stereo_conf, postfix=postfix, posargs=posargs, defaults=defaults, **kwargs)
 
     @rich_logger
     def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
