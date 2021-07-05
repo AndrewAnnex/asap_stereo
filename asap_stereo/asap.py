@@ -117,6 +117,16 @@ def silent_cd(newdir):
     finally:
         os.chdir(prevdir)
 
+
+def optional(variable, null=''):
+    # TODO: this is equivalent to something from functional programming that I am forgetting the name of
+    if isinstance(variable, (int, float, str)):
+        variable = [variable]
+    for _ in variable:
+        if _ != null:
+            yield _
+
+
 def cmd_to_string(command: sh.RunningCommand) -> str:
     """
     Converts the running command into a single string of the full command call for easier logging
@@ -611,7 +621,7 @@ class CommonSteps(object):
             return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
-    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', output_file_prefix='results_ba/$both_ba', posargs='', **kwargs):
+    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', output_file_prefix='results_ba/$both_ba', posargs: str = '', **kwargs):
         """
         parallel stereo common step
         
@@ -633,7 +643,7 @@ class CommonSteps(object):
             if isinstance(postfix, str):
                 postfix = [postfix]
             imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}'] for px in postfix]))
-            return self.parallel_stereo(*_posargs, *_kwargs, *imgs, output_file_prefix, refdem)
+            return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
 
     @rich_logger
     def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
