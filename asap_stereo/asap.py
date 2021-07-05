@@ -117,7 +117,6 @@ def silent_cd(newdir):
     finally:
         os.chdir(prevdir)
 
-
 def optional(variable, null=''):
     # TODO: this is equivalent to something from functional programming that I am forgetting the name of
     if isinstance(variable, (int, float, str)):
@@ -125,7 +124,6 @@ def optional(variable, null=''):
     for _ in variable:
         if _ != null:
             yield _
-
 
 def cmd_to_string(command: sh.RunningCommand) -> str:
     """
@@ -621,7 +619,7 @@ class CommonSteps(object):
             return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
-    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', output_file_prefix='results_ba/$both_ba', posargs: str = '', **kwargs):
+    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', output_file_prefix='results_ba/${both}_ba', posargs: str = '', **kwargs):
         """
         parallel stereo common step
         
@@ -752,6 +750,11 @@ class CTX(object):
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
         self.proj = projections.get(proj, proj)
+
+    def get_first_pass_refdem(self)-> str:
+        left, right, both = self.cs.parse_stereopairs()
+        refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
+        return str(refdem)
 
     def get_full_ctx_id(self, pid):
         res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
@@ -974,12 +977,8 @@ class CTX(object):
         :param posargs: additional positional args 
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        if not refdem:
-            refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
-        else:
-            refdem = Path(refdem).absolute()
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/$both_ba', posargs=posargs,  **{**defaults_ps1, **kwargs})
+        refdem = Path(self.get_first_pass_refdem() if not refdem else refdem).absolute()
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps1, **kwargs})
 
     @rich_logger
     def step_eleven(self, stereo_conf, refdem=None, posargs='', **kwargs):
@@ -991,12 +990,8 @@ class CTX(object):
         :param posargs: additional positional args 
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        if not refdem:
-            refdem = Path.cwd() / both / 'results_ba' / 'dem' / f'{both}_ba_100_0-DEM.tif'
-        else:
-            refdem = Path(refdem).absolute()
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/$both_ba', posargs=posargs,  **{**defaults_ps2, **kwargs})
+        refdem = Path(self.get_first_pass_refdem() if not refdem else refdem).absolute()
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps2, **kwargs})
 
     @rich_logger
     def step_twelve(self, pedr_list=None, postfix='.lev1eo'):
