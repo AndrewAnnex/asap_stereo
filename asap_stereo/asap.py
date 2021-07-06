@@ -1265,7 +1265,7 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_four(self):
+    def step_four(self, postfix='*.mos_hijitreged.norm.cub'):
         """
         Move hieder2mosaic files
 
@@ -1273,11 +1273,11 @@ class HiRISE(object):
 
         """
         left, right, both = self.cs.parse_stereopairs()
-        sh.mv(next(Path(f'./{left}/').glob(f'{left}*.mos_hijitreged.norm.cub')), both)
-        sh.mv(next(Path(f'./{right}/').glob(f'{right}*.mos_hijitreged.norm.cub')), both)
+        sh.mv(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
+        sh.mv(next(Path(f'./{right}/').glob(f'{right}{postfix}')), both)
 
     @rich_logger
-    def step_five(self, gsd: float = None):
+    def step_five(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
         """
         Map project HiRISE data for stereo processing
 
@@ -1293,8 +1293,8 @@ class HiRISE(object):
 
         left, right, both = self.cs.parse_stereopairs()
         with cd(both):
-            left_im  = next(Path('.').glob(f'{left}*.mos_hijitreged.norm.cub'))
-            right_im = next(Path('.').glob(f'{right}*.mos_hijitreged.norm.cub'))
+            left_im  = next(Path('.').glob(f'{left}{postfix}'))
+            right_im = next(Path('.').glob(f'{right}{postfix}'))
             cam2map_args = ['-n', left_im, right_im]
             if gsd is not None:
                 cam2map_args = ['--pixres', 'MPP', '--resolution', str(gsd), *cam2map_args]
@@ -1312,7 +1312,7 @@ class HiRISE(object):
             _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_six(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_six(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust HiRISE
 
@@ -1321,28 +1321,28 @@ class HiRISE(object):
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
-        return self.cs.bundle_adjust(*vargs, postfix='_RED.map.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_seven(self, stereo_conf, posargs='', **kwargs):
+    def step_seven(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
         """
         Parallel Stereo Part 1
 
         Run first part of parallel_stereo
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='_RED.map.cub', **{**defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_eight(self, stereo_conf, posargs='', **kwargs):
+    def step_eight(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
         """
         Parallel Stereo Part 2
 
         Run second part of parallel_stereo, stereo is completed after this step
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='_RED.map.cub', **{**defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_nine(self, mpp=2, just_dem=False, **kwargs):
+    def step_nine(self, mpp=2, just_dem=False, postfix='_RED.map.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
 
@@ -1358,8 +1358,8 @@ class HiRISE(object):
             post_args.extend(['-n', '--errorimage', '--orthoimage', f'{both}_ba-L.tif'])
         with cd(Path.cwd() / both / 'results_ba'):
             # check the GSD against the MPP
-            self.cs.check_mpp_against_true_gsd(f'../{left}_RED.map.cub', mpp)
-            proj     = self.cs.get_srs_info(f'../{left}_RED.map.cub', use_eqc=self.proj)
+            self.cs.check_mpp_against_true_gsd(f'../{left}{postfix}', mpp)
+            proj     = self.cs.get_srs_info(f'../{left}{postfix}', use_eqc=self.proj)
             defaults = {
                 '--t_srs'      : proj,
                 '-r'           : 'mars',
@@ -1370,7 +1370,7 @@ class HiRISE(object):
             pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             return self.cs.point2dem(*pre_args, f'{both}_ba-PC.tif', *post_args)
 
-    def _gdal_hirise_rescale(self, mpp):
+    def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub'):
         """
         Hillshade using gdaldem instead of asp
 
@@ -1380,7 +1380,7 @@ class HiRISE(object):
         mpp_postfix = self.cs.get_mpp_postfix(mpp)
         with cd(Path.cwd() / both / 'results_ba' / 'dem'):
             # check the GSD against the MPP
-            self.cs.check_mpp_against_true_gsd(f'../../{left}_RED.map.cub', mpp)
+            self.cs.check_mpp_against_true_gsd(f'../../{left}{postfix}', mpp)
             in_dem = next(Path.cwd().glob('*-DEM.tif')) # todo: this might not always be the right thing to do...
             return sh.gdal_translate('-r', 'cubic', '-tr', float(mpp), float(mpp), in_dem, f'./{both}_{mpp_postfix}-DEM.tif')
 
@@ -1476,7 +1476,7 @@ class HiRISE(object):
                 return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
     @rich_logger
-    def step_eleven(self, mpp=1.0, just_ortho=False, output_folder='dem_align', **kwargs):
+    def step_eleven(self, mpp=1.0, just_ortho=False, postfix='_RED.map.cub', output_folder='dem_align', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -1496,10 +1496,10 @@ class HiRISE(object):
             add_params.extend(['-n', '--errorimage',])
 
         with cd(Path.cwd() / both / 'results_ba'):
-            proj     = self.cs.get_srs_info(f'../{left}_RED.map.cub', use_eqc=self.proj)
+            proj     = self.cs.get_srs_info(f'../{left}{postfix}', use_eqc=self.proj)
             if not just_ortho:
                 # check the GSD against the MPP
-                self.cs.check_mpp_against_true_gsd(f'../{left}_RED.map.cub', mpp)
+                self.cs.check_mpp_against_true_gsd(f'../{left}{postfix}', mpp)
             with cd(output_folder):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
                 defaults = {
