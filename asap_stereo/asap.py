@@ -119,7 +119,7 @@ def silent_cd(newdir):
 
 def optional(variable, null=''):
     # TODO: this is equivalent to something from functional programming that I am forgetting the name of
-    if isinstance(variable, (int, float, str)):
+    if isinstance(variable, (bool, int, float, str, Path)):
         variable = [variable]
     for _ in variable:
         if _ != null:
@@ -977,7 +977,7 @@ class CTX(object):
         :param posargs: additional positional args 
         :param kwargs:
         """
-        refdem = Path(self.get_first_pass_refdem() if not refdem else refdem).absolute()
+        refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
         return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps1, **kwargs})
 
     @rich_logger
@@ -990,7 +990,7 @@ class CTX(object):
         :param posargs: additional positional args 
         :param kwargs:
         """
-        refdem = Path(self.get_first_pass_refdem() if not refdem else refdem).absolute()
+        refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
         return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps2, **kwargs})
 
     @rich_logger
