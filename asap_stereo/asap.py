@@ -64,31 +64,6 @@ _threads_singleprocess = cores # 24, 16
 _threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess > 1 else 1 # 12, 8
 _processes             = _threads_multiprocess // 4 if _threads_multiprocess > 3 else 1 # 3, 2
 
-# defaults for first 3 steps parallel stereo
-defaults_ps1 = {
-    '--processes'            : _processes,
-    '--threads-singleprocess': _threads_singleprocess,
-    '--threads-multiprocess' : _threads_multiprocess,
-    '--stop-point'           : 4,
-    '--bundle-adjust-prefix' : 'adjust/ba'
-}
-
-# defaults for first last step parallel stereo (triangulation)
-defaults_ps2 = {
-    '--processes'            : _threads_singleprocess,  # use more cores for triangulation!
-    '--threads-singleprocess': _threads_singleprocess,
-    '--threads-multiprocess' : _threads_multiprocess,
-    '--entry-point'          : 4,
-    '--bundle-adjust-prefix' : 'adjust/ba'
-}
-
-# default eqc Iau projections, eventually replace with proj4 lookups
-projections = {
-    "IAU_Mars"   : "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=3396190 +b=3396190 +units=m +no_defs",
-    "IAU_Moon"   : "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=1737400 +b=1737400 +units=m +no_defs",
-    "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
-}
-
 
 pool = Semaphore(cores)
 
@@ -269,6 +244,31 @@ class CommonSteps(object):
 
     █████████████████████████████████████████████████████████████
     """
+
+    # defaults for first 3 steps parallel stereo
+    defaults_ps1 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--stop-point': 4,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+
+    # defaults for first last step parallel stereo (triangulation)
+    defaults_ps2 = {
+        '--processes': _threads_singleprocess,  # use more cores for triangulation!
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 4,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+
+    # default eqc Iau projections, eventually replace with proj4 lookups
+    projections = {
+        "IAU_Mars": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=3396190 +b=3396190 +units=m +no_defs",
+        "IAU_Moon": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=1737400 +b=1737400 +units=m +no_defs",
+        "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
+    }
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
@@ -749,7 +749,7 @@ class CTX(object):
         self.datum = datum
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
-        self.proj = projections.get(proj, proj)
+        self.proj = self.cs.projections.get(proj, proj)
 
     def get_first_pass_refdem(self)-> str:
         left, right, both = self.cs.parse_stereopairs()
@@ -888,7 +888,7 @@ class CTX(object):
 
         Run first part of parallel_stereo asp_ctx_lev1eo2dem.sh
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
     def step_six(self, stereo_conf, posargs='', **kwargs):
@@ -897,7 +897,7 @@ class CTX(object):
 
         Run second part of parallel_stereo, asp_ctx_lev1eo2dem.sh stereo is completed after this step
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_seven(self, mpp=24, just_dem=False, folder='results_ba', **kwargs):
@@ -978,7 +978,7 @@ class CTX(object):
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
     def step_eleven(self, stereo_conf, refdem=None, posargs='', **kwargs):
@@ -991,7 +991,7 @@ class CTX(object):
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_twelve(self, pedr_list=None, postfix='.lev1eo'):
@@ -1121,7 +1121,7 @@ class HiRISE(object):
         self.cam2map4stereo = sh.Command('cam2map4stereo.py')
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
-        self.proj = projections.get(proj, proj)
+        self.proj = self.cs.projections.get(proj, proj)
 
     def get_hirise_emission_angle(self, pid: str)-> float:
         """
@@ -1330,7 +1330,7 @@ class HiRISE(object):
 
         Run first part of parallel_stereo
         """
-        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
     def step_eight(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
@@ -1339,7 +1339,7 @@ class HiRISE(object):
 
         Run second part of parallel_stereo, stereo is completed after this step
         """
-        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_nine(self, mpp=2, just_dem=False, postfix='_RED.map.cub', **kwargs):
