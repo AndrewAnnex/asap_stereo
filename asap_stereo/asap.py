@@ -400,7 +400,7 @@ class CommonSteps(object):
             out.write(left_right)
 
     @staticmethod
-    def create_sterodirs():
+    def create_stereodirs():
         Path(sh.cat('./stereodirs.lis').strip()).mkdir(exist_ok=True)
 
     @staticmethod
@@ -863,7 +863,7 @@ class CTX(object):
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
-        self.cs.create_sterodirs()
+        self.cs.create_stereodirs()
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
@@ -1239,7 +1239,7 @@ class HiRISE(object):
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
-        self.cs.create_sterodirs()
+        self.cs.create_stereodirs()
         self.cs.create_stereopair_lis()
 
     @rich_logger
