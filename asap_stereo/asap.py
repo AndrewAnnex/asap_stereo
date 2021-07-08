@@ -307,22 +307,23 @@ class CommonSteps(object):
         self.hiedr       = Command('hiedr2mosaic.py', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
         self.cam2map4stereo = Command('cam2map4stereo.py', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
-
-        # GDAL bin
-        self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
-        self.gdal_translate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
-        self.gdalwarp    = Command('gdalwarp').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
-            self.ba = Command('parallel_bundle_adjust').bake(
+            self.ba = Command('parallel_bundle_adjust', search_paths=[self.asp_bin_path]).bake(
                 '--threads-singleprocess', _threads_singleprocess,
                 '--threads-multiprocess', _threads_multiprocess
             )
         except sh.CommandNotFound:
             # if not fall back to regular bundle adjust
-            self.ba = Command('bundle_adjust')
+            self.ba = Command('bundle_adjust', search_paths=[self.asp_bin_path])
         finally:
             self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
+
+        # GDAL bin
+        self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdal_translate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdalwarp    = Command('gdalwarp').bake(_out=sys.stdout, _err=sys.stderr)
+
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
