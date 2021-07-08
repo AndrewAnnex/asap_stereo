@@ -270,23 +270,48 @@ class CommonSteps(object):
         "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
     }
 
-    def __init__(self):
-        self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
-        self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
-        self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
-        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
-        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
-        self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
-        self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
-        self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
-        self.cubreduce   = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
+    def __init__(self, isis_bin_path=None, asp_bin_path=None):
+        # ISIS bin
+        if isis_bin_path is None:
+            isis_bin_path = os.getenv('ISISROOT', None)
+            if isis_bin_path is None:
+                warnings.warn('ISISROOT environment variable is not set, set it to conda prefix of an ISIS installation. Searching PATH instead')
+                isis_bin_path = os.environ['PATH'] # todo attempt to parse for ISIS?
+            else:
+                isis_bin_path = isis_bin_path + '/bin/'
+        self.isis_bin_path = isis_bin_path
+        self.mroctx2isis = Command('mroctx2isis', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.spiceinit   = Command('spiceinit', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.spicefit    = Command('spicefit', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.cubreduce   = Command('reduce', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.ctxcal      = Command('ctxcal', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.ctxevenodd  = Command('ctxevenodd', search_paths=[self.isis_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.cam2map     = Command('cam2map', search_paths=[self.isis_bin_path])
+
+        # ASP bin
+        if asp_bin_path is None:
+            asp_bin_path = os.getenv('ASPPATH', None)
+            if asp_bin_path is None:
+                warnings.warn('ASPPATH environment variable is not set, set it to inside main directory of ASP install. Searching PATH instead')
+                asp_bin_path = os.environ['PATH']  # todo attempt to parse for ASP?
+            else:
+                asp_bin_path = asp_bin_path + '/bin/'
+        self.asp_bin_path = asp_bin_path
+        self.parallel_stereo = Command('parallel_stereo', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.point2dem   = Command('point2dem', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.pc_align    = Command('pc_align', search_paths=[self.asp_bin_path]).bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
+        self.geodiff     = Command('geodiff', search_paths=[self.asp_bin_path]).bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
+        self.mapproject  = Command('mapproject', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.ipfind      = Command('ipfind', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.ipmatch     = Command('ipmatch', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.hiedr = Command('hiedr2mosaic.py', search_paths=[self.asp_bin_path])
+        self.cam2map4stereo = Command('cam2map4stereo.py', search_paths=[self.asp_bin_path])
+
+        # GDAL bin
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
-        self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr)
-        self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
+        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdal_translate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
+        self.gdalwarp    = Command('gdalwarp').bake(_out=sys.stdout, _err=sys.stderr)
         try:
             # try to use parallel bundle adjustment
             self.ba = Command('parallel_bundle_adjust').bake(
@@ -477,7 +502,7 @@ class CommonSteps(object):
         xmin, ymin, xmax, ymax = self.transform_bounds_and_buffer(img1, img2, factor=factor)
         img2_path = Path(img2).absolute()
         new_name = img2_path.stem + '_clipped.tif'
-        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, new_name)
+        return self.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, new_name)
 
     def check_mpp_against_true_gsd(self, path, mpp):
         """
@@ -743,8 +768,8 @@ class CTX(object):
     █████████████████████████████████████████████████████████████
     """
 
-    def __init__(self, https=False, datum="D_MARS", proj: Optional[str] = None):
-        self.cs = CommonSteps()
+    def __init__(self, https=False, datum="D_MARS", proj: Optional[str] = None, **kwargs):
+        self.cs = CommonSteps(**kwargs)
         self.https = https
         self.datum = datum
         # if proj is not none, get the corresponding proj or else override with proj,
@@ -1111,14 +1136,11 @@ class HiRISE(object):
     █████████████████████████████████████████████████████████████
     """
 
-    def __init__(self, https=False, threads=cores, datum="D_MARS", proj: Optional[str] = None):
+    def __init__(self, https=False, threads=cores, datum="D_MARS", proj: Optional[str] = None, **kwargs):
         self.https = https
-        self.cs = CommonSteps()
+        self.cs = CommonSteps(**kwargs)
         self.threads = threads
         self.datum = datum
-        self.hiedr = sh.Command('hiedr2mosaic.py')
-        self.cam2map = sh.Command('cam2map')
-        self.cam2map4stereo = sh.Command('cam2map4stereo.py')
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
         self.proj = self.cs.projections.get(proj, proj)
@@ -1235,7 +1257,6 @@ class HiRISE(object):
         Metadata init
 
         Create various files with info for later steps
-
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
@@ -1248,13 +1269,12 @@ class HiRISE(object):
         Hiedr2mosaic preprocessing
 
         Run hiedr2mosaic on all the data
-
         """
 
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
             pool.acquire()
-            return self.hiedr(*im, '--threads', self.threads, _bg=True, _done=done)
+            return self.cs.hiedr(*im, '--threads', self.threads, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
@@ -1270,7 +1290,6 @@ class HiRISE(object):
         Move hieder2mosaic files
 
         Move the hiedr2mosaic output to the location needed for cam2map4stereo
-
         """
         left, right, both = self.cs.parse_stereopairs()
         sh.mv(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
@@ -1289,7 +1308,7 @@ class HiRISE(object):
 
         def par_cam2map(argstring):
             pool.acquire()
-            return self.cam2map(argstring.split(' '), _bg=True, _done=done)
+            return self.cs.cam2map(argstring.split(' '), _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         with cd(both):
@@ -1298,7 +1317,7 @@ class HiRISE(object):
             cam2map_args = ['-n', left_im, right_im]
             if gsd is not None:
                 cam2map_args = ['--pixres', 'MPP', '--resolution', str(gsd), *cam2map_args]
-            response = str(self.cam2map4stereo(*cam2map_args))
+            response = str(self.cs.cam2map4stereo(*cam2map_args))
             left_cam2map_call, right_cam2map_call = response.split('\n')[-4:-2]
             print(left_cam2map_call, flush=True)
             print(right_cam2map_call, flush=True)
@@ -1382,7 +1401,7 @@ class HiRISE(object):
             # check the GSD against the MPP
             self.cs.check_mpp_against_true_gsd(f'../../{left}{postfix}', mpp)
             in_dem = next(Path.cwd().glob('*-DEM.tif')) # todo: this might not always be the right thing to do...
-            return sh.gdal_translate('-r', 'cubic', '-tr', float(mpp), float(mpp), in_dem, f'./{both}_{mpp_postfix}-DEM.tif')
+            return self.cs.gdal_translate('-r', 'cubic', '-tr', float(mpp), float(mpp), in_dem, f'./{both}_{mpp_postfix}-DEM.tif')
 
     @rich_logger
     def pre_step_ten(self, refdem, alignment_method='translation', do_resample='gdal', **kwargs):
@@ -1601,14 +1620,14 @@ class Georef(object):
         with open(filename, 'r') as src:
             return list(csv.reader(src))[1:]
 
-    def __init__(self):
-        self.cs = CommonSteps()
+    def __init__(self, **kwargs):
+        self.cs = CommonSteps(**kwargs)
 
     def match_gsds(self, ref_image, *images):
         ref_gsd = int(self.cs.get_image_gsd(ref_image))
         for img in images:
             out_name = Path(img).stem + f'_{ref_gsd}.vrt'
-            _ = sh.gdal_translate(img, out_name, '-of', 'vrt', '-tr', ref_gsd, ref_gsd, '-r', 'cubic')
+            _ = self.cs.gdal_translate(img, out_name, '-of', 'vrt', '-tr', ref_gsd, ref_gsd, '-r', 'cubic')
             yield out_name
 
     def normalize(self, image):
@@ -1619,7 +1638,7 @@ class Georef(object):
         # get bands scaling iterable, multiply by 1.001 for a little lower range
         scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["minimum"])*1.001, float(bandif["maximum"])*1.001, 1, 255) for bandif in band_stats))
         # run gdal translate
-        _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
+        _ = self.cs.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
         return out_name
 
     def find_matches(self, reference_image, *mobile_images, ipfindkwargs=None, ipmatchkwargs=None):
@@ -1726,12 +1745,11 @@ class Georef(object):
         # use gdaltransform to update mobile file use VRT for wins
         mobile_vrt = Path(mobile_file).stem + '_wgcps.vrt'
         # create a vrt with the gcps
-        self.cs.gdaltranslate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
+        self.cs.gdal_translate('-of', 'VRT', *gcps, mobile_file, mobile_vrt, _out=sys.stdout, _err=sys.stderr)
         # todo: here or as a new command would be a good place to display residuals for gcps given different transform options
         return mobile_vrt
 
-    @staticmethod
-    def warp(reference_image, mobile_vrt, out_name=None, gdal_warp_args=None, tr=1.0):
+    def warp(self, reference_image, mobile_vrt, out_name=None, gdal_warp_args=None, tr=1.0):
         """
         Final step in workflow, given a reference image and a mobile vrt with attached GCPs
         use gdalwarp to create a modified non-virtual file that is aligned to the reference image
@@ -1747,7 +1765,7 @@ class Georef(object):
         if out_name is None:
             out_name = Path(mobile_vrt).stem + '_ref.tif'
         # let's do the time warp again
-        return sh.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name, _out=sys.stdout, _err=sys.stderr)
+        return self.cs.gdalwarp(*gdal_warp_args, '-t_srs', refimgcrs, mobile_vrt, out_name)
 
     def im_feeling_lucky(self, ref_img, mobile_image, *other_mobile, ipfindkwargs=None, ipmatchkwargs=None, gdal_warp_args=None):
         """
