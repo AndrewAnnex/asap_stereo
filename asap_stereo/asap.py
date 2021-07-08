@@ -304,12 +304,12 @@ class CommonSteps(object):
         self.mapproject  = Command('mapproject', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
         self.ipfind      = Command('ipfind', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
         self.ipmatch     = Command('ipmatch', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
-        self.hiedr = Command('hiedr2mosaic.py', search_paths=[self.asp_bin_path])
-        self.cam2map4stereo = Command('cam2map4stereo.py', search_paths=[self.asp_bin_path])
+        self.hiedr       = Command('hiedr2mosaic.py', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.cam2map4stereo = Command('cam2map4stereo.py', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
+        self.dem_geoid   = Command('dem_geoid', search_paths=[self.asp_bin_path]).bake(_out=sys.stdout, _err=sys.stderr)
 
         # GDAL bin
         self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
-        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
         self.gdal_translate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
         self.gdalwarp    = Command('gdalwarp').bake(_out=sys.stdout, _err=sys.stderr)
         try:
