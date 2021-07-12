@@ -822,7 +822,7 @@ class CTX(object):
         )
 
     @rich_logger
-    def step_one(self, one: str, two: str, cwd: Optional[str] = None) -> None:
+    def step_1(self, one: str, two: str, cwd: Optional[str] = None) -> None:
         """
         Download CTX EDRs from the PDS
 
@@ -837,7 +837,7 @@ class CTX(object):
             moody.ODE(self.https).ctx_edr(two)
 
     @rich_logger
-    def step_two(self, with_web=False):
+    def step_2(self, with_web=False):
         """
         ISIS3 CTX preprocessing, replaces ctxedr2lev1eo.sh
 
@@ -857,7 +857,7 @@ class CTX(object):
             lc.unlink()
 
     @rich_logger
-    def step_three(self):
+    def step_3(self):
         """
         Create various processing files for future steps
         """
@@ -870,7 +870,7 @@ class CTX(object):
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
-    def step_four(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
 
@@ -882,7 +882,7 @@ class CTX(object):
         return self.cs.bundle_adjust(*vargs, postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_five(self, stereo_conf, posargs='', **kwargs):
+    def step_5(self, stereo_conf, posargs='', **kwargs):
         """
         Parallel Stereo Part 1
 
@@ -891,7 +891,7 @@ class CTX(object):
         return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_six(self, stereo_conf, posargs='', **kwargs):
+    def step_6(self, stereo_conf, posargs='', **kwargs):
         """
         Parallel Stereo Part 2
 
@@ -900,7 +900,7 @@ class CTX(object):
         return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_seven(self, mpp=24, just_dem=False, folder='results_ba', **kwargs):
+    def step_7(self, mpp=24, just_dem=False, folder='results_ba', **kwargs):
         """
         Produce preview DEMs/Orthos
 
@@ -932,7 +932,7 @@ class CTX(object):
             return self.cs.point2dem(*pre_args, f'{both}_ba-PC.tif', *post_args)
 
     @rich_logger
-    def step_eight(self, folder='results_ba', output_folder='dem'):
+    def step_8(self, folder='results_ba', output_folder='dem'):
         """
         hillshade First step in asp_ctx_step2_map2dem script
 
@@ -946,7 +946,7 @@ class CTX(object):
             self.cs.hillshade(dem.name, f'./{dem.stem}-hillshade.tif')
 
     @rich_logger
-    def step_nine(self, refdem=None, mpp=6):
+    def step_9(self, refdem=None, mpp=6):
         """
         Mapproject the left and right ctx images against the reference DEM
 
@@ -968,7 +968,7 @@ class CTX(object):
             self.cs.mapproject('-t', 'isis', refdem, f'{right}.lev1eo.cub', f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
 
     @rich_logger
-    def step_ten(self, stereo_conf, refdem=None, posargs='', **kwargs):
+    def step_10(self, stereo_conf, refdem=None, posargs='', **kwargs):
         """
         Second stereo first step
         
@@ -981,7 +981,7 @@ class CTX(object):
         return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_eleven(self, stereo_conf, refdem=None, posargs='', **kwargs):
+    def step_11(self, stereo_conf, refdem=None, posargs='', **kwargs):
         """
         Second stereo second step
 
@@ -994,7 +994,7 @@ class CTX(object):
         return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], output_file_prefix='results_map_ba/${both}_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_twelve(self, pedr_list=None, postfix='.lev1eo'):
+    def step_12(self, pedr_list=None, postfix='.lev1eo'):
         """
         Get MOLA PEDR data to align the CTX DEM to
 
@@ -1004,7 +1004,7 @@ class CTX(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_thirteen(self, maxd: float = None, pedr4align = None, highest_accuracy = True, **kwargs):
+    def step_13(self, maxd: float = None, pedr4align = None, highest_accuracy = True, **kwargs):
         """
         PC Align CTX
 
@@ -1038,7 +1038,7 @@ class CTX(object):
             return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', pedr4align)
 
     @rich_logger
-    def step_fourteen(self, mpp=24.0, just_ortho=False, output_folder='dem_align', **kwargs):
+    def step_14(self, mpp=24.0, just_ortho=False, output_folder='dem_align', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -1076,7 +1076,7 @@ class CTX(object):
                 return self.cs.point2dem(*args, str(point_cloud.name), *add_params)
 
     @rich_logger
-    def step_fifteen(self, output_folder='dem_align', **kwargs):
+    def step_15(self, output_folder='dem_align', **kwargs):
         """
         Adjust DEM to geoid
 
@@ -1208,7 +1208,7 @@ class HiRISE(object):
         )
 
     @rich_logger
-    def step_one(self, one, two, cwd: Optional[str] = None):
+    def step_1(self, one, two, cwd: Optional[str] = None):
         """
         Download HiRISE EDRs
 
@@ -1230,7 +1230,7 @@ class HiRISE(object):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
 
     @rich_logger
-    def step_two(self):
+    def step_2(self):
         """
         Metadata init
 
@@ -1243,7 +1243,7 @@ class HiRISE(object):
         self.cs.create_stereopair_lis()
 
     @rich_logger
-    def step_three(self):
+    def step_3(self):
         """
         Hiedr2mosaic preprocessing
 
@@ -1265,7 +1265,7 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_four(self, postfix='*.mos_hijitreged.norm.cub'):
+    def step_4(self, postfix='*.mos_hijitreged.norm.cub'):
         """
         Move hieder2mosaic files
 
@@ -1277,7 +1277,7 @@ class HiRISE(object):
         sh.mv(next(Path(f'./{right}/').glob(f'{right}{postfix}')), both)
 
     @rich_logger
-    def step_five(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
+    def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
         """
         Map project HiRISE data for stereo processing
 
@@ -1312,7 +1312,7 @@ class HiRISE(object):
             _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_six(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_6(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust HiRISE
 
@@ -1324,7 +1324,7 @@ class HiRISE(object):
         return self.cs.bundle_adjust(*vargs, postfix=postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_seven(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
+    def step_7(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
         """
         Parallel Stereo Part 1
 
@@ -1333,7 +1333,7 @@ class HiRISE(object):
         return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_eight(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
+    def step_8(self, stereo_conf, postfix='_RED.map.cub', posargs='', **kwargs):
         """
         Parallel Stereo Part 2
 
@@ -1342,7 +1342,7 @@ class HiRISE(object):
         return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_nine(self, mpp=2, just_dem=False, postfix='_RED.map.cub', **kwargs):
+    def step_9(self, mpp=2, just_dem=False, postfix='_RED.map.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
 
@@ -1385,7 +1385,7 @@ class HiRISE(object):
             return sh.gdal_translate('-r', 'cubic', '-tr', float(mpp), float(mpp), in_dem, f'./{both}_{mpp_postfix}-DEM.tif')
 
     @rich_logger
-    def pre_step_ten(self, refdem, alignment_method='translation', do_resample='gdal', **kwargs):
+    def pre_step_10(self, refdem, alignment_method='translation', do_resample='gdal', **kwargs):
         """
         Hillshade Align before PC Align
 
@@ -1414,7 +1414,7 @@ class HiRISE(object):
         # create the lower resolution hirise dem to match the refdem gsd
         if do_resample.lower() == 'asp':
             # use the image in a call to pc_align with hillshades, slow!
-            self.step_nine(mpp=refdem_mpp, just_dem=True)
+            self.step_9(mpp=refdem_mpp, just_dem=True)
         elif do_resample.lower() == 'gdal':
             # use gdal translate to resample hirise dem down to needed resolution
             self._gdal_hirise_rescale(refdem_mpp)
@@ -1433,7 +1433,7 @@ class HiRISE(object):
         return cmd_res
 
     @rich_logger
-    def pre_step_ten_pedr(self, pedr_list=None, postfix='_RED.map'):
+    def pre_step_10_pedr(self, pedr_list=None, postfix='_RED.map'):
         """
         Use MOLA PEDR data to align the HiRISE DEM to in case no CTX DEM is available
 
@@ -1443,7 +1443,7 @@ class HiRISE(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_ten(self, maxd, refdem, highest_accuracy=True, **kwargs):
+    def step_10(self, maxd, refdem, highest_accuracy=True, **kwargs):
         """
         PC Align HiRISE
 
@@ -1476,7 +1476,7 @@ class HiRISE(object):
                 return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
     @rich_logger
-    def step_eleven(self, mpp=1.0, just_ortho=False, postfix='_RED.map.cub', output_folder='dem_align', **kwargs):
+    def step_11(self, mpp=1.0, just_ortho=False, postfix='_RED.map.cub', output_folder='dem_align', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -1514,7 +1514,7 @@ class HiRISE(object):
                 return self.cs.point2dem(*args, str(point_cloud.name), *add_params)
 
     @rich_logger
-    def step_twelve(self, output_folder='dem_align', **kwargs):
+    def step_12(self, output_folder='dem_align', **kwargs):
         """
         Adjust DEM to geoid
 
@@ -1945,11 +1945,11 @@ class ASAP(object):
         :param cwd: directory to run process within (default to CWD)
         """
         with cd(cwd):
-            self.ctx.step_one(left, right)
+            self.ctx.step_1(left, right)
             # ctxedr2lev1eo steps
-            self.ctx.step_two()
+            self.ctx.step_2()
             # move things
-            self.ctx.step_three()
+            self.ctx.step_3()
 
     def ctx_two(self, stereo: str, pedr_list: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         """
@@ -1963,18 +1963,18 @@ class ASAP(object):
         :param cwd: directory to run process within (default to CWD)
         """
         with cd(cwd):
-            self.ctx.step_four()
-            self.ctx.step_five(stereo)
-            self.ctx.step_six(stereo)
+            self.ctx.step_4()
+            self.ctx.step_5(stereo)
+            self.ctx.step_6(stereo)
             # asp_ctx_step2_map2dem steps
-            self.ctx.step_seven(mpp=100, just_dem=True, dem_hole_fill_len=50)
-            self.ctx.step_eight()
-            self.ctx.step_nine()
-            self.ctx.step_ten(stereo2 if stereo2 else stereo)
-            self.ctx.step_eleven(stereo2 if stereo2 else stereo)
-            self.ctx.step_seven(folder='results_map_ba')
-            self.ctx.step_eight(folder='results_map_ba')
-            self.ctx.step_twelve(pedr_list)
+            self.ctx.step_7(mpp=100, just_dem=True, dem_hole_fill_len=50)
+            self.ctx.step_8()
+            self.ctx.step_9()
+            self.ctx.step_10(stereo2 if stereo2 else stereo)
+            self.ctx.step_11(stereo2 if stereo2 else stereo)
+            self.ctx.step_7(folder='results_map_ba')
+            self.ctx.step_8(folder='results_map_ba')
+            self.ctx.step_12(pedr_list)
 
     def ctx_three(self, max_disp: float = None, demgsd: float = 24, imggsd: float = 6, cwd: Optional[str] = None, **kwargs) -> None:
         """
@@ -1989,12 +1989,12 @@ class ASAP(object):
         :param kwargs:
         """
         with cd(cwd):
-            self.ctx.step_thirteen(max_disp, **kwargs)
-            self.ctx.step_fourteen(mpp=demgsd, **kwargs)
-            self.ctx.step_fifteen(**kwargs)
+            self.ctx.step_13(max_disp, **kwargs)
+            self.ctx.step_14(mpp=demgsd, **kwargs)
+            self.ctx.step_15(**kwargs)
             # go back and make final orthos and such
-            self.ctx.step_fourteen(mpp=imggsd, just_ortho=True, **kwargs)
-            self.ctx.step_eight(folder='results_map_ba', output_folder='dem_align')
+            self.ctx.step_14(mpp=imggsd, just_ortho=True, **kwargs)
+            self.ctx.step_8(folder='results_map_ba', output_folder='dem_align')
 
     def hirise_one(self, left, right):
         """
@@ -2006,7 +2006,7 @@ class ASAP(object):
         :param left: HiRISE Id
         :param right: HiRISE Id
         """
-        self.hirise.step_one(left, right)
+        self.hirise.step_1(left, right)
 
     def hirise_two(self, stereo, mpp=2, bundle_adjust_prefix='adjust/ba', max_iterations=50) -> None:
         """
@@ -2021,14 +2021,14 @@ class ASAP(object):
         :param bundle_adjust_prefix: bundle adjust prefix, defaults to 'adjust/ba'
         :param max_iterations: number of iterations for HiRISE bundle adjustment, defaults to 50
         """
-        self.hirise.step_two()
-        self.hirise.step_three()
-        self.hirise.step_four()
-        self.hirise.step_five()
-        self.hirise.step_six(bundle_adjust_prefix=bundle_adjust_prefix, max_iterations=max_iterations)
-        self.hirise.step_seven(stereo)
-        self.hirise.step_eight(stereo)
-        self.hirise.step_nine(mpp=mpp)
+        self.hirise.step_2()
+        self.hirise.step_3()
+        self.hirise.step_4()
+        self.hirise.step_5()
+        self.hirise.step_6(bundle_adjust_prefix=bundle_adjust_prefix, max_iterations=max_iterations)
+        self.hirise.step_7(stereo)
+        self.hirise.step_8(stereo)
+        self.hirise.step_9(mpp=mpp)
 
     def hirise_three(self, max_disp, ref_dem, demgsd: float = 1, imggsd: float = 0.25, **kwargs) -> None:
         """
@@ -2043,13 +2043,13 @@ class ASAP(object):
         :param demgsd: GSD of final Dem, default is 1 mpp
         :param imggsd: GSD of full res image
         """
-        self.hirise.step_ten(max_disp, ref_dem, **kwargs)
-        self.hirise.step_eleven(mpp=demgsd, **kwargs)
-        self.hirise.step_twelve(**kwargs)
+        self.hirise.step_10(max_disp, ref_dem, **kwargs)
+        self.hirise.step_11(mpp=demgsd, **kwargs)
+        self.hirise.step_12(**kwargs)
         # if user wants a second image with same res as step
         # eleven don't bother as prior call to eleven did the work
         if not math.isclose(imggsd, demgsd):
-            self.hirise.step_eleven(mpp=imggsd, just_ortho=True)
+            self.hirise.step_11(mpp=imggsd, just_ortho=True)
 
     def info(self):
         """
