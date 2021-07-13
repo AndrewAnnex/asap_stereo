@@ -297,7 +297,7 @@ class CommonSteps(object):
             # if not fall back to regular bundle adjust
             self.ba = Command('bundle_adjust')
         finally:
-            self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
+            self.ba = self.ba.bake(_out=sys.stdout, _err=sys.stderr)
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:

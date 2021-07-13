@@ -33,7 +33,6 @@ The ASPROOT directory similarly points to the unzipped archive of the Ames Stere
      - rasterio
      - pyproj
      - shapely
-     - pvl
      - pip 
      - pip:
        - moody>=0.0.4
