@@ -245,6 +245,59 @@ class CommonSteps(object):
     █████████████████████████████████████████████████████████████
     """
 
+    defaults_ps_s0 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 0,
+        '--stop-point': 1,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+    
+    defaults_ps_s1 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 1,
+        '--stop-point': 2,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+    
+    defaults_ps_s2 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 2,
+        '--stop-point': 3,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+    
+    defaults_ps_s3 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 3,
+        '--stop-point': 4,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+    
+    defaults_ps_s4 = {
+        '--processes': _threads_singleprocess,  # use more cores for triangulation!
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 4,
+        '--stop-point': 5,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+    
+    defaults_ps_s6 = {
+        '--processes': _processes,
+        '--threads-singleprocess': _threads_singleprocess,
+        '--threads-multiprocess': _threads_multiprocess,
+        '--entry-point': 5,
+        '--bundle-adjust-prefix': 'adjust/ba'
+    }
+
     # defaults for first 3 steps parallel stereo
     defaults_ps1 = {
         '--processes': _processes,
