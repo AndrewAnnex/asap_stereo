@@ -282,7 +282,7 @@ class CommonSteps(object):
     }
     
     defaults_ps_s4 = {
-        '--processes': _threads_singleprocess,  # use more cores for triangulation!
+        '--processes': _processes,
         '--threads-singleprocess': _threads_singleprocess,
         '--threads-multiprocess': _threads_multiprocess,
         '--entry-point': 4,
@@ -290,20 +290,20 @@ class CommonSteps(object):
         '--bundle-adjust-prefix': 'adjust/ba'
     }
     
-    defaults_ps_s6 = {
-        '--processes': _processes,
+    defaults_ps_s5 = {
+        '--processes':  _threads_singleprocess,  # use more cores for triangulation!
         '--threads-singleprocess': _threads_singleprocess,
         '--threads-multiprocess': _threads_multiprocess,
         '--entry-point': 5,
         '--bundle-adjust-prefix': 'adjust/ba'
     }
 
-    # defaults for first 3 steps parallel stereo
+    # defaults for first 5 (0-4 inclusive) steps parallel stereo
     defaults_ps1 = {
         '--processes': _processes,
         '--threads-singleprocess': _threads_singleprocess,
         '--threads-multiprocess': _threads_multiprocess,
-        '--stop-point': 4,
+        '--stop-point': 5,
         '--bundle-adjust-prefix': 'adjust/ba'
     }
 
@@ -312,7 +312,7 @@ class CommonSteps(object):
         '--processes': _threads_singleprocess,  # use more cores for triangulation!
         '--threads-singleprocess': _threads_singleprocess,
         '--threads-multiprocess': _threads_multiprocess,
-        '--entry-point': 4,
+        '--entry-point': 5,
         '--bundle-adjust-prefix': 'adjust/ba'
     }
 
@@ -699,6 +699,39 @@ class CommonSteps(object):
             imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}'] for px in postfix]))
             return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
 
+
+    def point_to_dem(self, mpp, pc_suffix, just_ortho=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
+        left, right, both = self.parse_stereopairs()
+        assert both is not None
+        mpp_postfix = self.get_mpp_postfix(mpp)
+        proj = self.get_srs_info(f'./{both}/{left}{postfix}', use_eqc=self.projections.get(use_proj, use_proj))
+        defaults = {
+            '--reference-spheroid': reference_spheroid,
+            '--nodata'            : -32767,
+            '--output-prefix'     : f'{both}_{kind}_{mpp_postfix}',
+            '--dem-spacing'       : mpp,
+            '--t_srs'             : proj
+        }
+        post_args = []
+        if just_ortho:
+            post_args.append('--no-dem')
+            defaults['--orthoimage'] = str(next((Path.cwd() / both / run).glob('*L.tif')).absolute())
+        else:
+            # check the GSD against the MPP
+            self.check_mpp_against_true_gsd(f'./{both}/{left}{postfix}', mpp)
+            post_args.extend(['--errorimage'])
+        with cd(Path.cwd() / both / run):
+            sh.mkdir(output_folder, '-p')
+            with cd(output_folder):
+                if pc_suffix == 'PC.tif':
+                    point_cloud = next(Path.cwd().glob(f'../*{pc_suffix}')).absolute()
+                else:
+                    point_cloud = next(Path.cwd().glob(f'*{pc_suffix}')).absolute()
+                pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+                return self.point2dem(*pre_args, str(point_cloud), *post_args)
+        
+        
+
     @rich_logger
     def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
         """
@@ -977,12 +1010,12 @@ class CTX(object):
             # check the GSD against the MPP
             self.cs.check_mpp_against_true_gsd(f'../{left}.lev1eo.cub', mpp)
             # get the projection info
-            proj     = self.cs.get_srs_info(f'../{left}.lev1eo.cub', use_eqc=self.proj)
+            proj   = self.cs.get_srs_info(f'../{left}.lev1eo.cub', use_eqc=self.proj)
             defaults = {
                 '--t_srs'      : proj,
-                '-r'           : 'mars',
-                '--dem-spacing': mpp,
-                '--nodata'     : -32767,
+                '--reference-spheroid' : 'mars',
+                '--dem-spacing'  : mpp,
+                '--nodata'       : -32767,
                 '--output-prefix': f'dem/{both}_ba_{mpp_postfix}',
             }
             pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
@@ -1597,7 +1630,7 @@ class HiRISE(object):
                 point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
                 defaults = {
                     '--t_srs'         : proj,
-                    '-r'              : 'mars',
+                    '--reference-spheroid' : 'mars',
                     '--nodata'        : -32767,
                     '--orthoimage'    : f'../{both}_ba-L.tif',
                     '--output-prefix' : f'{both}_align_{gsd_postfix}',
