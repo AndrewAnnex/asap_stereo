@@ -699,7 +699,7 @@ class CommonSteps(object):
             imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}'] for px in postfix]))
             return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
 
-
+    @rich_logger
     def point_to_dem(self, mpp, pc_suffix, just_ortho=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
         left, right, both = self.parse_stereopairs()
         assert both is not None
@@ -730,7 +730,22 @@ class CommonSteps(object):
                 pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
                 return self.point2dem(*pre_args, str(point_cloud), *post_args)
         
-        
+    @rich_logger
+    def geoid_adjust(self, run, output_folder, **kwargs):
+        """
+        Adjust DEM to geoid
+
+        Run geoid adjustment on dem for final science ready product
+        :param run: 
+        :param output_folder:
+        :param kwargs:
+        """
+        left, right, both = self.parse_stereopairs()
+        with cd(Path.cwd() / both / run / output_folder):
+            file = next(Path.cwd().glob('*-DEM.tif'))
+            args = kwargs_to_args(clean_kwargs(kwargs))
+            return self.dem_geoid(*args, file, '-o', f'{file.stem}')
+
 
     @rich_logger
     def rescale_cub(self, src_file: str, factor=4, overwrite=False, dst_file=None):
@@ -1150,12 +1165,7 @@ class CTX(object):
         :param output_folder:
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        with cd(Path.cwd() / both / run / output_folder):
-            file = next(Path.cwd().glob('*-DEM.tif'))
-            args = kwargs_to_args(clean_kwargs(kwargs))
-            return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
-
+        return self.cs.geoid_adjust(run=run, output_folder=output_folder, **kwargs)
 
 class HiRISE(object):
     r"""
@@ -1367,7 +1377,6 @@ class HiRISE(object):
 
         :param postfix: 
         :param gsd: override for final resolution in meters per pixel (mpp)
-
         """
 
         def par_cam2map(argstring):
@@ -1597,11 +1606,7 @@ class HiRISE(object):
         :param output_folder:
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        with cd(Path.cwd() / both / run / output_folder):
-            file = next(Path.cwd().glob('*-DEM.tif'))
-            args = kwargs_to_args(clean_kwargs(kwargs))
-            return self.cs.dem_geoid(*args, file, '-o', f'{file.stem}')
+        return self.cs.geoid_adjust(run=run, output_folder=output_folder, **kwargs)
 
 
 class Georef(object):
