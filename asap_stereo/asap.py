@@ -1000,26 +1000,14 @@ class CTX(object):
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        mpp_postfix = self.cs.get_mpp_postfix(mpp)
-        post_args = []
-        if not just_dem:
-            left_image = next((Path.cwd() / both / run).glob('*L.tif'))
-            post_args.extend(['-n', '--errorimage', '--orthoimage', left_image.name])
-        with cd(Path.cwd() / both / run):
-            # check the GSD against the MPP
-            self.cs.check_mpp_against_true_gsd(f'../{left}.lev1eo.cub', mpp)
-            # get the projection info
-            proj   = self.cs.get_srs_info(f'../{left}.lev1eo.cub', use_eqc=self.proj)
-            defaults = {
-                '--t_srs'      : proj,
-                '--reference-spheroid' : 'mars',
-                '--dem-spacing'  : mpp,
-                '--nodata'       : -32767,
-                '--output-prefix': f'dem/{both}_ba_{mpp_postfix}',
-            }
-            pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.cs.point2dem(*pre_args, f'{both}_ba-PC.tif', *post_args)
+        just_ortho = just_dem is False
+        return self.cs.point_to_dem(mpp, 'PC.tif',
+                                    just_ortho=just_ortho,
+                                    postfix='.lev1eo.cub',
+                                    run=run,
+                                    kind='align',
+                                    use_proj=self.proj,
+                                    **kwargs)
 
     @rich_logger
     def step_8(self, run='results_ba', output_folder='dem'):
@@ -1142,31 +1130,15 @@ class CTX(object):
         :param output_folder:
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        gsd_postfix = str(float(mpp)).replace('.', '_')
-        add_params = []
-        if just_ortho:
-            add_params.append('--no-dem')
-        else:
-            add_params.extend(['-n', '--errorimage',])
-
-        with cd(Path.cwd() / both / run):
-            proj     = self.cs.get_srs_info(f'../{left}.lev1eo.cub', use_eqc=self.proj)
-            if not just_ortho:
-                # check the GSD against the MPP
-                self.cs.check_mpp_against_true_gsd(f'../{left}.lev1eo.cub', mpp)
-            with cd(output_folder):
-                point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                defaults = {
-                    '--t_srs'         : proj,
-                    '-r'              : 'mars',
-                    '--nodata'        : -32767,
-                    '--orthoimage'    : f'../{both}_ba-L.tif',
-                    '--output-prefix' : f'{both}_map_ba_align_{gsd_postfix}',
-                    '--dem-spacing'   : mpp
-                }
-                args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-                return self.cs.point2dem(*args, str(point_cloud.name), *add_params)
+        return self.cs.point_to_dem(mpp,
+                                    'trans_reference.tif',
+                                    just_ortho=just_ortho, 
+                                    postfix='.lev1eo.cub', 
+                                    run=run, 
+                                    kind='map_ba_align',
+                                    use_proj=self.proj, 
+                                    output_folder=output_folder, 
+                                    **kwargs)
 
     @rich_logger
     def step_15(self, run='results_map_ba', output_folder='dem_align', **kwargs):
@@ -1465,24 +1437,15 @@ class HiRISE(object):
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        mpp_postfix = self.cs.get_mpp_postfix(mpp)
-        post_args = []
-        if not just_dem:
-            post_args.extend(['-n', '--errorimage', '--orthoimage', f'{both}_ba-L.tif'])
-        with cd(Path.cwd() / both / run):
-            # check the GSD against the MPP
-            self.cs.check_mpp_against_true_gsd(f'../{left}{postfix}', mpp)
-            proj     = self.cs.get_srs_info(f'../{left}{postfix}', use_eqc=self.proj)
-            defaults = {
-                '--t_srs'      : proj,
-                '-r'           : 'mars',
-                '--dem-spacing': mpp,
-                '--nodata'     : -32767,
-                '--output-prefix': f'dem/{both}_{mpp_postfix}',
-            }
-            pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.cs.point2dem(*pre_args, f'{both}_ba-PC.tif', *post_args)
+        just_ortho = just_dem is False
+        return self.cs.point_to_dem(mpp,
+                                    'PC.tif',
+                                    just_ortho=just_ortho, 
+                                    postfix=postfix, 
+                                    run=run, 
+                                    kind='align',
+                                    use_proj=self.proj, 
+                                    **kwargs)
 
     def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub', run='results_ba'):
         """
@@ -1613,31 +1576,15 @@ class HiRISE(object):
         :param output_folder: output folder name
         :param kwargs: any other kwargs you want to pass to point2dem
         """
-        left, right, both = self.cs.parse_stereopairs()
-        gsd_postfix = str(float(mpp)).replace('.', '_')
-        add_params = []
-        if just_ortho:
-            add_params.append('--no-dem')
-        else:
-            add_params.extend(['-n', '--errorimage',])
-
-        with cd(Path.cwd() / both / run):
-            proj     = self.cs.get_srs_info(f'../{left}{postfix}', use_eqc=self.proj)
-            if not just_ortho:
-                # check the GSD against the MPP
-                self.cs.check_mpp_against_true_gsd(f'../{left}{postfix}', mpp)
-            with cd(output_folder):
-                point_cloud = next(Path.cwd().glob('*trans_reference.tif'))
-                defaults = {
-                    '--t_srs'         : proj,
-                    '--reference-spheroid' : 'mars',
-                    '--nodata'        : -32767,
-                    '--orthoimage'    : f'../{both}_ba-L.tif',
-                    '--output-prefix' : f'{both}_align_{gsd_postfix}',
-                    '--dem-spacing'   : mpp
-                }
-                args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-                return self.cs.point2dem(*args, str(point_cloud.name), *add_params)
+        return self.cs.point_to_dem(mpp,
+                                    'trans_reference.tif',
+                                    just_ortho=just_ortho, 
+                                    postfix=postfix, 
+                                    run=run, 
+                                    kind='align',
+                                    use_proj=self.proj, 
+                                    output_folder=output_folder, 
+                                    **kwargs)
 
     @rich_logger
     def step_12(self, run='results_ba', output_folder='dem_align', **kwargs):
