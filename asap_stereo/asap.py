@@ -1651,9 +1651,10 @@ class Georef(object):
             # get vwip file
             mob_img_vwip = Path(mobile_image).with_suffix('.vwip').absolute()
             # run ipmatch
-            self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip)
+            output_prefix = f'{Path(reference_image).stem}__{Path(mobile_image).stem}'
+            self.cs.ipmatch(*ipmatchkwargs, reference_image, ref_img_vwip, mobile_image, mob_img_vwip, '--output-prefix', f'./{output_prefix}')
             # done, todo return tuple of vwip/match files
-            yield f'{Path(reference_image).stem}__{Path(mobile_image).stem}.match'
+            yield f'{output_prefix}.match'
 
     def matches_to_csv(self, match_file):
         """
