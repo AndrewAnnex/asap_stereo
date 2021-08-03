@@ -123,7 +123,7 @@ jobs:
         run:  asap ctx step-6 ./stereo.nonmap
       - name: asap step 7-8
         run: |
-          asap ctx step-7 --mpp 240 --just_dem True --dem_hole_fill_len 50
+          asap ctx step-7 --mpp 240 --dem_hole_fill_len 50
           asap ctx step-8
       - name: asap 1st round previews
         run: |
