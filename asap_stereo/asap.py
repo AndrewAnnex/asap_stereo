@@ -1010,7 +1010,7 @@ class CTX(object):
         return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_7(self, mpp=24, just_dem=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
+    def step_7(self, mpp=24, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
 
@@ -1021,7 +1021,6 @@ class CTX(object):
         :param mpp: resolution in meters per pixel
         :param postfix: postfix for cub files to use
         """
-        just_ortho = just_dem is False
         return self.cs.point_to_dem(mpp, 'PC.tif',
                                     just_ortho=just_ortho,
                                     postfix=postfix,
