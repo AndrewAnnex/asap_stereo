@@ -1026,7 +1026,7 @@ class CTX(object):
                                     just_ortho=just_ortho,
                                     postfix=postfix,
                                     run=run,
-                                    kind='align',
+                                    kind='ba',
                                     use_proj=self.proj,
                                     **kwargs)
 
