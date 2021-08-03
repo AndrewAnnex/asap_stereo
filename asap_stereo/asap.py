@@ -785,9 +785,9 @@ class CommonSteps(object):
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
             if pedr_list:
-                res = self.get_pedr_4_pcalign(f'{left}{postfix}.cub', pedr_list, proj)
+                res = self.get_pedr_4_pcalign(f'{left}{postfix}', pedr_list, proj)
             else:
-                res = self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}.cub', proj=proj, https=https)
+                res = self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}', proj=proj, https=https)
             return res
 
     def get_geo_diff(self, ref_dem, src_dem=None):
@@ -975,7 +975,7 @@ class CTX(object):
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
-    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', postfix='.lev1eo.cub', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
 
@@ -983,42 +983,48 @@ class CTX(object):
 
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix: prefix for bundle adjust output
+        :param postfix: postfix for cub files to use
         """
-        return self.cs.bundle_adjust(*vargs, postfix='.lev1eo.cub', bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_5(self, stereo_conf, posargs='', **kwargs):
+    def step_5(self, stereo_conf, posargs='', postfix='.lev1eo.cub', **kwargs):
         """
         Parallel Stereo Part 1
 
         Run first part of parallel_stereo asp_ctx_lev1eo2dem.sh
+
+        :param postfix: postfix for cub files to use
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_6(self, stereo_conf, posargs='', **kwargs):
+    def step_6(self, stereo_conf, posargs='', postfix='.lev1eo.cub', **kwargs):
         """
         Parallel Stereo Part 2
 
         Run second part of parallel_stereo, asp_ctx_lev1eo2dem.sh stereo is completed after this step
+
+        :param postfix: postfix for cub files to use
         """
-        return self.cs.stereo_asap(stereo_conf, postfix='.lev1eo.cub', posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_7(self, mpp=24, just_dem=False, run='results_ba', **kwargs):
+    def step_7(self, mpp=24, just_dem=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
 
         Produce dem from point cloud, by default 24mpp for ctx for max-disparity estimation
 
-        :param run:
+        :param run: folder for results
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
-        :param mpp:
+        :param mpp: resolution in meters per pixel
+        :param postfix: postfix for cub files to use
         """
         just_ortho = just_dem is False
         return self.cs.point_to_dem(mpp, 'PC.tif',
                                     just_ortho=just_ortho,
-                                    postfix='.lev1eo.cub',
+                                    postfix=postfix,
                                     run=run,
                                     kind='align',
                                     use_proj=self.proj,
@@ -1039,13 +1045,14 @@ class CTX(object):
             self.cs.hillshade(dem.name, f'./{dem.stem}-hillshade.tif')
 
     @rich_logger
-    def step_9(self, refdem=None, mpp=6, run='results_ba'):
+    def step_9(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub'):
         """
         Mapproject the left and right ctx images against the reference DEM
 
         :param run: 
         :param refdem: reference dem to map project using
         :param mpp: target GSD
+        :param postfix: postfix for cub files to use
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
@@ -1054,38 +1061,40 @@ class CTX(object):
             refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             # double check provided gsd
-            self.cs.check_mpp_against_true_gsd(f'{left}.lev1eo.cub', mpp)
-            self.cs.check_mpp_against_true_gsd(f'{right}.lev1eo.cub', mpp)
+            self.cs.check_mpp_against_true_gsd(f'{left}{postfix}', mpp)
+            self.cs.check_mpp_against_true_gsd(f'{right}{postfix}', mpp)
             # map project both ctx images against the reference dem
             # might need to do par do here
-            self.cs.mapproject('-t', 'isis', refdem, f'{left}.lev1eo.cub', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
-            self.cs.mapproject('-t', 'isis', refdem, f'{right}.lev1eo.cub', f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject('-t', 'isis', refdem, f'{left}{postfix}', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject('-t', 'isis', refdem, f'{right}{postfix}', f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
 
     @rich_logger
-    def step_10(self, stereo_conf, refdem=None, posargs='', **kwargs):
+    def step_10(self, stereo_conf, refdem=None, posargs='', postfix=('.ba.map.tif', '.lev1eo.cub'), **kwargs):
         """
         Second stereo first step
         
         :param stereo_conf:
         :param refdem: path to reference DEM or PEDR csv file
-        :param posargs: additional positional args 
+        :param posargs: additional positional args
+        :param postfix: postfix for files to use
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_11(self, stereo_conf, refdem=None, posargs='', **kwargs):
+    def step_11(self, stereo_conf, refdem=None, posargs='', postfix=('.ba.map.tif', '.lev1eo.cub'), **kwargs):
         """
         Second stereo second step
 
         :param stereo_conf:
         :param refdem: path to reference DEM or PEDR csv file
-        :param posargs: additional positional args 
+        :param posargs: additional positional args
+        :param postfix: postfix for files to use
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=['.ba.map.tif', '.lev1eo.cub'], run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_12(self, pedr_list=None, postfix='.lev1eo'):
@@ -1133,7 +1142,7 @@ class CTX(object):
             return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', pedr4align)
 
     @rich_logger
-    def step_14(self, mpp=24.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', **kwargs):
+    def step_14(self, mpp=24.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -1143,12 +1152,13 @@ class CTX(object):
         :param mpp:
         :param just_ortho:
         :param output_folder:
+        :param postfix: postfix for cub files to use
         :param kwargs:
         """
         return self.cs.point_to_dem(mpp,
                                     'trans_reference.tif',
                                     just_ortho=just_ortho, 
-                                    postfix='.lev1eo.cub', 
+                                    postfix=postfix,
                                     run=run, 
                                     kind='map_ba_align',
                                     use_proj=self.proj, 
@@ -1363,6 +1373,7 @@ class HiRISE(object):
 
         Move the hiedr2mosaic output to the location needed for cam2map4stereo
 
+        :param postfix: postfix for cub files to use
         """
         left, right, both = self.cs.parse_stereopairs()
         sh.mv(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
@@ -1373,9 +1384,9 @@ class HiRISE(object):
         """
         Map project HiRISE data for stereo processing
 
-        Run cam2map4stereo on the data
+        Note this step is optional.
 
-        :param postfix: 
+        :param postfix: postfix for cub files to use
         :param gsd: override for final resolution in meters per pixel (mpp)
         """
 
@@ -1410,7 +1421,7 @@ class HiRISE(object):
 
         Run bundle adjustment on the HiRISE map projected data
 
-        :param postfix: 
+        :param postfix: postfix for cub files to use
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
@@ -1422,6 +1433,8 @@ class HiRISE(object):
         Parallel Stereo Part 1
 
         Run first part of parallel_stereo
+
+        :param postfix: postfix for cub files to use
         """
         return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
@@ -1431,6 +1444,8 @@ class HiRISE(object):
         Parallel Stereo Part 2
 
         Run second part of parallel_stereo, stereo is completed after this step
+
+        :param postfix: postfix for cub files to use
         """
         return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
@@ -1442,7 +1457,7 @@ class HiRISE(object):
         Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
 
         :param run: 
-        :param postfix: 
+        :param postfix: postfix for cub files to use
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
         """
@@ -1458,8 +1473,9 @@ class HiRISE(object):
 
     def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub', run='results_ba'):
         """
-        Hillshade using gdaldem instead of asp
+        resize hirise image using gdal_translate
 
+        :param postfix: postfix for cub files to use
         :param mpp:
         """
         left, right, both = self.cs.parse_stereopairs()
@@ -1503,7 +1519,7 @@ class HiRISE(object):
             # use the image in a call to pc_align with hillshades, slow!
             self.step_9(mpp=refdem_mpp, just_dem=True)
         elif do_resample.lower() == 'gdal':
-            # use gdal translate to resample hirise dem down to needed resolution
+            # use gdal translate to resample hirise dem down to needed resolution first for speed
             self._gdal_hirise_rescale(refdem_mpp)
         else:
             print('Not resampling HiRISE per user request')
@@ -1513,19 +1529,15 @@ class HiRISE(object):
             args    = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             cmd_res = self.cs.pc_align(*args, lr_hirise_dem, refdem)
             # done! log out to user that can use the transform
-        out_dir = Path.cwd() / both / run / 'hillshade_align'
-        print(f"Completed Pre step nine, view output in {str(out_dir)}", flush=True)
-        print(f"Use transform: 'hillshade_align/out-transform.txt'", flush=True)
-        print("as initial_transform argument in step ten", flush=True)
-        return cmd_res
+        return '--initial-transform hillshade_align/out-transform.txt'
 
     @rich_logger
-    def pre_step_10_pedr(self, pedr_list=None, postfix='_RED.map')-> str:
+    def pre_step_10_pedr(self, pedr_list=None, postfix='_RED.map.cub')-> str:
         """
         Use MOLA PEDR data to align the HiRISE DEM to in case no CTX DEM is available
 
         :param pedr_list: path local PEDR file list, default None to use REST API
-        :param postfix: postfix for the file
+        :param postfix: postfix for cub files to use
         """
         return self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
@@ -1545,7 +1557,7 @@ class HiRISE(object):
         """
         # run any pre-step 10 steps needed
         if 'with_pedr' in kwargs:
-            refdem = self.pre_step_10_pedr(pedr_list=kwargs.get('pedr_list', None), postfix=kwargs.get('postfix', '_RED.map'))
+            refdem = self.pre_step_10_pedr(pedr_list=kwargs.get('pedr_list', None), postfix=kwargs.get('postfix', '_RED.map.cub'))
         elif 'with_hillshade_align' in kwargs:
             cmd = self.pre_step_10(refdem, **kwargs) #todo check that this blocks until finished
             kwargs['--initial_transform'] = 'hillshade_align/out-transform.txt'
@@ -1579,7 +1591,7 @@ class HiRISE(object):
         Run point2dem on the aligned output to produce final science ready products
 
         :param run: 
-        :param postfix: 
+        :param postfix: postfix for cub files to use
         :param mpp: Desired GSD (meters per pixel)
         :param just_ortho: if True, just render out the ortho images
         :param output_folder: output folder name
@@ -2045,7 +2057,6 @@ class ASAP(object):
             self.ctx.step_4()
             self.ctx.step_5(stereo)
             self.ctx.step_6(stereo)
-            # asp_ctx_step2_map2dem steps
             self.ctx.step_7(mpp=100, just_dem=True, dem_hole_fill_len=50)
             self.ctx.step_8()
             self.ctx.step_9()
