@@ -144,8 +144,8 @@ jobs:
         run: |
           asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
           asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-7 --mpp 144 --folder results_map_ba
-          asap ctx step-8 --folder results_map_ba
+          asap ctx step-7 --mpp 144 --run results_map_ba
+          asap ctx step-8 --run results_map_ba
       - name: asap step 12
         run:  asap ctx step-12 None
       - name: asap 2nd round previews
@@ -167,7 +167,7 @@ jobs:
           asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
           asap ctx step-14 --mpp 144
           asap ctx step-15
-          asap ctx step_8 --folder results_map_ba --output_folder dem_align
+          asap ctx step_8 --run results_map_ba --output_folder dem_align
           asap ctx step_14 --mpp 48 --just_ortho True
       - name: asap final previews
         run: |
