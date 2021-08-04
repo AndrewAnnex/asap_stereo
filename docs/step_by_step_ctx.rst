@@ -329,7 +329,7 @@ If users see issues it is generally easyier to re-run the pipeline at this step 
 
 .. code:: ipython3
 
-    !asap ctx step_thirteen {maxdisp} 2>&1 | tee -i -a ./8_pc_align.log ./full_log.log
+    !asap ctx step_13 {maxdisp} 2>&1 | tee -i -a ./8_pc_align.log ./full_log.log
 
 Step 14: Make the final CTX DEM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -339,21 +339,21 @@ That is all the rest of the steps do, they generate final DEMs with the geoid ad
 
 .. code:: ipython3
 
-    !asap ctx step_fourteen --mpp {demgsd}  2>&1 | tee -i -a ./9_dems_orthos.log ./full_log.log
+    !asap ctx step_14 --mpp {demgsd}  2>&1 | tee -i -a ./9_dems_orthos.log ./full_log.log
 
 Step 15: Adjust final CTX DEM to Geoid (Areoid)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !asap ctx step_fifteen 2>&1 | tee -i -a ./10_geoid_adjustment.log  ./full_log.log
+    !asap ctx step_15 2>&1 | tee -i -a ./10_geoid_adjustment.log  ./full_log.log
 
 Make the final CTX Hillshade and Orthos
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !asap ctx step_eight --folder results_map_ba --output_folder dem_align 2>&1 | tee -i -a ./11_hillshade.log ./full_log.log
+    !asap ctx step_8 --folder results_map_ba --output_folder dem_align 2>&1 | tee -i -a ./11_hillshade.log ./full_log.log
 
 
 .. code:: ipython3
@@ -374,5 +374,5 @@ Make the final CTX Hillshade and Orthos
 
 .. code:: ipython3
 
-    !asap ctx step_fourteen --mpp {imggsd} --just_ortho True  2>&1 | tee -i -a ./12_img_full_ortho.log ./full_log.log
+    !asap ctx step_14 --mpp {imggsd} --just_ortho True  2>&1 | tee -i -a ./12_img_full_ortho.log ./full_log.log
 

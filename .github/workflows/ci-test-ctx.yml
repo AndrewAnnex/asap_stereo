@@ -94,7 +94,7 @@ jobs:
         run: asap
       - name: asap step 1
         timeout-minutes: 5
-        run: asap ctx step-one B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
+        run: asap ctx step-1 B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
       - name: look before you leap
         run: |
           ls ./* -lahtr
@@ -102,7 +102,7 @@ jobs:
           pwd
       - name: asap step 2
         timeout-minutes: 1
-        run: asap ctx step-two
+        run: asap ctx step-2
       - name: asap stereo quality report 
         run: |
           ls
@@ -110,24 +110,26 @@ jobs:
           ls
       - name: asap 4 & rescale images for test
         run: |
-          asap ctx step-three
+          asap ctx step-3
           asap common rescale_and_overwrite 8 
       - name: asap step 4
-        run:  asap ctx step-four
+        run:  asap ctx step-4
       - name: asap step 5 (and get stereo conf files)
         run:  |
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
-          asap ctx step-five ./stereo.nonmap
+          asap ctx step-5 ./stereo.nonmap
       - name: asap step 6
-        run:  asap ctx step-six ./stereo.nonmap
+        run:  asap ctx step-6 ./stereo.nonmap
       - name: asap step 7-8
         run: |
-          asap ctx step-seven --mpp 240 --just_dem True --dem_hole_fill_len 50
-          asap ctx step-eight
+          asap ctx step-7 --mpp 240 --dem_hole_fill_len 50
+          asap ctx step-8
       - name: asap 1st round previews
         run: |
+          ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
+          ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM-hillshade.tif ./hillshade_1.png
       - name: Archive First Round Previews
         uses: actions/upload-artifact@v2
@@ -137,15 +139,15 @@ jobs:
             good_pixel_map_1.png
             hillshade_1.png
       - name: asap step 9
-        run:  asap ctx step-nine --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
+        run:  asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
       - name: asap step 10-11
         run: |
-          asap ctx step-ten --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-eleven --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-seven --mpp 144 --folder results_map_ba
-          asap ctx step-eight --folder results_map_ba
+          asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
+          asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
+          asap ctx step-7 --mpp 144 --run results_map_ba
+          asap ctx step-8 --run results_map_ba
       - name: asap step 12
-        run:  asap ctx step-twelve None
+        run:  asap ctx step-12 None
       - name: asap 2nd round previews
         run: |
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
@@ -162,11 +164,11 @@ jobs:
       - name: asap step 13-17
         timeout-minutes: 2
         run: |
-          asap ctx step-thirteen --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
-          asap ctx step-fourteen --mpp 144
-          asap ctx step-fifteen
-          asap ctx step_eight --folder results_map_ba --output_folder dem_align
-          asap ctx step_fourteen --mpp 48 --just_ortho True
+          asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
+          asap ctx step-14 --mpp 144
+          asap ctx step-15
+          asap ctx step_8 --run results_map_ba --output_folder dem_align
+          asap ctx step_14 --mpp 48 --just_ortho True
       - name: asap final previews
         run: |
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
