@@ -28,11 +28,6 @@ jobs:
           auto-update-conda: true
           python-version: 3.6
           use-only-tar-bz2: true
-      - name: run conda-lock
-        run: |
-          conda-lock -f isis.yml -p linux-64
-          ls -lahtr ./
-          cat *.lock
       - name: download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp

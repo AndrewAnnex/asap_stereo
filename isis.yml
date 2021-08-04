@@ -5,4 +5,3 @@ channels:
   - defaults
 dependencies:
   - isis=4.4.0
-  - conda-lock
