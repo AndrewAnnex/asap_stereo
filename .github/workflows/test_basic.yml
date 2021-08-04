@@ -30,7 +30,7 @@ jobs:
           use-only-tar-bz2: true
       - name: run conda-lock
         run: |
-          conda-lock -p linux-64
+          conda-lock -f isis.yml -p linux-64
           ls -lahtr ./
           cat *.lock
       - name: download and extract ASP tarball to tmp
