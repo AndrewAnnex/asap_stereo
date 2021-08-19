@@ -1449,7 +1449,7 @@ class HiRISE(object):
         return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_9(self, mpp=2, just_dem=False, postfix='_RED.map.cub', run='results_ba', **kwargs):
+    def step_9(self, mpp=2, just_dem=True, postfix='_RED.map.cub', run='results_ba', **kwargs):
         """
         Produce preview DEMs/Orthos
 
@@ -1460,7 +1460,7 @@ class HiRISE(object):
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
         """
-        just_ortho = just_dem is False
+        just_ortho = not just_dem
         return self.cs.point_to_dem(mpp,
                                     'PC.tif',
                                     just_ortho=just_ortho, 
