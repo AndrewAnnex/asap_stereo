@@ -96,7 +96,7 @@ At the end of the command you can see we are using standard bash to redirect std
 
 .. code:: ipython3
 
-    !asap ctx step-one {left} {right} 2>&1 | tee -i -a ./1_download.log ./full_log.log
+    !asap ctx step-1 {left} {right} 2>&1 | tee -i -a ./1_download.log ./full_log.log
 
 Step 2: Preprocessing through ISIS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,7 +106,7 @@ This step will run these steps in the following order: mroctx2isis, spiceinit, s
 
 .. code:: ipython3
 
-    !asap ctx step-two  2>&1 | tee -i -a ./2_ctxedr2lev1eo.log ./full_log.log
+    !asap ctx step-2  2>&1 | tee -i -a ./2_ctxedr2lev1eo.log ./full_log.log
 
 Step 3: Metadata init
 ~~~~~~~~~~~~~~~~~~~~~
@@ -117,7 +117,7 @@ This new directory name uses both image IDs joined by an underscore '{left_id}_{
 
 .. code:: ipython3
 
-    !asap ctx step-three
+    !asap ctx step-3
 
 Step 4: Bundle adjustment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,7 +127,7 @@ The user can later re-run this step with more advanced options or GCPs if so des
 
 .. code:: ipython3
 
-    !asap ctx step-four 2>&1 | tee -i -a ./2_bundle_adjust.log ./full_log.log
+    !asap ctx step-4 2>&1 | tee -i -a ./2_bundle_adjust.log ./full_log.log
 
 Step 5: Stereo first run (steps 1-3 of stereo in ASP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,7 +138,7 @@ In the future Step 5 & & maybe reconfigured into the 4 sub-steps for further imp
 
 .. code:: ipython3
 
-    !asap ctx step-five {config1}  2>&1 | tee -i -a ./3_lev1eo2dem.log ./full_log.log
+    !asap ctx step-5 {config1}  2>&1 | tee -i -a ./3_lev1eo2dem.log ./full_log.log
 
 Step 6: Stereo first run (step 4 of stereo in ASP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -147,7 +147,7 @@ Run step 4, see step 5 above for more information.
 
 .. code:: ipython3
 
-    !asap ctx step-six {config1}  2>&1 | tee -i -a ./3_lev1eo2dem.log ./full_log.log
+    !asap ctx step-6 {config1}  2>&1 | tee -i -a ./3_lev1eo2dem.log ./full_log.log
 
 Step 7: Produce low resolution DEM for map projection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,7 +156,7 @@ We have made a point cloud, but it is preliminary so we will use it to make a 10
 
 .. code:: ipython3
 
-    !asap ctx step-seven --mpp 100 --just_dem True --dem_hole_fill_len 50 2>&1 | tee -i -a ./4_make_100m_dem.log ./full_log.log
+    !asap ctx step-7 --mpp 100 --just_dem True --dem_hole_fill_len 50 2>&1 | tee -i -a ./4_make_100m_dem.log ./full_log.log
 
 Step 8: Make GoodPixelMap and Hillshade Previews
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -166,7 +166,7 @@ First we will render out the good pixel map image and then the hillshade of the 
 
 .. code:: ipython3
 
-    !asap ctx step-eight
+    !asap ctx step-8
 
 Use some python to specify a new file name for the png version
 
@@ -215,7 +215,7 @@ We now map-project our ctx images against our low resolution DEM to reduce image
 
 .. code:: ipython3
 
-    !asap ctx step-nine --mpp {img_gsd} 2>&1 | tee -i -a ./5_mapproject_to_100m_dem.log ./full_log.log
+    !asap ctx step-9 --mpp {img_gsd} 2>&1 | tee -i -a ./5_mapproject_to_100m_dem.log ./full_log.log
 
 Step 10: Stereo second run (steps 1-3 of stereo in ASP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,7 +224,7 @@ Same as step 5, just using the new map projected images this time.
 
 .. code:: ipython3
 
-    !asap ctx step-ten {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
+    !asap ctx step-10 {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
 
 Step 11: Stereo second run (step 4 of stereo in ASP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -233,7 +233,7 @@ Same as step 6, just using the new map projected images this time.
 
 .. code:: ipython3
 
-    !asap ctx step-eleven {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
+    !asap ctx step-11 {config2} 2>&1 | tee -i -a ./6_next_level_dem.log ./full_log.log
 
 Step 7&8 again: create preview DEMs and Hillshade
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -243,11 +243,11 @@ The parameter '--folder' just specifies that we are saving things into a differe
 
 .. code:: ipython3
 
-    !asap ctx step-seven --folder results_map_ba
+    !asap ctx step-7 --folder results_map_ba
 
 .. code:: ipython3
 
-    !asap ctx step-eight --folder results_map_ba
+    !asap ctx step-8 --folder results_map_ba
 
 Step 12: Get PEDR Shots for PC alignment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -259,7 +259,7 @@ need to go through the process of producing GCPs.
 
 .. code:: ipython3
 
-    !asap ctx step-twelve {pedr_list}  2>&1 | tee -i -a ./7_pedr_for_pc_align.log ./full_log.log
+    !asap ctx step-12 {pedr_list}  2>&1 | tee -i -a ./7_pedr_for_pc_align.log ./full_log.log
 
 Make Final GoodPixelMap and Hillshade Previews
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
