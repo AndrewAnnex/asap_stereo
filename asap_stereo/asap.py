@@ -700,7 +700,7 @@ class CommonSteps(object):
             return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
 
     @rich_logger
-    def point_to_dem(self, mpp, pc_suffix, just_ortho=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
+    def point_to_dem(self, mpp, pc_suffix, just_ortho=False, just_dem=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
         left, right, both = self.parse_stereopairs()
         assert both is not None
         mpp_postfix = self.get_mpp_postfix(mpp)
@@ -1017,7 +1017,7 @@ class CTX(object):
         Produce dem from point cloud, by default 24mpp for ctx for max-disparity estimation
 
         :param run: folder for results
-        :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
+        :param just_ortho: set to True if you only want the ortho image, else make dem and error image
         :param mpp: resolution in meters per pixel
         :param postfix: postfix for cub files to use
         """
@@ -2057,7 +2057,7 @@ class ASAP(object):
             self.ctx.step_4()
             self.ctx.step_5(stereo)
             self.ctx.step_6(stereo)
-            self.ctx.step_7(mpp=100, just_dem=True, dem_hole_fill_len=50)
+            self.ctx.step_7(mpp=100, just_ortho=False, dem_hole_fill_len=50)
             self.ctx.step_8()
             self.ctx.step_9()
             self.ctx.step_10(stereo2 if stereo2 else stereo)
