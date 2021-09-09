@@ -98,7 +98,7 @@ jobs:
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
       - name: asap step 1
         timeout-minutes: 5
-        run: asap ctx notebook_pipeline_align_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144
+        run: asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144
       - name: Archive Final Notebook from Papermill
         uses: actions/upload-artifact@v2
         with:
