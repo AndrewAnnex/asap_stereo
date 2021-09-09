@@ -18,7 +18,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
       - name: setup isis conda env
-        uses: conda-incubator/setup-miniconda@v2.1.0
+        uses: conda-incubator/setup-miniconda@v2.1.1
         with:
           mamba-version: "*"
           use-mamba: true
@@ -28,6 +28,12 @@ jobs:
           auto-update-conda: true
           python-version: 3.6
           use-only-tar-bz2: true
+      - name: conda info for isis
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
       - name: rsync base kernels
         run: |
           rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA/envs/isis_for_asp/data/
@@ -81,7 +87,7 @@ jobs:
           conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
       - name: install asap
         run: pip install -e .
-      - name: conda info
+      - name: conda info for asap
         run: |
           echo $PATH
           conda env config vars list

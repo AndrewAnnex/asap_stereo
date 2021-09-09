@@ -18,7 +18,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
       - name: setup isis conda env
-        uses: conda-incubator/setup-miniconda@v2.1.0
+        uses: conda-incubator/setup-miniconda@v2.1.1
         with:
           mamba-version: "*"
           use-mamba: true
