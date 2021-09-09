@@ -1115,7 +1115,7 @@ class CTX(object):
         
         #TODO: use the DEMs instead of the point clouds
 
-        :param run: 
+        :param run: folder used for this processing run
         :param highest_accuracy: Use the maximum accuracy mode
         :param maxd: Maximum expected displacement in meters
         :param pedr4align: path to pedr csv file
@@ -1147,7 +1147,7 @@ class CTX(object):
 
         Run point2dem on the aligned output to produce final science ready products
 
-        :param run: 
+        :param run: folder used for this processing run
         :param mpp:
         :param just_ortho:
         :param output_folder:
@@ -1170,7 +1170,7 @@ class CTX(object):
         Adjust DEM to geoid
 
         Run geoid adjustment on dem for final science ready product
-        :param run: 
+        :param run: folder used for this processing run
         :param output_folder:
         :param kwargs:
         """
