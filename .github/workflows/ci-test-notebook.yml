@@ -1,0 +1,107 @@
+# Trigger the workflow on push or pull request
+on: [workflow_dispatch]
+jobs:
+  test_runner:
+    name: ASAP test Notebook CTX pipeline 
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache conda
+        uses: actions/cache@v2
+        env:
+          # Increase this value to reset cache
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
+      - name: setup isis conda env
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          use-mamba: true
+          activate-environment: isis_for_asp
+          environment-file: isis.yml
+          channel-priority: strict
+          auto-update-conda: true
+          python-version: 3.6
+          use-only-tar-bz2: true
+      - name: rsync base kernels
+        run: |
+          rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA/envs/isis_for_asp/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA/envs/isis_for_asp/data/base
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/dems/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/de430.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/de430.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mar097.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/mar097.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
+      - name: rsync mro data
+        run: |
+          rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA/envs/isis_for_asp/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA/envs/isis_for_asp/data/mro
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/iak/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/fk/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA/envs/isis_for_asp/data/mro/kernels/fk/mro_v15.tf
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O $CONDA/envs/isis_for_asp/data/mro/kernels/iak/mroctxAddendum005.ti
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
+      - name: download and extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          ls /tmp/sp
+      - name: setup asap conda env
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          use-mamba: true
+          activate-environment: asap
+          environment-file: asap.yml
+          python-version: 3.8
+          channels: conda-forge,defaults
+          use-only-tar-bz2: true
+      - name: add ASP and ISIS to PATH of asap conda
+        run: |
+          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
+          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
+          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
+          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
+      - name: install asap
+        run: pip install -e .
+      - name: conda info
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: check isis shared libraries
+        run: |
+          ldd `which qview`
+      - name: test for asap
+        run: asap
+      - name: download stereo parameter files
+        run:  |
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
+      - name: asap step 1
+        timeout-minutes: 5
+        run: asap ctx notebook_pipeline_align_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144
+      - name: Archive Final Notebook from Papermill
+        uses: actions/upload-artifact@v2
+        with:
+          name: final
+          path: |
+            *.ipynb
