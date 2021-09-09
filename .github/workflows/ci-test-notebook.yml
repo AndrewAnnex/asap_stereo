@@ -105,8 +105,14 @@ jobs:
       - name: asap notebook run
         timeout-minutes: 30
         run: asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144
+      - name: ls directories to see what was made
+        if: always()
+        run:
+          ls -lahtr
+          ls ./*/*/* -lahtr
       - name: Archive Final Notebook from Papermill
         uses: actions/upload-artifact@v2
+        if: always()
         with:
           name: final
           path: |
