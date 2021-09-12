@@ -104,7 +104,7 @@ jobs:
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
       - name: asap notebook run
         timeout-minutes: 30
-        run: asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144
+        run: asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
       - name: ls directories to see what was made
         if: always()
         run:
