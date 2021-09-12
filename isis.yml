@@ -5,3 +5,4 @@ channels:
   - defaults
 dependencies:
   - isis=4.4.0
+  - armadillo=9

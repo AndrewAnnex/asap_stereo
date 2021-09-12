@@ -155,6 +155,13 @@ def isis3_to_dict(instr: str)-> Dict:
     return out
 
 
+def kwarg_parse(kwargs: Dict, key: str)-> str:
+    key_args = kwargs.get(key, {})
+    if isinstance(key_args, str):
+        return key_args
+    return ' '.join(map(str, kwargs_to_args(clean_kwargs(key_args))))
+
+
 def get_affine_from_file(file):
     md = json.loads(str(sh.gdalinfo(file, '-json')))
     gt = md['geoTransform']
@@ -886,7 +893,8 @@ class CTX(object):
 
     @staticmethod
     def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
-                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, maxdisp = None, out_notebook=None, **kwargs):
+                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, maxdisp = None, step_kwargs = None, 
+                                   out_notebook = None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
 
@@ -901,9 +909,11 @@ class CTX(object):
         :param left: First image id
         :param right: Second image id
         :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
+        :param step_kwargs: Arbitrary dict of kwargs for steps following {'step_#' : {'key': 'value}}
         :param downsample: Factor to downsample images for faster production
         :param dem_gsd: desired GSD of output DEMs (4x image GSD)
         :param img_gsd: desired GSD of output ortho images
+        :param kwargs: kwargs for papermill
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
@@ -921,6 +931,7 @@ class CTX(object):
                 'dem_gsd' : dem_gsd,
                 'img_gsd' : img_gsd,
                 'downsample' : downsample,
+                'step_kwargs' : step_kwargs
             },
             request_save_on_cell_execute=True,
             **kwargs
