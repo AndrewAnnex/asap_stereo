@@ -109,8 +109,8 @@ jobs:
       - name: ls directories to see what was made
         if: always()
         run:
-          ls -lahtr
-          ls ./*/*/* -lahtr
+          ls ./ -lahtr   
+          ls ./*/*/* -lahtr  
       - name: Archive Final Notebook from Papermill
         uses: actions/upload-artifact@v2
         if: always()
