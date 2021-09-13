@@ -3,6 +3,7 @@ on: [push, pull_request]
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 1
+  ASAP_CACHE_NUMBER: 1
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -74,23 +75,23 @@ jobs:
           tar -cvzf isis-env.tar.gz $CONDA/envs/isis_for_asp
           pwd
           ls -lahtr
-          
-  test_basic:
-    name: Ubuntu
-    needs: [ cache_isis_env ]
-    runs-on: "ubuntu-latest"
+
+  cache_asap_env:
+    name: Cache ASAP conda environment
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
-      - name: download and extract ASP tarball to tmp
-        run: |
-          mkdir /tmp/sp
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
-          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
-          ls /tmp/sp
+      - name: Cache ASAP conda env
+        id: cache-asap
+        uses: actions/cache@v2
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
+        if: steps.cache-asap.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
@@ -100,6 +101,47 @@ jobs:
           python-version: 3.8
           channels: conda-forge,defaults
           use-only-tar-bz2: true
+      - name: add ASP and ISIS to PATH of asap conda
+        if: steps.cache-asap.outputs.cache-hit != 'true'
+        run: |
+          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
+          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
+          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
+          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
+      - name: conda info
+        if: steps.cache-asap.outputs.cache-hit != 'true'
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: pack asap conda env
+        if: steps.cache-asap.outputs.cache-hit != 'true'
+        run: |
+          tar -cvzf asap-env.tar.gz $CONDA/envs/asap
+          pwd
+          ls -lahtr
+
+  test_basic:
+    name: Ubuntu
+    needs: [ cache_isis_env, cache_asap_env ]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.0
+        with:
+          mamba-version: "*"
+          use-mamba: true
+      - name: Download and extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          ls /tmp/sp
       - name: Get ISIS Conda environment from cache
         uses: actions/cache@v2
         with:
@@ -109,6 +151,15 @@ jobs:
         run: |
           mkdir -p $CONDA/envs/isis_for_asp
           tar -xvf isis-env.tar.gz -C /
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v2
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
       - name: Check contents of isis env
         run: |
           pwd
@@ -117,31 +168,31 @@ jobs:
           ls $CONDA/
           ls $CONDA/envs/isis_for_asp -lahtr
           ls $CONDA/envs/isis_for_asp/bin -lahtr
-      - name: add ASP and ISIS to PATH of asap conda
+      - name: Install asap
         run: |
-          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
-          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
-          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
-          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
-      - name: install asap
-        run: pip install -e .
-      - name: conda info
+          conda activate asap
+          pip install -e .
+      - name: Conda info for asap
         run: |
+          conda activate asap
           echo $PATH
           conda env config vars list
           conda info
           conda list
-      - name: check isis shared libraries
+      - name: Check isis shared libraries
         run: |
+          conda activate asap
           ldd `which qview`
-      - name: test for asap
+      - name: Test for asap
         run: |
+          conda activate asap
           asap
           asap ctx
           asap hirise
           asap common
       - name: Test readme rendering
         run: |
+          conda activate asap
           python -m readme_renderer README.rst
 
 
