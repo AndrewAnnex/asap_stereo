@@ -108,7 +108,7 @@ jobs:
       - name: Unpack ISIS Conda environment
         run: |
           mkdir -p $CONDA/envs/isis_for_asp
-          tar -xvf isis-env.tar.gz 
+          tar -xvf isis-env.tar.gz -C /
       - name: Check contents of isis env
         run: |
           pwd
