@@ -1,23 +1,26 @@
 # Trigger the workflow on push or pull request
 on: [workflow_dispatch]
+env:
+  # Increase this value to reset cache
+  ISIS_CACHE_NUMBER: 1
+  ASAP_CACHE_NUMBER: 1
 jobs:
-  test_runner:
-    name: ASAP test CTX pipeline
-    runs-on: "ubuntu-latest"
+  cache_isis_env:
+    name: Cache ISIS conda environment
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
-      - name: Cache conda
+      - name: Cache ISIS conda env
+        id: cache-isis
         uses: actions/cache@v2
-        env:
-          # Increase this value to reset cache
-          CACHE_NUMBER: 0
         with:
-          path: ~/conda_pkgs_dir
-          key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: setup isis conda env
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v2.1.1
         with:
           mamba-version: "*"
@@ -29,12 +32,14 @@ jobs:
           python-version: 3.6
           use-only-tar-bz2: true
       - name: conda info for isis
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           echo $PATH
           conda env config vars list
           conda info
           conda list
       - name: rsync base kernels
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA/envs/isis_for_asp/data/
           rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA/envs/isis_for_asp/data/base
@@ -48,6 +53,7 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
       - name: rsync mro data
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA/envs/isis_for_asp/data/
           rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA/envs/isis_for_asp/data/mro
@@ -63,13 +69,29 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
-      - name: download and extract ASP tarball to tmp
+      - name: pack isis conda env
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          mkdir /tmp/sp
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
-          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
-          ls /tmp/sp
+          tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          pwd
+          ls -lahtr
+
+  cache_asap_env:
+    name: Cache ASAP conda environment
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache ASAP conda env
+        id: cache-asap
+        uses: actions/cache@v2
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
+        if: steps.cache-asap.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v2.1.0
         with:
           mamba-version: "*"
@@ -80,59 +102,140 @@ jobs:
           channels: conda-forge,defaults
           use-only-tar-bz2: true
       - name: add ASP and ISIS to PATH of asap conda
+        if: steps.cache-asap.outputs.cache-hit != 'true'
         run: |
           conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
           conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
           conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
           conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
-      - name: install asap
-        run: pip install -e .
+      - name: conda info
+        if: steps.cache-asap.outputs.cache-hit != 'true'
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: pack asap conda env
+        if: steps.cache-asap.outputs.cache-hit != 'true'
+        run: |
+          tar -cvzf asap-env.tar.gz $CONDA/envs/asap
+          pwd
+          ls -lahtr
+  
+  test_runner:
+    name: ASAP test CTX pipeline
+    needs: [cache_isis_env, cache_asap_env]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.0
+      - name: Download and extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
+          ls /tmp/sp
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v2
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xzf "isis-env.tar.gz" -C /
+          rm isis-env.tar.gz
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v2
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
+      - name: Install asap
+        run: |
+          conda activate asap
+          pip install -e .
       - name: conda info for asap
         run: |
+          conda activate asap
           echo $PATH
           conda env config vars list
           conda info
           conda list
       - name: check isis shared libraries
         run: |
+          conda activate asap
           ldd `which qview`
       - name: test for asap
-        run: asap
+        run: |
+          conda activate asap
+          asap
       - name: asap step 1
         timeout-minutes: 5
-        run: asap ctx step-1 B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
+        run: |
+          conda activate asap
+          asap ctx step-1 B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
       - name: look before you leap
         run: |
+          conda activate asap
           ls ./* -lahtr
           env | grep ISIS
           pwd
       - name: asap step 2
         timeout-minutes: 1
-        run: asap ctx step-2
+        run: |
+          conda activate asap
+          asap ctx step-2
       - name: asap stereo quality report 
         run: |
+          conda activate asap
           ls
           asap common get_stereo_quality_report ./B03_010644_1889_XN_08N001W.lev1eo.cub ./P02_001902_1889_XI_08N001W.lev1eo.cub
           ls
       - name: asap 4 & rescale images for test
         run: |
+          conda activate asap
           asap ctx step-3
           asap common rescale_and_overwrite 8 
       - name: asap step 4
-        run:  asap ctx step-4
+        run: |
+          conda activate asap
+          asap ctx step-4
       - name: asap step 5 (and get stereo conf files)
-        run:  |
+        run: |
+          conda activate asap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
           asap ctx step-5 ./stereo.nonmap
       - name: asap step 6
-        run:  asap ctx step-6 ./stereo.nonmap
+        run: |
+          conda activate asap 
+          asap ctx step-6 ./stereo.nonmap
       - name: asap step 7-8
         run: |
+          conda activate asap
           asap ctx step-7 --mpp 240 --dem_hole_fill_len 50
           asap ctx step-8
       - name: asap 1st round previews
         run: |
+          conda activate asap
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
@@ -145,17 +248,23 @@ jobs:
             good_pixel_map_1.png
             hillshade_1.png
       - name: asap step 9
-        run:  asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
+        run: |
+          conda activate asap
+          asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
       - name: asap step 10-11
         run: |
+          conda activate asap
           asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
           asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
           asap ctx step-7 --mpp 144 --run results_map_ba
           asap ctx step-8 --run results_map_ba
       - name: asap step 12
-        run:  asap ctx step-12 None
+        run: |
+          conda activate asap
+          asap ctx step-12 None
       - name: asap 2nd round previews
         run: |
+          conda activate asap
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_144_0-DEM-hillshade.tif ./hillshade_2.png
       - name: Archive 2nd Round Previews
@@ -170,6 +279,7 @@ jobs:
       - name: asap step 13-17
         timeout-minutes: 2
         run: |
+          conda activate asap
           asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
           asap ctx step-14 --mpp 144
           asap ctx step-15
@@ -177,6 +287,7 @@ jobs:
           asap ctx step_14 --mpp 48 --just_ortho True
       - name: asap final previews
         run: |
+          conda activate asap
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png
       - name: Archive Final Previews
