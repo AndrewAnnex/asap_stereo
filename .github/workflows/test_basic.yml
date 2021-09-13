@@ -20,7 +20,6 @@ jobs:
           mkdir -p $CONDA/envs/isis_for_asp
           tar -xzf "isis-env.tar.gz" -C $CONDA/envs/isis_for_asp
           ls $CONDA/envs/isis_for_asp
-      - name: rsync base kernels
       - name: download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
