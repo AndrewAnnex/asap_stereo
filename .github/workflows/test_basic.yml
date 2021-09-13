@@ -123,7 +123,7 @@ jobs:
           ls -lahtr
 
   test_basic:
-    name: Ubuntu
+    name: Basic ASAP Tests
     needs: [ cache_isis_env, cache_asap_env ]
     runs-on: "ubuntu-latest"
     defaults:
@@ -138,6 +138,7 @@ jobs:
           mkdir /tmp/sp
           wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
         uses: actions/cache@v2
@@ -148,6 +149,7 @@ jobs:
         run: |
           mkdir -p $CONDA/envs/isis_for_asp
           tar -xvf isis-env.tar.gz -C /
+          rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
         uses: actions/cache@v2
         with:
@@ -157,6 +159,7 @@ jobs:
         run: |
           mkdir -p $CONDA/envs/asap
           tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
       - name: Check contents of isis env
         run: |
           pwd
