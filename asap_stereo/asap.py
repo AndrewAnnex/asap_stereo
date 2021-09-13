@@ -156,6 +156,8 @@ def isis3_to_dict(instr: str)-> Dict:
 
 
 def kwarg_parse(kwargs: Dict, key: str)-> str:
+    if kwargs is None:
+        return ''
     key_args = kwargs.get(key, {})
     if isinstance(key_args, str):
         return key_args
