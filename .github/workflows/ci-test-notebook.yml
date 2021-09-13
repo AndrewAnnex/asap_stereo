@@ -2,7 +2,7 @@
 on: [workflow_dispatch]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 0
+  ISIS_CACHE_NUMBER: 1
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -72,6 +72,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          pwd
           ls -lahtr
   
   test_runner:
@@ -83,16 +84,6 @@ jobs:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
-      - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v2
-        with:
-          path: "isis-env.tar.gz"
-          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
-      - name: Unpack ISIS Conda environment
-        run: |
-          mkdir -p $CONDA/envs/isis_for_asp
-          tar -xzf "isis-env.tar.gz" -C $CONDA/envs/isis_for_asp
-          ls $CONDA/envs/isis_for_asp
       - name: download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
@@ -109,6 +100,23 @@ jobs:
           python-version: 3.8
           channels: conda-forge,defaults
           use-only-tar-bz2: true
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v2
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xzf "isis-env.tar.gz" -C /
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
       - name: add ASP and ISIS to PATH of asap conda
         run: |
           conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
