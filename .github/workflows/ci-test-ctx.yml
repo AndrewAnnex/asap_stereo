@@ -1,5 +1,8 @@
 # Trigger the workflow on push or pull request
 on: [workflow_dispatch]
+env:
+  # Increase this value to reset cache
+  ISIS_CACHE_NUMBER: 0
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -12,9 +15,6 @@ jobs:
       - name: Cache ISIS conda env
         id: cache-isis
         uses: actions/cache@v2
-        env:
-          # Increase this value to reset cache
-          ISIS_CACHE_NUMBER: 0
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
