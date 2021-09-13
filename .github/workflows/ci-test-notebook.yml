@@ -1,6 +1,79 @@
 # Trigger the workflow on push or pull request
 on: [workflow_dispatch]
 jobs:
+  cache_isis_env:
+    name: Cache ISIS conda environment
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache ISIS conda env
+        id: cache-isis
+        uses: actions/cache@v2
+        env:
+          # Increase this value to reset cache
+          ISIS_CACHE_NUMBER: 0
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: setup isis conda env
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        uses: conda-incubator/setup-miniconda@v2.1.1
+        with:
+          mamba-version: "*"
+          use-mamba: true
+          activate-environment: isis_for_asp
+          environment-file: isis.yml
+          channel-priority: strict
+          auto-update-conda: true
+          python-version: 3.6
+          use-only-tar-bz2: true
+      - name: conda info for isis
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: |
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: rsync base kernels
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: |
+          rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA/envs/isis_for_asp/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA/envs/isis_for_asp/data/base
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
+          mkdir -p $CONDA/envs/isis_for_asp/data/base/dems/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/de430.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/de430.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mar097.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/mar097.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
+      - name: rsync mro data
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: |
+          rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA/envs/isis_for_asp/data/
+          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA/envs/isis_for_asp/data/mro
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/iak/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/fk/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA/envs/isis_for_asp/data/mro/kernels/fk/mro_v15.tf
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O $CONDA/envs/isis_for_asp/data/mro/kernels/iak/mroctxAddendum005.ti
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
+      - name: pack isis conda env
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: |
+          tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          ls -lahtr
+  
   test_runner:
     name: ASAP test Notebook CTX pipeline
     needs: [cache_isis_env]
