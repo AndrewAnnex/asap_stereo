@@ -2,32 +2,25 @@
 on: [push, pull_request]
 jobs:
   test_runner:
-    name: Ubuntu 
+    name: Ubuntu
+    needs: [cache_isis_env]
     runs-on: "ubuntu-latest"
     defaults:
       run:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
-      - name: Cache conda
+      - name: Get ISIS Conda environment from cache
         uses: actions/cache@v2
-        env:
-          # Increase this value to reset cache
-          CACHE_NUMBER: 1
         with:
-          path: ~/conda_pkgs_dir
-          key: ${{ runner.os }}-${{ hashFiles('isis.yml') }}-${{ hashFiles('asap.yml') }}
-      - name: setup isis conda env
-        uses: conda-incubator/setup-miniconda@v2.1.1
-        with:
-          mamba-version: "*"
-          use-mamba: true
-          activate-environment: isis_for_asp
-          environment-file: isis.yml
-          channel-priority: strict
-          auto-update-conda: true
-          python-version: 3.6
-          use-only-tar-bz2: true
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xzf "isis-env.tar.gz" -C $CONDA/envs/isis_for_asp
+          ls $CONDA/envs/isis_for_asp
+      - name: rsync base kernels
       - name: download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
