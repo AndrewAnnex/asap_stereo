@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: [push]
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -71,3 +71,5 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          ls -lahtr
+
