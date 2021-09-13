@@ -2,7 +2,7 @@
 on: [push, pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 0
+  ISIS_CACHE_NUMBER: 1
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -71,7 +71,7 @@ jobs:
       - name: pack isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          tar -cvzf isis-env.tar.gz $CONDA/envs/isis_for_asp
           ls -lahtr
           
   test_basic:
@@ -107,10 +107,12 @@ jobs:
       - name: Unpack ISIS Conda environment
         run: |
           mkdir -p $CONDA/envs/isis_for_asp
-          tar -xzf "isis-env.tar.gz" -C $CONDA/envs/isis_for_asp
+          tar -xvf isis-env.tar.gz 
       - name: Check contents of isis env
         run: |
           echo $CONDA
+          ls -lahtr
+          ls $CONDA/
           ls $CONDA/envs/isis_for_asp -lahtr
           ls $CONDA/envs/isis_for_asp/bin -lahtr
       - name: add ASP and ISIS to PATH of asap conda
