@@ -43,3 +43,9 @@ HiRISE
     :undoc-members:
     :show-inheritance:
 
+Georef
+------
+.. autoclass:: asap_stereo.asap.Georef
+    :members:
+    :undoc-members:
+    :show-inheritance:
