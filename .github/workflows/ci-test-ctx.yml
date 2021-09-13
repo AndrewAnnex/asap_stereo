@@ -124,7 +124,7 @@ jobs:
   
   test_runner:
     name: ASAP test CTX pipeline
-    needs: [cache_isis_env]
+    needs: [cache_isis_env, cache_asap_env]
     runs-on: "ubuntu-latest"
     defaults:
       run:
