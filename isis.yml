@@ -4,5 +4,4 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - isis=4.4.0
-  - armadillo=9
+  - isis=>6.0.0
