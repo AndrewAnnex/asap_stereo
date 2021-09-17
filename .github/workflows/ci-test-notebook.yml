@@ -2,7 +2,7 @@
 on: [workflow_dispatch]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 1
+  ISIS_CACHE_NUMBER: 2
   ASAP_CACHE_NUMBER: 1
 jobs:
   cache_isis_env:
@@ -38,6 +38,7 @@ jobs:
           conda env config vars list
           conda info
           conda list
+          ldd `which qview`
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
