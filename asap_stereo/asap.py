@@ -1312,8 +1312,8 @@ class HiRISE(object):
                 'refdem'          : refdem,
                 'gcps'            : gcps,
                 'maxdisp'         : maxdisp,
-                'demgsd'          : demgsd,
-                'imggsd'          : imggsd,
+                'dem_gsd'          : demgsd,
+                'img_gsd'          : imggsd,
                 'alignment_method': alignment_method,
                 'downsample': downsample,
                 'max_ba_iterations': max_ba_iterations,
@@ -1383,15 +1383,15 @@ class HiRISE(object):
     @rich_logger
     def step_4(self, postfix='*.mos_hijitreged.norm.cub'):
         """
-        Move hieder2mosaic files
+        Copy hieder2mosaic files
 
-        Move the hiedr2mosaic output to the location needed for cam2map4stereo
+        Copy the hiedr2mosaic output to the location needed for cam2map4stereo
 
         :param postfix: postfix for cub files to use
         """
         left, right, both = self.cs.parse_stereopairs()
-        sh.mv(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
-        sh.mv(next(Path(f'./{right}/').glob(f'{right}{postfix}')), both)
+        sh.cp(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
+        sh.cp(next(Path(f'./{right}/').glob(f'{right}{postfix}')), both)
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
@@ -1485,7 +1485,7 @@ class HiRISE(object):
                                     use_proj=self.proj, 
                                     **kwargs)
 
-    def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub', run='results_ba'):
+    def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub', run='results_ba', **kwargs):
         """
         resize hirise image using gdal_translate
 
@@ -1534,11 +1534,12 @@ class HiRISE(object):
             self.step_9(mpp=refdem_mpp, just_dem=True)
         elif do_resample.lower() == 'gdal':
             # use gdal translate to resample hirise dem down to needed resolution first for speed
-            self._gdal_hirise_rescale(refdem_mpp)
+            self._gdal_hirise_rescale(refdem_mpp, **kwargs)
         else:
             print('Not resampling HiRISE per user request')
         #TODO: auto crop the reference dem to be around hirise more closely
         with cd(Path.cwd() / both / run):
+            kwargs.pop('postfix', None)
             lr_hirise_dem = Path.cwd() / 'dem' / f'{both}_{refdem_mpp_postfix}-DEM.tif'
             args    = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             cmd_res = self.cs.pc_align(*args, lr_hirise_dem, refdem)
