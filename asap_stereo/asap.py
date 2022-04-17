@@ -1301,8 +1301,13 @@ class HiRISE(object):
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
+        if 'postfix' in kwargs.keys():
+            nbfile = f'{here}/asap_hirise_workflow_hiproc.ipynb'
+        else:
+            nbfile = f'{here}/asap_hirise_workflow.ipynb'
+        
         pm.execute_notebook(
-            f'{here}/asap_hirise_workflow.ipynb',
+            nbfile,
             out_notebook,
             parameters={
                 'left' : left,
