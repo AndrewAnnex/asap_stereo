@@ -1594,6 +1594,7 @@ class HiRISE(object):
         }
         refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both / run):
+            kwargs.pop('postfix', None)
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             hq = ['--highest-accuracy'] if highest_accuracy else []
             return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
