@@ -429,10 +429,12 @@ class CommonSteps(object):
         if use_eqc:
             print(f'Using user provided projection {use_eqc}')
             return use_eqc
-        proj4str = sh.gdalsrsinfo(str(img), o='proj4')
-        if len(proj4str) <= 10: # arbitrary length picked here
+        try:
+            proj4str = sh.gdalsrsinfo(str(img), o='proj4')
+        except sh.ErrorReturnCode_1 as e:
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
+            # todo keep using sinu?
             proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
         return str(proj4str).rstrip('\n\' ').lstrip('\'')
 
