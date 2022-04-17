@@ -1,0 +1,21 @@
+name: asap
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.6.7
+  - pvl
+  - nb_conda_kernels
+  - jupyterlab
+  - requests
+  - fire
+  - tqdm
+  - papermill
+  - rasterio
+  - pyproj
+  - shapely
+  - sh
+  - pip
+  - pip:
+      - moody>=0.2.0
+      - readme-renderer

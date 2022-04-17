@@ -112,7 +112,12 @@ def cmd_to_string(command: sh.RunningCommand) -> str:
 def clean_args(args):
     return list(itertools.chain.from_iterable([x.split(' ') if isinstance(x, str) else (x,) for x in args]))
 
+__reserved_kwargs_for_asap = ['postfix']
+
 def clean_kwargs(kwargs: Dict)-> Dict:
+    # remove any reserved asap kwargs 
+    for rkw in __reserved_kwargs_for_asap:
+        kwargs.pop(rkw, None)
     cleaned = {}
     for key in kwargs.keys():
         new_key = str(key)
@@ -349,17 +354,10 @@ class CommonSteps(object):
         self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr)
         self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
-        try:
-            # try to use parallel bundle adjustment
-            self.ba = Command('parallel_bundle_adjust').bake(
+        self.ba = Command('parallel_bundle_adjust').bake(
                 '--threads-singleprocess', _threads_singleprocess,
                 '--threads-multiprocess', _threads_multiprocess
             )
-        except sh.CommandNotFound:
-            # if not fall back to regular bundle adjust
-            self.ba = Command('bundle_adjust')
-        finally:
-            self.ba = self.ba.bake('--threads', cores, _out=sys.stdout, _err=sys.stderr)
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
@@ -1536,7 +1534,7 @@ class HiRISE(object):
         # create the lower resolution hirise dem to match the refdem gsd
         if do_resample.lower() == 'asp':
             # use the image in a call to pc_align with hillshades, slow!
-            self.step_9(mpp=refdem_mpp, just_dem=True)
+            self.step_9(mpp=refdem_mpp, just_dem=True, **kwargs)
         elif do_resample.lower() == 'gdal':
             # use gdal translate to resample hirise dem down to needed resolution first for speed
             self._gdal_hirise_rescale(refdem_mpp, **kwargs)
