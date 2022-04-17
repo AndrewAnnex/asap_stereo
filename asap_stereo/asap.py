@@ -1277,7 +1277,9 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, gcps: str = '', maxdisp: float = None, downsample: int = None, demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', step_kwargs = None, working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, gcps: str = '', maxdisp: float = None, downsample: int = None,
+                                   demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', 
+                                   postfix = None, step_kwargs = None, working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1322,6 +1324,7 @@ class HiRISE(object):
                 'alignment_method': alignment_method,
                 'downsample': downsample,
                 'max_ba_iterations': max_ba_iterations,
+                'postfix': postfix,
                 'step_kwargs' : step_kwargs
             },
             request_save_on_cell_execute=True,

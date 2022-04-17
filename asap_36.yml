@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.6.7
+  - black=19.10b0
   - pvl
   - nb_conda_kernels
   - jupyterlab
