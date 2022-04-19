@@ -430,8 +430,13 @@ class CommonSteps(object):
             print(f'Using user provided projection {use_eqc}')
             return use_eqc
         try:
-            proj4str = sh.gdalsrsinfo(str(img), o='proj4')
-        except sh.ErrorReturnCode_1 as e:
+            # todo: depending on sh version, command may return error message in stdout/stderr
+            # or empty string. if you ended up with a dem that was 2x2 this is the reason
+            proj4str = str(sh.gdalsrsinfo(str(img), o='proj4'))
+            if 'ERROR' in proj4str or len(proj4str) < 10:
+                raise RuntimeError(f'Gdalsrsinfo failed: {proj4str}')
+        except (sh.ErrorReturnCode, RuntimeError) as e:
+            warnings.warn(f'No SRS info, falling back to use ISIS caminfo.\n exception was: {e}')
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
             # todo keep using sinu?
@@ -894,8 +899,10 @@ class CTX(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None, downsample: int = None, working_dir ='./', 
-                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, maxdisp = None, step_kwargs = None, 
+    def notebook_pipeline_make_dem(left: str, right: str, config1: str, pedr_list: str = None,
+                                   downsample: int = None, working_dir ='./', 
+                                   config2: Optional[str] = None, dem_gsd = 24.0, img_gsd = 6.0, 
+                                   max_disp = None, step_kwargs = None, 
                                    out_notebook = None, **kwargs):
         """
         First step in CTX DEM pipeline that uses papermill to persist log
@@ -910,7 +917,7 @@ class CTX(object):
         :param pedr_list: Path to PEDR files, defaults to None to use ODE Rest API
         :param left: First image id
         :param right: Second image id
-        :param maxdisp: Maximum expected displacement in meters, use None to determine it automatically 
+        :param max_disp: Maximum expected displacement in meters, use None to determine it automatically 
         :param step_kwargs: Arbitrary dict of kwargs for steps following {'step_#' : {'key': 'value}}
         :param downsample: Factor to downsample images for faster production
         :param dem_gsd: desired GSD of output DEMs (4x image GSD)
@@ -929,7 +936,7 @@ class CTX(object):
                 'config1': config1,
                 'config2': config2,
                 'output_path' : working_dir,
-                'maxdisp': maxdisp,
+                'max_disp': max_disp,
                 'dem_gsd' : dem_gsd,
                 'img_gsd' : img_gsd,
                 'downsample' : downsample,
@@ -1277,9 +1284,10 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, refdem: str, gcps: str = '', maxdisp: float = None, downsample: int = None,
-                                   demgsd: float = 1.0, imggsd: float = 0.25, max_ba_iterations: int = 50, alignment_method = 'rigid', 
-                                   postfix = None, step_kwargs = None, working_dir ='./', out_notebook=None, **kwargs):
+    def notebook_pipeline_make_dem(left: str, right: str, config: str, ref_dem: str,
+                                   gcps: str = '', max_disp: float = None, downsample: int = None,
+                                   dem_gsd: float = 1.0, img_gsd: float = 0.25, max_ba_iterations: int = 50,
+                                   alignment_method = 'rigid', step_kwargs = None, working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
 
@@ -1293,11 +1301,11 @@ class HiRISE(object):
         :param right: second image id
         :param alignment_method: alignment method to use for pc_align
         :param downsample: Factor to downsample images for faster production
-        :param refdem: path to reference DEM or PEDR csv file
+        :param ref_dem: path to reference DEM or PEDR csv file
         :param gcps: path to gcp file todo: currently only one gcp file allowed
-        :param maxdisp: Maximum expected displacement in meters, specify none to determine it automatically
-        :param demgsd: desired GSD of output DEMs (4x image GSD)
-        :param imggsd: desired GSD of output ortho images
+        :param max_disp: Maximum expected displacement in meters, specify none to determine it automatically
+        :param dem_gsd: desired GSD of output DEMs (4x image GSD)
+        :param img_gsd: desired GSD of output ortho images
         :param max_ba_iterations: maximum number of BA steps to use per run (defaults to 50 for slow running hirise BA)
         :param step_kwargs: Arbitrary dict of kwargs for steps following {'step_#' : {'key': 'value}}
         """
@@ -1307,7 +1315,6 @@ class HiRISE(object):
             nbfile = f'{here}/asap_hirise_workflow_hiproc.ipynb'
         else:
             nbfile = f'{here}/asap_hirise_workflow.ipynb'
-        
         pm.execute_notebook(
             nbfile,
             out_notebook,
@@ -1316,15 +1323,15 @@ class HiRISE(object):
                 'right': right,
                 'config': config,
                 'output_path' : working_dir,
-                'refdem'          : refdem,
+                'ref_dem'          : ref_dem,
                 'gcps'            : gcps,
-                'maxdisp'         : maxdisp,
-                'dem_gsd'          : demgsd,
-                'img_gsd'          : imggsd,
+                'max_disp'         : max_disp,
+                'dem_gsd'          : dem_gsd,
+                'img_gsd'          : img_gsd,
                 'alignment_method': alignment_method,
                 'downsample': downsample,
                 'max_ba_iterations': max_ba_iterations,
-                'postfix': postfix,
+                'postfix': kwargs.pop('postfix', '_RED.map.cub'),
                 'step_kwargs' : step_kwargs
             },
             request_save_on_cell_execute=True,
