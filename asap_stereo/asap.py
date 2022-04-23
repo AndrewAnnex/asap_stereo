@@ -356,7 +356,8 @@ class CommonSteps(object):
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
         self.ba = Command('parallel_bundle_adjust').bake(
                 '--threads-singleprocess', _threads_singleprocess,
-                '--threads-multiprocess', _threads_multiprocess
+                '--threads-multiprocess', _threads_multiprocess,
+                _out=sys.stdout, _err=sys.stderr
             )
 
     @staticmethod
