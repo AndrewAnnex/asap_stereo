@@ -1535,7 +1535,7 @@ class HiRISE(object):
             '--max-displacement'                  : -1,
             '--num-iterations'                    : '0',
             '--ipmatch-options'                   : '--debug-image',
-            '--ipfind-options'                    : '--ip-per-image 2000000 --ip-per-tile 4000 --interest-operator sift --descriptor-generator sift --debug-image 2',
+            '--ipfind-options'                    : '--ip-per-image 3000000 --ip-per-tile 8000 --interest-operator sift --descriptor-generator sift --debug-image 2',
             '--threads'                           : self.threads,
             '--initial-transform-from-hillshading': alignment_method,
             '--datum'                             : self.datum,
