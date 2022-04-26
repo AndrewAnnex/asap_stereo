@@ -405,10 +405,10 @@ class CommonSteps(object):
         return gdal_info['bands']
     
     @staticmethod
-    def drg_to_cog(self, img, scale_bound: float = 0.001, gdal_options=None):
+    def drg_to_cog(img, scale_bound: float = 0.001, gdal_options=None):
         if gdal_options is None:
-            gdal_options = ["--config", "GDAL_CACHEMAX", "2000", "-co", "PREDICTOR=2", "-co", "COMPRESS=LERC_ZSTD", "-co", "NUM_THREADS=ALL_CPUS", ]
-        band_stats = self.get_image_band_stats(img)[0] # assumes single band image for now
+            gdal_options = ["--config", "GDAL_CACHEMAX", "2000", "-co", "PREDICTOR=2", "-co", "COMPRESS=ZSTD", "-co", "NUM_THREADS=ALL_CPUS", ]
+        band_stats = CommonSteps.get_image_band_stats(img)[0] # assumes single band image for now
         # make output name
         out_name = Path(img).stem + '_norm.tif'
         # get bands scaling iterable, multiply by 1.001 for a little lower range
