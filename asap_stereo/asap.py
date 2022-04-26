@@ -403,6 +403,32 @@ class CommonSteps(object):
         gdalinfocmd = Command('gdalinfo')
         gdal_info = json.loads(str(gdalinfocmd('-json', '-stats', img)))
         return gdal_info['bands']
+    
+    @staticmethod
+    def drg_to_cog(self, img, scale_bound: float = 0.001, gdal_options=None):
+        if gdal_options is None:
+            gdal_options = ["--config", "GDAL_CACHEMAX", "2000", "-co", "PREDICTOR=2", "-co", "COMPRESS=LERC_ZSTD", "-co", "NUM_THREADS=ALL_CPUS", ]
+        band_stats = self.get_image_band_stats(img)[0] # assumes single band image for now
+        # make output name
+        out_name = Path(img).stem + '_norm.tif'
+        # get bands scaling iterable, multiply by 1.001 for a little lower range
+        nmin = float(band_stats["min"])
+        nmax = float(band_stats["max"])
+        if nmin <= 0:
+            if nmin == 0:
+                nmin -= 0.000001
+            nmin *= (1 + scale_bound)
+        else:
+            nmin *= (1 - scale_bound)
+        if nmax >= 0:
+            if nmax == 0:
+                nmax += 0.000001
+            nmax *= (1 + scale_bound)
+        else: 
+            nmax *= (1 - scale_bound)
+        # run gdal translate
+        return sh.gdal_translate(*gdal_options,'-of', 'COG', '-ot', 'Byte', '-scale', nmin, nmax, 1, 255, '-a_nodata', 0, img, out_name, _out=sys.stdout, _err=sys.stderr)
+
 
     @staticmethod
     def get_image_gsd(img, opinion='lower')-> float:
