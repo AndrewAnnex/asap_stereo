@@ -466,8 +466,8 @@ class CommonSteps(object):
             warnings.warn(f'No SRS info, falling back to use ISIS caminfo.\n exception was: {e}')
             out_dict = CommonSteps.get_cam_info(img)
             lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
-            # todo keep using sinu?
-            proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+            lat = (float(out_dict['UniversalGroundRange']['MinimumLatitude']) + float(out_dict['UniversalGroundRange']['MaximumLatitude'])) / 2
+            proj4str = f"+proj=ortho +lon_0={lon} +lat_0={lat} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
         return str(proj4str).rstrip('\n\' ').lstrip('\'')
 
     @staticmethod
