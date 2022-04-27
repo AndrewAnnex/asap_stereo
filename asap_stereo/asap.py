@@ -69,6 +69,19 @@ pool = Semaphore(cores)
 
 def done(cmd, success, exit_code):
     pool.release()
+    
+def circ_mean(*vargs, low=-180.0, high=180.0):
+    lowr, highr = math.radians(low), math.radians(high)
+    # based on scipy's circ_mean
+    vargs_rads = list(map(math.radians, vargs))
+    vargs_rads_subr = [(_ - lowr) * 2.0 * math.pi / (highr - lowr) for _ in vargs_rads]
+    sinsum = sum(list(map(math.sin, vargs_rads_subr)))
+    cossum = sum(list(map(math.cos, vargs_rads_subr)))
+    res = math.atan2(sinsum, cossum)
+    if res < 0:
+        res += 2*math.pi
+    res = math.degrees(res*(highr - lowr)/2.0/math.pi + lowr)
+    return res
 
 @contextmanager
 def cd(newdir):
@@ -465,9 +478,9 @@ class CommonSteps(object):
         except (sh.ErrorReturnCode, RuntimeError) as e:
             warnings.warn(f'No SRS info, falling back to use ISIS caminfo.\n exception was: {e}')
             out_dict = CommonSteps.get_cam_info(img)
-            lon = (float(out_dict['UniversalGroundRange']['MinimumLongitude']) + float(out_dict['UniversalGroundRange']['MaximumLongitude'])) / 2
-            # todo keep using sinu?
-            proj4str = f"+proj=sinu +lon_0={lon} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+            lon = circ_mean(float(out_dict['UniversalGroundRange']['MinimumLongitude']), float(out_dict['UniversalGroundRange']['MaximumLongitude']))
+            lat = (float(out_dict['UniversalGroundRange']['MinimumLatitude']) + float(out_dict['UniversalGroundRange']['MaximumLatitude'])) / 2
+            proj4str = f"+proj=ortho +lon_0={lon} +lat_0={lat} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
         return str(proj4str).rstrip('\n\' ').lstrip('\'')
 
     @staticmethod
