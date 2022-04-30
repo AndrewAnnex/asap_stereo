@@ -573,18 +573,19 @@ class CommonSteps(object):
         ymax_img2 = img1_center_t[1] + buffer_radius
         return xmin_img2, ymin_img2, xmax_img2, ymax_img2
 
-    def crop_by_buffer(self, img1, img2, factor=2.0):
+    def crop_by_buffer(self, ref, src, img_out=None, factor=2.0):
         """
         use gdal warp to crop img2 by a buffer around img1
 
-        :param img1: first image defines buffer area
-        :param img2: second image is cropped by buffer from first
+        :param ref: first image defines buffer area
+        :param src: second image is cropped by buffer from first
         :param factor: factor to buffer with
         """
-        xmin, ymin, xmax, ymax = self.transform_bounds_and_buffer(img1, img2, factor=factor)
-        img2_path = Path(img2).absolute()
-        new_name = img2_path.stem + '_clipped.tif'
-        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, new_name)
+        xmin, ymin, xmax, ymax = self.transform_bounds_and_buffer(ref, src, factor=factor)
+        img2_path = Path(src).absolute()
+        if img_out == None:
+            img_out = img2_path.stem + '_clipped.tif'
+        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, img_out)
 
     def check_mpp_against_true_gsd(self, path, mpp):
         """
