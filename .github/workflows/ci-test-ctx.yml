@@ -2,8 +2,8 @@
 on: [workflow_dispatch]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 2
-  ASAP_CACHE_NUMBER: 1
+  ISIS_CACHE_NUMBER: 3
+  ASAP_CACHE_NUMBER: 2
 jobs:
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -29,7 +29,7 @@ jobs:
           environment-file: isis.yml
           channel-priority: strict
           auto-update-conda: true
-          python-version: 3.6
+          python-version: 3.9
           use-only-tar-bz2: true
       - name: conda info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
@@ -98,7 +98,7 @@ jobs:
           use-mamba: true
           activate-environment: asap
           environment-file: asap.yml
-          python-version: 3.8
+          python-version: 3.9
           channels: conda-forge,defaults
           use-only-tar-bz2: true
       - name: add ASP and ISIS to PATH of asap conda
@@ -137,7 +137,7 @@ jobs:
       - name: Download and extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2.7.0/StereoPipeline-2.7.0-2020-07-29-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.1.0/StereoPipeline-3.1.0-2022-05-18-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
           rm /tmp/sp.tar.bz2
           ls /tmp/sp

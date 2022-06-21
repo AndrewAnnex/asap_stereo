@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=>3.8
+  - python=>3.9
   - black=19.10b0
   - pvl
   - nb_conda_kernels

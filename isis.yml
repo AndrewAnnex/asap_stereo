@@ -4,4 +4,4 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - isis=>6.0.0
+  - isis==7.0.0
