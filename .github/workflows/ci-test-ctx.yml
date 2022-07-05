@@ -29,6 +29,7 @@ jobs:
           channel-priority: strict
           auto-update-conda: true
           use-only-tar-bz2: true
+          clean-patched-environment-file: false
       - name: conda info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
