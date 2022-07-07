@@ -889,6 +889,7 @@ class CommonSteps(object):
         :param imgs: gdal rasters with nodata defined
         :return: 
         """
+        poly = sh.Command('gdal_polygonize.py')
         for img in tqdm.tqdm(imgs):
             md = json.loads(str(sh.gdalinfo(img, '-json')))
             if not 'noDataValue' in md['bands'][0]:
@@ -905,7 +906,7 @@ class CommonSteps(object):
             _ = sh.gdal_translate(eb_out_name, vp_out_name, '-of', 'vrt', '-scale', '1', '255', '100', '100')
             # make polygon
             g_out_name = Path(img).stem + f'_footprint.geojson'
-            _ = sh.gdal_polygonize('-of', 'geojson', '-8', vp_out_name, g_out_name)
+            _ = poly('-of', 'geojson', '-8', vp_out_name, g_out_name)
             # cleanup intermediate products
             Path(ds_out_name).unlink(missing_ok=True)
             Path(eb_out_name).unlink(missing_ok=True)
