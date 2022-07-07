@@ -20,7 +20,7 @@ jobs:
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
-      - name: Download and extract ASP tarball to tmp
+      - name: Download ASP tarball to tmp
         run: |
           wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.1.0/StereoPipeline-3.1.0-2022-05-18-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           ls /tmp/sp.tar.bz2
@@ -155,7 +155,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: "/tmp/sp.tar.bz2"
-          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Extract ASP tarball to tmp
         run: |
           mkdir /tmp/sp
