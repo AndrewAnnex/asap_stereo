@@ -26,7 +26,6 @@ jobs:
           use-mamba: false
           activate-environment: isis_for_asp
           environment-file: isis.yml
-          channel-priority: strict
           auto-update-conda: true
           use-only-tar-bz2: true
           clean-patched-environment-file: false
