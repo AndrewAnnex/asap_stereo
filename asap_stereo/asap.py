@@ -881,6 +881,35 @@ class CommonSteps(object):
         vals = self.get_geo_diff(ref_dem, src_dem)
         med_d = float(vals['Median difference'])       
         return med_d, abs(med_d)
+    
+    
+    def compute_footprints(self, *imgs):
+        """
+        for each footprint generate a vector footprint
+        :param imgs: gdal rasters with nodata defined
+        :return: 
+        """
+        for img in tqdm.tqdm(imgs):
+            md = json.loads(str(sh.gdalinfo(img, '-json')))
+            if not 'noDataValue' in md['bands'][0]:
+                print('no noDataValue in image: ', img)
+                continue
+            # downsample to 10% size
+            ds_out_name = Path(img).stem + f'_ds.vrt'
+            _ = sh.gdal_translate(img, ds_out_name, '-of', 'vrt', '-outsize', '10%', '10%', '-r', 'cubic')
+            # scale to binary
+            eb_out_name = Path(img).stem + f'_eb.vrt'
+            _ = sh.gdal_translate(ds_out_name, eb_out_name, '-of', 'vrt', '-scale', '-ot', 'byte')
+            # scale to mask
+            vp_out_name = Path(img).stem + f'_vp.vrt'
+            _ = sh.gdal_translate(eb_out_name, vp_out_name, '-of', 'vrt', '-scale', '1', '255', '100', '100')
+            # make polygon
+            g_out_name = Path(img).stem + f'_footprint.geojson'
+            _ = sh.gdal_polygonize('-of', 'geojson', '-8', vp_out_name, g_out_name)
+            # cleanup intermediate products
+            Path(ds_out_name).unlink(missing_ok=True)
+            Path(eb_out_name).unlink(missing_ok=True)
+            Path(vp_out_name).unlink(missing_ok=True)
         
 
 class CTX(object):
