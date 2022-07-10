@@ -1475,8 +1475,11 @@ class HiRISE(object):
         :param postfix: postfix for cub files to use
         """
         left, right, both = self.cs.parse_stereopairs()
-        sh.cp(next(Path(f'./{left}/').glob(f'{left}{postfix}')), both)
-        sh.cp(next(Path(f'./{right}/').glob(f'{right}{postfix}')), both)
+        both = Path(both)
+        left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
+        right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
+        sh.ln('-s', left_file, both / left_file.name)
+        sh.ln('-s', right_file, both / right_file.name)
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
