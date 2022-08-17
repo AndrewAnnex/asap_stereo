@@ -639,73 +639,6 @@ class CommonSteps(object):
         return f'{str(cwd)}/{out_name}_pedr4align.csv'
 
     @rich_logger
-    def get_pedr_4_pcalign(self, cub_path, pedr_path, proj)-> str:
-        """
-        Python replacement for pedr_bin4pc_align.sh
-        hopefully this will be replaced by a method that queries the mars ODE rest API directly or
-        uses a spatial index on the pedr files for speed
-
-        :param cub_path:
-        :param pedr_path:
-        """
-        from string import Template
-        from textwrap import dedent
-        pedr_path = Path(pedr_path).absolute()
-        cub_path = Path(cub_path).absolute()
-        out_name = cub_path.parent.name
-        cwd = cub_path.parent
-        with cd(cwd):
-            out_dict = CommonSteps.get_cam_info(cub_path)['UniversalGroundRange']
-            minlon, maxlon, minlat, maxlat = out_dict['MinimumLongitude'], out_dict['MaximumLongitude'], out_dict['MinimumLatitude'], out_dict['MaximumLatitude']
-            # make the string template
-            pedr2tab_template = Template(
-                """\
-                T # lhdr
-                T # 0: shot longitude, latitude, topo, range, planetary_radius,ichan,aflag
-                F # 1: MGS_longitude, MGS_latitude, MGS_radius
-                F # 2: offnadir_angle, EphemerisTime, areodetic_lat,areoid
-                T # 3: ishot, iseq, irev, gravity model number
-                F # 4: local_time, solar_phase, solar_incidence
-                F # 5: emission_angle, Range_Correction,Pulse_Width_at_threshold,Sigma_optical,E_laser,E_recd,Refl*Trans
-                F # 6: bkgrd,thrsh,ipact,ipwct
-                F # 7: range_window, range_delay
-                F #   All shots, regardless of shot_classification_code
-                T # F = noise or clouds, T = ground returns
-                T # do crossover correction
-                T "${out_name}_pedr.asc" # Name of file to write output to (must be enclosed in quotes).
-        
-                $minlon     # ground_longitude_min
-                $maxlon     # ground_longitude_max
-                $minlat      # ground_latitude_min
-                $maxlat      # ground_latitude_max
-        
-                192.    # flattening used for areographic latitude
-                """)
-            #
-            completed_template = pedr2tab_template.safe_substitute(out_name=out_name, minlon=minlon, maxlon=maxlon, minlat=minlat, maxlat=maxlat)
-            # write out the template to a file
-            with open('./PEDR2TAB.PRM', 'w') as o:
-                print(dedent(completed_template), file=o)
-            # copy the pedr list to this directory
-            sh.cp('-f', str(pedr_path), './')
-            # run pedr2tab using the template
-            print('Running pedr2tab, this may take some time...')
-            sh.pedr2tab(f'./{pedr_path.name}', _out=f'./{out_name}_pedr2tab.log')
-            print('Finished pedr2tab')
-            # run a bunch of post processing steps from the script, eventually figure out how to do this within python not using sed and awk
-            sh.sed(sh.awk(sh.sed('-e', 's/^ \+//', '-e', 's/ \+/,/g', f"./{out_name}_pedr.asc"), '-F,', 'NR > 2 {print($1","$2","($5 - 3396190)","$1","$2","$10)}'), 's/,/\t/g', _out=f'./{out_name}_pedr.tab')
-            # get projection info
-            projection = self.get_srs_info(cub_path, use_eqc=proj)
-            print(projection)
-            # convert using proj, need to split the args for sh!
-            proj_tab = sh.proj(*str(projection).split(' '), f'./{out_name}_pedr.tab')
-            # write out header
-            sh.echo("#Latitude,Longitude,Datum_Elevation,Easting,Northing,Orbit", _out=f'./{out_name}_pedr4align.csv')
-            # run through a bunch of steps, please re-write this in python!
-            sh.awk(sh.sed(proj_tab, 's/\\t/,/g'),'-F,','{print($5","$4","$3","$1","$2","$6)}', _out=f'./{out_name}_pedr4align.csv')
-        return f'{str(cwd)}/{out_name}_pedr4align.csv'
-
-    @rich_logger
     def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle adjustment wrapper
@@ -752,6 +685,31 @@ class CommonSteps(object):
                 postfix = [postfix]
             imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}'] for px in postfix]))
             return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
+        
+    @rich_logger
+    def point_cloud_align(self, datum: str, maxd: float = None, refdem: str = None, highest_accuracy: bool = True, run='results_ba', kind='map_ba_align', **kwargs):
+        left, right, both = self.parse_stereopairs()
+        if not refdem:
+            refdem = str(Path.cwd() / both / f'{both}_pedr4align.csv')
+        refdem = Path(refdem).absolute()
+        if not maxd:
+            dem = next((Path.cwd() / both / run / 'dem').glob(f'{both}*DEM.tif'))
+            # todo implement a new command or path to do a initial NED translation with this info
+            maxd, _, _, _ = self.estimate_max_disparity(dem, refdem)
+        defaults = {
+            '--num-iterations'  : 4000,
+            '--threads'         : _threads_singleprocess,
+            '--datum'           : datum,
+            '--max-displacement': maxd,
+            '--output-prefix'   : f'dem_align/{both}_{kind}'
+        }
+        with cd(Path.cwd() / both / run):
+            kwargs.pop('postfix', None)
+            kwargs.pop('with_pedr', None)
+            kwargs.pop('with_hillshade_align', None)
+            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            hq = ['--highest-accuracy'] if highest_accuracy else []
+            return self.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
     @rich_logger
     def point_to_dem(self, mpp, pc_suffix, just_ortho=False, just_dem=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
@@ -838,10 +796,7 @@ class CommonSteps(object):
             postfix = postfix[:-4]
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
-            if pedr_list:
-                res = self.get_pedr_4_pcalign(f'{left}{postfix}', pedr_list, proj)
-            else:
-                res = self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}', proj=proj, https=https)
+            res = self.get_pedr_4_pcalign_w_moody(f'{left}{postfix}', proj=proj, https=https)
             return res
 
     def get_geo_diff(self, ref_dem, src_dem=None):
@@ -1196,40 +1151,22 @@ class CTX(object):
         self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
 
     @rich_logger
-    def step_13(self, run='results_map_ba', maxd: float = None, pedr4align = None, highest_accuracy = True, **kwargs):
+    def step_13(self, run='results_map_ba', maxd: float = None, refdem = None, highest_accuracy = True, **kwargs):
         """
         PC Align CTX
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
         
-        #TODO: use the DEMs instead of the point clouds
-
         :param run: folder used for this processing run
         :param highest_accuracy: Use the maximum accuracy mode
         :param maxd: Maximum expected displacement in meters
-        :param pedr4align: path to pedr csv file
+        :param refdem: path to pedr csv file or reference DEM/PC, if not provided assume pedr4align.csv is available
         :param kwargs:
         """
-        left, right, both = self.cs.parse_stereopairs()
-        if not pedr4align:
-            pedr4align = str(Path.cwd() / both / f'{both}_pedr4align.csv')
-        if not maxd:
-            dem = next((Path.cwd() / both / run / 'dem').glob(f'{both}*DEM.tif'))
-            # todo implement a new command or path to do a initial NED translation with this info
-            maxd, _, _, _ = self.cs.estimate_max_disparity(dem, pedr4align)
-        defaults = {
-            '--num-iterations': 4000,
-            '--threads': _threads_singleprocess,
-            '--datum'  : self.datum,
-            '--max-displacement': maxd,
-            '--output-prefix': f'dem_align/{both}_map_ba_align'
-        }
-        with cd(Path.cwd() / both / run):
-            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            hq = ['--highest-accuracy'] if highest_accuracy else []
-            return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', pedr4align)
-
+        return self.cs.point_cloud_align(self.datum, maxd=maxd, refdem=refdem, highest_accuracy=highest_accuracy, run=run, kind='map_ba_align', **kwargs)
+        
+        
     @rich_logger
     def step_14(self, mpp=24.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
         """
@@ -1286,10 +1223,9 @@ class HiRISE(object):
     █████████████████████████████████████████████████████████████
     """
 
-    def __init__(self, https=False, threads=cores, datum="D_MARS", proj: Optional[str] = None):
+    def __init__(self, https=False, datum="D_MARS", proj: Optional[str] = None):
         self.https = https
         self.cs = CommonSteps()
-        self.threads = threads
         self.datum = datum
         self.hiedr = sh.Command('hiedr2mosaic.py')
         self.cam2map = sh.Command('cam2map')
@@ -1455,7 +1391,7 @@ class HiRISE(object):
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
             pool.acquire()
-            return self.hiedr(*im, '--threads', self.threads, _bg=True, _done=done)
+            return self.hiedr(*im, '--threads', _threads_singleprocess, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
@@ -1608,7 +1544,7 @@ class HiRISE(object):
             '--num-iterations'                    : '0',
             '--ipmatch-options'                   : '--debug-image',
             '--ipfind-options'                    : '--ip-per-image 3000000 --ip-per-tile 8000 --interest-operator sift --descriptor-generator sift --debug-image 2',
-            '--threads'                           : self.threads,
+            '--threads'                           : _threads_singleprocess,
             '--initial-transform-from-hillshading': alignment_method,
             '--datum'                             : self.datum,
             '--output-prefix'                     : 'hillshade_align/out'
@@ -1667,25 +1603,8 @@ class HiRISE(object):
         else:
             pass
         
-        left, right, both = self.cs.parse_stereopairs()
-        if not maxd:
-            dem = next((Path.cwd() / both / run / 'dem').glob(f'{both}*DEM.tif'))
-            # todo implement a new command or path to do a initial NED translation with this info
-            maxd, _, _, _  = self.cs.estimate_max_disparity(dem, refdem)
-        
-        defaults = {
-            '--num-iterations': 2000,
-            '--threads': self.threads,
-            '--datum'  : self.datum,
-            '--max-displacement': maxd,
-            '--output-prefix': f'dem_align/{both}_align'
-        }
-        refdem = Path(refdem).absolute()
-        with cd(Path.cwd() / both / run):
-            kwargs.pop('postfix', None)
-            args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            hq = ['--highest-accuracy'] if highest_accuracy else []
-            return self.cs.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
+        return self.cs.point_cloud_align(self.datum, maxd=maxd, refdem=refdem, highest_accmuracy=highest_accuracy, run=run, kind='align', **kwargs)
+
 
     @rich_logger
     def step_11(self, mpp=1.0, just_ortho=False, postfix='_RED.map.cub', run='results_ba', output_folder='dem_align', **kwargs):
