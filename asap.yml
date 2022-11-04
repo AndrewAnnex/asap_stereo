@@ -2,7 +2,8 @@ name: asap
 channels:
   - conda-forge
 dependencies:
-  - python=>3.9
+  - python>=3.9
+  - ale
   - black=19.10b0
   - pvl
   - nb_conda_kernels

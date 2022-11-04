@@ -252,6 +252,13 @@ def par_do(func, all_calls_args):
     return [p.wait() for p in procs]
 
 
+def csm(f: str) -> str:
+    """
+    get name with json extension for csm model
+    """
+    return str(Path(f).with_suffix('.json'))
+
+
 class CommonSteps(object):
     r"""
     ASAP Stereo Pipeline - Common Commands
@@ -371,6 +378,24 @@ class CommonSteps(object):
                 '--threads', _threads_singleprocess,
                 _out=sys.stdout, _err=sys.stderr
             )
+
+    @staticmethod
+    def gen_csm(*cubs, meta_kernal=None, max_workers=_threads_singleprocess):
+        """
+        Given N cub files, generate json camera models for each using ale
+        """
+        args = {"--max_workers": max_workers}
+        if meta_kernal:
+            args['-k'] = meta_kernal
+        cmd = sh.isd_generate('-v', *kwargs_to_args(args), *cubs, _out=sys.stdout, _err=sys.stderr)
+        return cmd
+
+    @staticmethod
+    def cam_test(cub: str, sample_rate: int = 1000, subpixel_offset=0.25)-> str:
+        """
+        """
+        isd_json = str(Path(cub).with_suffix('.json'))
+        return sh.cam_test('--image', cub, '--cam1', cub, '--cam2', isd_json, '--sample-rate', sample_rate, '--subpixel-offset', subpixel_offset)
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
@@ -658,7 +683,8 @@ class CommonSteps(object):
         left, right, both = self.parse_stereopairs()
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
-            return self.ba(f'{left}{postfix}', f'{right}{postfix}', *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+            _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            return self.ba(_left, _right, csm(_left), csm(_right), *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
     def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', run='results_ba', output_file_prefix='${run}/${both}_ba', posargs: str = '', **kwargs):
@@ -683,7 +709,7 @@ class CommonSteps(object):
             _posargs = posargs.split(' ')
             if isinstance(postfix, str):
                 postfix = [postfix]
-            imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}'] for px in postfix]))
+            imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}', csm(f'{left}{px}'), csm(f'{right}{px}')] for px in postfix]))
             return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
         
     @rich_logger
@@ -1003,6 +1029,11 @@ class CTX(object):
             cub.unlink()
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
         par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
+        # generate csm models
+        self.cs.gen_csm(*[f'{c.stem}eo.cub' for c in lev1cubs])
+        # test CSMs
+        for c in lev1cubs:
+            print(str(self.cs.cam_test(f'{c.stem}eo.cub')))
         for lc in lev1cubs:
             lc.unlink()
 
@@ -1017,6 +1048,7 @@ class CTX(object):
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
+        sh.mv('-n', sh.glob('./*.json'), f'./{both}/')
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
@@ -1093,7 +1125,7 @@ class CTX(object):
         """
         Mapproject the left and right ctx images against the reference DEM
 
-        :param run: 
+        :param run: name of run
         :param refdem: reference dem to map project using
         :param mpp: target GSD
         :param postfix: postfix for cub files to use
@@ -1105,12 +1137,13 @@ class CTX(object):
             refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
             # double check provided gsd
-            self.cs.check_mpp_against_true_gsd(f'{left}{postfix}', mpp)
-            self.cs.check_mpp_against_true_gsd(f'{right}{postfix}', mpp)
+            _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            self.cs.check_mpp_against_true_gsd(_left, mpp)
+            self.cs.check_mpp_against_true_gsd(_right, mpp)
             # map project both ctx images against the reference dem
             # might need to do par do here
-            self.cs.mapproject('-t', 'isis', refdem, f'{left}{postfix}', f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
-            self.cs.mapproject('-t', 'isis', refdem, f'{right}{postfix}', f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject(refdem, _left, csm(_left), f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject(refdem, _right, csm(_right), f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
 
     @rich_logger
     def step_10(self, stereo_conf, refdem=None, posargs='', postfix=('.ba.map.tif', '.lev1eo.cub'), **kwargs):
@@ -1414,8 +1447,13 @@ class HiRISE(object):
         both = Path(both)
         left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
         right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
+        self.cs.gen_csm(left_file, right_file)
+        print(str(self.cs.cam_test(left_file)))
+        print(str(self.cs.cam_test(right_file)))
         sh.ln('-s', left_file, both / left_file.name)
+        sh.ln('-s', csm(left_file), both / csm(left_file.name))
         sh.ln('-s', right_file, both / right_file.name)
+        sh.ln('-s', csm(right_file), both / csm(right_file.name))
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
