@@ -3,7 +3,7 @@ on: [push, pull_request]
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 3
-  ASAP_CACHE_NUMBER: 2
+  ASAP_CACHE_NUMBER: 3
   ASP_CACHE_NUMBER: 1
 jobs:
   cache_asp:
