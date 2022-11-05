@@ -231,4 +231,5 @@ jobs:
           name: final
           path: |
             *.log
+            *.json
             *.ipynb

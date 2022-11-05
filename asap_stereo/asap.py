@@ -1041,6 +1041,7 @@ class CTX(object):
     def step_3(self):
         """
         Create various processing files for future steps
+        # todo: deduplicate with hirise side
         """
         self.cs.create_stereopairs_lis()
         self.cs.create_stereodirs_lis()
@@ -1048,7 +1049,7 @@ class CTX(object):
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
-        sh.mv('-n', sh.glob('./*.json'), f'./{both}/')
+        sh.cp(sh.glob('./*.json'), f'./{both}/')
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
