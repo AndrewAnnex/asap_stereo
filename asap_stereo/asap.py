@@ -1061,7 +1061,7 @@ class CTX(object):
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix: prefix for bundle adjust output
         :param postfix: postfix for cub files to use
-        :param camera_postfix: postfix for cameras
+        :param camera_postfix: postfix for cameras 
         """
         return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
@@ -1073,7 +1073,7 @@ class CTX(object):
         Run first part of parallel_stereo asp_ctx_lev1eo2dem.sh
 
         :param postfix: postfix for cub files to use
-        :param camera_postfix: postfix for cameras
+        :param camera_postfix: postfix for cameras  # TODO: use .adjusted_state.json?
         """
         return self.cs.stereo_asap(stereo_conf, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
@@ -1085,7 +1085,7 @@ class CTX(object):
         Run second part of parallel_stereo, asp_ctx_lev1eo2dem.sh stereo is completed after this step
 
         :param postfix: postfix for cub files to use
-        :param camera_postfix: postfix for cameras
+        :param camera_postfix: postfix for cameras  # TODO: use .adjusted_state.json?
         """
         return self.cs.stereo_asap(stereo_conf, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
@@ -1132,7 +1132,7 @@ class CTX(object):
         :param refdem: reference dem to map project using
         :param mpp: target GSD
         :param postfix: postfix for cub files to use
-        :param camera_postfix: postfix for cameras to use
+        :param camera_postfix: postfix for cameras to use # TODO: use .adjusted_state.json?
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
