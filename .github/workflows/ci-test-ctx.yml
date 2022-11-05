@@ -394,8 +394,9 @@ jobs:
       - name: LS directories to see what was made
         continue-on-error: true
         if: always()
-        run:
-          ls ./ -lahtr
+        run: |
+          ls -lahtr
+          ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr
       - name: Archive Final Previews
         uses: actions/upload-artifact@v3
@@ -403,6 +404,7 @@ jobs:
         with:
           name: final_ctx
           path: |
+            *.log
             hillshade_f.png
             vis_f.png
             ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json
@@ -488,8 +490,9 @@ jobs:
       - name: LS directories to see what was made
         continue-on-error: true
         if: always()
-        run:
-          ls ./ -lahtr   
+        run: |
+          ls -lahtr   
+          ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr  
       - name: Archive Final Notebook from Papermill
         uses: actions/upload-artifact@v3
