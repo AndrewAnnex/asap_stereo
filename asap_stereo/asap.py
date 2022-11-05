@@ -384,7 +384,7 @@ class CommonSteps(object):
         """
         Given N cub files, generate json camera models for each using ale
         """
-        args = {"--max_workers": max_workers}
+        args = {"--max-workers": max_workers}
         if meta_kernal:
             args['-k'] = meta_kernal
         cmd = sh.isd_generate('-v', *kwargs_to_args(args), *cubs, _out=sys.stdout, _err=sys.stderr)
