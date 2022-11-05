@@ -314,7 +314,6 @@ jobs:
         run: |
           conda activate asap
           asap ctx step-3
-          #asap common rescale_and_overwrite 8 
       - name: asap step 4
         run: |
           conda activate asap
@@ -332,7 +331,7 @@ jobs:
       - name: asap step 7-8
         run: |
           conda activate asap
-          asap ctx step-7 --mpp 240 --dem_hole_fill_len 50
+          asap ctx step-7 --mpp 100 --dem_hole_fill_len 50
           asap ctx step-8
       - name: asap 1st round previews
         run: |
@@ -340,7 +339,7 @@ jobs:
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM-hillshade.tif ./hillshade_1.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM-hillshade.tif ./hillshade_1.png
       - name: Archive First Round Previews
         uses: actions/upload-artifact@v3
         with:
@@ -351,13 +350,13 @@ jobs:
       - name: asap step 9
         run: |
           conda activate asap
-          asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
+          asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif --mpp 25
       - name: asap step 10-11
         run: |
           conda activate asap
-          asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-7 --mpp 144 --run results_map_ba
+          asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
+          asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
+          asap ctx step-7 --mpp 50 --run results_map_ba
           asap ctx step-8 --run results_map_ba
       - name: asap step 12
         run: |
@@ -367,7 +366,7 @@ jobs:
         run: |
           conda activate asap
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_144_0-DEM-hillshade.tif ./hillshade_2.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_50_0-DEM-hillshade.tif ./hillshade_2.png
       - name: Archive 2nd Round Previews
         uses: actions/upload-artifact@v3
         with:
@@ -382,15 +381,15 @@ jobs:
         run: |
           conda activate asap
           asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
-          asap ctx step-14 --mpp 144
+          asap ctx step-14 --mpp 50
           asap ctx step-15
           asap ctx step_8 --run results_map_ba --output_folder dem_align
-          asap ctx step_14 --mpp 48 --just_ortho True
+          asap ctx step_14 --mpp 24 --just_ortho True
       - name: asap final previews
         run: |
           conda activate asap
-          gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png
+          gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_25_0-DRG.tif ./vis_f.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_50_0-DEM-hillshade.tif ./hillshade_f.png
       - name: LS directories to see what was made
         continue-on-error: true
         if: always()
@@ -486,7 +485,7 @@ jobs:
         timeout-minutes: 30
         run: |
           conda activate asap
-          asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --img_gsd 48 --dem_gsd 144 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
+          asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --img_gsd 25 --dem_gsd 50 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
       - name: LS directories to see what was made
         continue-on-error: true
         if: always()
