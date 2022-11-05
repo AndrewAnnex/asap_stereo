@@ -1,5 +1,5 @@
 # Trigger the workflow on push or pull request
-on: [push, pull_request]
+on: [pull_request]
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 3
@@ -140,6 +140,85 @@ jobs:
           pwd
           ls -lahtr
   
+
+  test_basic:
+    name: Basic ASAP Tests
+    needs: [ cache_asp, cache_isis_env, cache_asap_env ]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.1
+      - name: Get ASP from cache
+        uses: actions/cache@v3
+        with:
+          path: "/tmp/sp.tar.bz2"
+          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
+          ls /tmp/sp
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xvf isis-env.tar.gz -C /
+          rm isis-env.tar.gz
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
+      - name: Install asap
+        run: |
+          conda activate asap
+          pip install -e .
+      - name: Conda info for asap
+        run: |
+          conda activate asap
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: Check isis shared libraries
+        run: |
+          conda activate asap
+          ldd `which qview`
+      - name: Test for asap
+        run: |
+          conda activate asap
+          asap
+          asap ctx
+          asap hirise
+          asap common
+      - name: Test readme rendering
+        run: |
+          conda activate asap
+          python -m readme_renderer README.rst
+
+
   test_runner:
     name: ASAP test CTX pipeline
     needs: [cache_asp, cache_isis_env, cache_asap_env]
@@ -312,10 +391,111 @@ jobs:
           conda activate asap
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png
+      - name: LS directories to see what was made
+        continue-on-error: true
+        if: always()
+        run:
+          ls ./ -lahtr
+          ls ./*/*/* -lahtr
       - name: Archive Final Previews
         uses: actions/upload-artifact@v3
         with:
-          name: final
+          name: final_ctx
           path: |
             hillshade_f.png
             vis_f.png
+            *.json
+
+  test_notebook:
+    name: ASAP test Notebook CTX pipeline
+    needs: [cache_asp, cache_isis_env, cache_asap_env]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.1
+      - name: Get ASP from cache
+        uses: actions/cache@v3
+        with:
+          path: "/tmp/sp.tar.bz2"
+          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
+          ls /tmp/sp
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xvf isis-env.tar.gz -C /
+          rm isis-env.tar.gz
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
+      - name: Install asap
+        run: |
+          conda activate asap
+          pip install -e .
+      - name: Conda info for asap
+        run: |
+          conda activate asap
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: Check isis shared libraries
+        run: |
+          conda activate asap
+          ldd `which qview`
+      - name: Test for asap
+        run: |
+          conda activate asap
+          asap
+      - name: Download stereo parameter files
+        run:  |
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
+      - name: Asap notebook run
+        timeout-minutes: 30
+        run: |
+          conda activate asap
+          asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --downsample 8 --img_gsd 48 --dem_gsd 144 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
+      - name: LS directories to see what was made
+        continue-on-error: true
+        if: always()
+        run:
+          ls ./ -lahtr   
+          ls ./*/*/* -lahtr  
+      - name: Archive Final Notebook from Papermill
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: final_notebook
+          path: |
+            *.log
+            *.json
+            *.ipynb

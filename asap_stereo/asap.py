@@ -684,6 +684,11 @@ class CommonSteps(object):
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            # generate csm models
+            self.gen_csm(_left, _right)
+            # test CSMs
+            print(str(self.cam_test(_left)))
+            print(str(self.cam_test(_right)))
             return self.ba(_left, _right, csm(_left), csm(_right), *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
@@ -1029,11 +1034,6 @@ class CTX(object):
             cub.unlink()
         lev1cubs = list(Path.cwd().glob('*.lev1.cub'))
         par_do(self.cs.ctxevenodd, [f'from={c.name} to={c.stem}eo.cub' for c in lev1cubs])
-        # generate csm models
-        self.cs.gen_csm(*[f'{c.stem}eo.cub' for c in lev1cubs])
-        # test CSMs
-        for c in lev1cubs:
-            print(str(self.cs.cam_test(f'{c.stem}eo.cub')))
         for lc in lev1cubs:
             lc.unlink()
 
@@ -1049,7 +1049,6 @@ class CTX(object):
         self.cs.create_stereopair_lis()
         # copy the cub files into the both directory
         _, _, both = self.cs.parse_stereopairs()
-        sh.cp(sh.glob('./*.json'), f'./{both}/')
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
@@ -1395,7 +1394,6 @@ class HiRISE(object):
             Path(one).mkdir(exist_ok=True)
             with cd(one):
                 moody.ODE(self.https).hirise_edr(f'{one}_R*')
-
             Path(two).mkdir(exist_ok=True)
             with cd(two):
                 moody.ODE(self.https).hirise_edr(f'{two}_R*')
@@ -1448,13 +1446,8 @@ class HiRISE(object):
         both = Path(both)
         left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
         right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
-        self.cs.gen_csm(left_file, right_file)
-        print(str(self.cs.cam_test(left_file)))
-        print(str(self.cs.cam_test(right_file)))
         sh.ln('-s', left_file, both / left_file.name)
-        sh.ln('-s', csm(left_file), both / csm(left_file.name))
         sh.ln('-s', right_file, both / right_file.name)
-        sh.ln('-s', csm(right_file), both / csm(right_file.name))
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
