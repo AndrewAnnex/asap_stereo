@@ -399,6 +399,7 @@ jobs:
           ls ./*/*/* -lahtr
       - name: Archive Final Previews
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: final_ctx
           path: |

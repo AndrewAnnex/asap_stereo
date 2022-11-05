@@ -252,15 +252,6 @@ def par_do(func, all_calls_args):
     return [p.wait() for p in procs]
 
 
-def csm(f: str) -> str:
-    """
-    get name with json extension for csm model
-    """
-    # for cases when we have multiple suffixes, e.g. image.ba.map.cub return image.json
-    name, _, _ = Path(f).name.partition('.')
-    return str(Path(f).with_name(name).with_suffix('.json'))
-
-
 class CommonSteps(object):
     r"""
     ASAP Stereo Pipeline - Common Commands
@@ -393,11 +384,10 @@ class CommonSteps(object):
         return cmd
 
     @staticmethod
-    def cam_test(cub: str, sample_rate: int = 1000, subpixel_offset=0.25)-> str:
+    def cam_test(cub: str, camera: str,  sample_rate: int = 1000, subpixel_offset=0.25)-> str:
         """
         """
-        isd_json = str(Path(cub).with_suffix('.json'))
-        return sh.cam_test('--image', cub, '--cam1', cub, '--cam2', isd_json, '--sample-rate', sample_rate, '--subpixel-offset', subpixel_offset)
+        return sh.cam_test('--image', cub, '--cam1', cub, '--cam2', camera, '--sample-rate', sample_rate, '--subpixel-offset', subpixel_offset)
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
@@ -666,7 +656,7 @@ class CommonSteps(object):
         return f'{str(cwd)}/{out_name}_pedr4align.csv'
 
     @rich_logger
-    def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', **kwargs)-> sh.RunningCommand:
         """
         Bundle adjustment wrapper
 
@@ -686,15 +676,16 @@ class CommonSteps(object):
         with cd(Path.cwd() / both):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
-            # generate csm models
+            _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
+            # generate csm models todo move to own command/step
             self.gen_csm(_left, _right)
             # test CSMs
-            print(str(self.cam_test(_left)))
-            print(str(self.cam_test(_right)))
-            return self.ba(_left, _right, csm(_left), csm(_right), *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
+            print(str(self.cam_test(_left, _leftcam)))
+            print(str(self.cam_test(_right, _rightcam)))
+            return self.ba(_left, _right, _leftcam, _rightcam, *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
-    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', run='results_ba', output_file_prefix='${run}/${both}_ba', posargs: str = '', **kwargs):
+    def stereo_asap(self, stereo_conf: str, refdem: str = '', postfix='.lev1eo.cub', camera_postfix='.json', run='results_ba', output_file_prefix='${run}/${both}_ba', posargs: str = '', **kwargs):
         """
         parallel stereo common step
         
@@ -714,10 +705,17 @@ class CommonSteps(object):
             kwargs['--stereo-file'] = stereo_conf
             _kwargs = kwargs_to_args(clean_kwargs(kwargs))
             _posargs = posargs.split(' ')
-            if isinstance(postfix, str):
-                postfix = [postfix]
-            imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}', csm(f'{left}{px}'), csm(f'{right}{px}')] for px in postfix]))
-            return self.parallel_stereo(*optional(_posargs), *_kwargs, *imgs, output_file_prefix, *optional(refdem))
+            #if isinstance(postfix, str):
+            #    postfix = [postfix]
+            #imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}', csm(f'{left}{px}'), csm(f'{right}{px}')] for px in postfix]))
+            # why did I do it that way? implies I can have N pairs?
+            # okay the reason why I sometimes pass in a list of postfixes is that for the 2 pass stereo, 
+            # the original lev1eo.cub files were the camera models for the two map projected tif files
+            # since I now always produce the csm models, I don't really need to worry about the logic above
+            # other EO missions have cameras in xml files for example so this is norm
+            _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
+            return self.parallel_stereo(*optional(_posargs), *_kwargs, _left, _right, _leftcam, _rightcam, output_file_prefix, *optional(refdem))
         
     @rich_logger
     def point_cloud_align(self, datum: str, maxd: float = None, refdem: str = None, highest_accuracy: bool = True, run='results_ba', kind='map_ba_align', **kwargs):
@@ -1054,7 +1052,7 @@ class CTX(object):
         return sh.mv('-n', sh.glob('./*.cub'), f'./{both}/')
 
     @rich_logger
-    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', postfix='.lev1eo.cub', **kwargs)-> sh.RunningCommand:
+    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust CTX
 
@@ -1063,30 +1061,33 @@ class CTX(object):
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix: prefix for bundle adjust output
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras
         """
-        return self.cs.bundle_adjust(*vargs, postfix=postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_5(self, stereo_conf, posargs='', postfix='.lev1eo.cub', **kwargs):
+    def step_5(self, stereo_conf, posargs='', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json',  **kwargs):
         """
         Parallel Stereo Part 1
 
         Run first part of parallel_stereo asp_ctx_lev1eo2dem.sh
 
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras
         """
-        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_6(self, stereo_conf, posargs='', postfix='.lev1eo.cub', **kwargs):
+    def step_6(self, stereo_conf, posargs='', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json',  **kwargs):
         """
         Parallel Stereo Part 2
 
         Run second part of parallel_stereo, asp_ctx_lev1eo2dem.sh stereo is completed after this step
 
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras
         """
-        return self.cs.stereo_asap(stereo_conf, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_7(self, mpp=24, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
@@ -1123,7 +1124,7 @@ class CTX(object):
             self.cs.hillshade(dem.name, f'./{dem.stem}-hillshade.tif')
 
     @rich_logger
-    def step_9(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub'):
+    def step_9(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json'):
         """
         Mapproject the left and right ctx images against the reference DEM
 
@@ -1131,6 +1132,7 @@ class CTX(object):
         :param refdem: reference dem to map project using
         :param mpp: target GSD
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
@@ -1140,15 +1142,16 @@ class CTX(object):
         with cd(Path.cwd() / both):
             # double check provided gsd
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
             self.cs.check_mpp_against_true_gsd(_left, mpp)
             self.cs.check_mpp_against_true_gsd(_right, mpp)
             # map project both ctx images against the reference dem
             # might need to do par do here
-            self.cs.mapproject(refdem, _left, csm(_left), f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
-            self.cs.mapproject(refdem, _right, csm(_right), f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject(refdem, _left, _leftcam, f'{left}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
+            self.cs.mapproject(refdem, _right, _rightcam, f'{right}.ba.map.tif', '--mpp', mpp, '--bundle-adjust-prefix', 'adjust/ba')
 
     @rich_logger
-    def step_10(self, stereo_conf, refdem=None, posargs='', postfix=('.ba.map.tif', '.lev1eo.cub'), **kwargs):
+    def step_10(self, stereo_conf, refdem=None, posargs='', postfix='.ba.map.tif', camera_postfix='.lev1eo.json', **kwargs):
         """
         Second stereo first step
         
@@ -1156,13 +1159,14 @@ class CTX(object):
         :param refdem: path to reference DEM or PEDR csv file
         :param posargs: additional positional args
         :param postfix: postfix for files to use
+        :param camera_postfix: postfix for cameras to use
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, camera_postfix=camera_postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_11(self, stereo_conf, refdem=None, posargs='', postfix=('.ba.map.tif', '.lev1eo.cub'), **kwargs):
+    def step_11(self, stereo_conf, refdem=None, posargs='', postfix='.ba.map.tif', camera_postfix='.lev1eo.json', **kwargs):
         """
         Second stereo second step
 
@@ -1170,10 +1174,11 @@ class CTX(object):
         :param refdem: path to reference DEM or PEDR csv file
         :param posargs: additional positional args
         :param postfix: postfix for files to use
+        :param camera_postfix: postfix for cameras to use
         :param kwargs:
         """
         refdem = str(Path(self.get_first_pass_refdem() if not refdem else refdem).absolute())
-        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf=stereo_conf, refdem=refdem, postfix=postfix, camera_postfix=camera_postfix, run='results_map_ba', posargs=posargs,  **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
     def step_12(self, pedr_list=None, postfix='.lev1eo'):
