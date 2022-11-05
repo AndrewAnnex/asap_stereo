@@ -256,7 +256,9 @@ def csm(f: str) -> str:
     """
     get name with json extension for csm model
     """
-    return str(Path(f).with_suffix('.json'))
+    # for cases when we have multiple suffixes, e.g. image.ba.map.cub return image.json
+    name, _, _ = Path(f).name.partition('.')
+    return str(Path(f).with_name(name).with_suffix('.json'))
 
 
 class CommonSteps(object):
