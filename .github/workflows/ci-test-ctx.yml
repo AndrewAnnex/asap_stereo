@@ -384,7 +384,7 @@ jobs:
           asap ctx step-14 --mpp 50
           asap ctx step-15
           asap ctx step_8 --run results_map_ba --output_folder dem_align
-          asap ctx step_14 --mpp 24 --just_ortho True
+          asap ctx step_14 --mpp 25 --just_ortho True
       - name: asap final previews
         run: |
           conda activate asap
