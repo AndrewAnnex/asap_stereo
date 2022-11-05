@@ -405,7 +405,7 @@ jobs:
           path: |
             hillshade_f.png
             vis_f.png
-            *.json
+            ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json
 
   test_notebook:
     name: ASAP test Notebook CTX pipeline
@@ -498,5 +498,5 @@ jobs:
           name: final_notebook
           path: |
             *.log
-            *.json
             *.ipynb
+            ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json
