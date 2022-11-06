@@ -1493,10 +1493,10 @@ class HiRISE(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         both = Path(both)
-        left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
-        right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
-        sh.ln('-s', left_file, both / f'{left}_RED.cub')
-        sh.ln('-s', right_file, both / f'{right}_RED.cub')
+        left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}')).absolute()
+        right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}')).absolute()
+        sh.ln('-s', left_file, (both / f'{left}_RED.cub').absolute())
+        sh.ln('-s', right_file, (both / f'{right}_RED.cub').absolute())
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.cub'):
