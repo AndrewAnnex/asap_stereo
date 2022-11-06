@@ -1330,9 +1330,16 @@ class HiRISE(object):
                 o.write('\n')
 
     @staticmethod
-    def notebook_pipeline_make_dem(left: str, right: str, config: str, ref_dem: str,
-                                   gcps: str = '', max_disp: float = None, downsample: int = None,
-                                   dem_gsd: float = 1.0, img_gsd: float = 0.25, max_ba_iterations: int = 50,
+    def notebook_pipeline_make_dem(left: str, 
+                                   right: str,
+                                   config: str, 
+                                   ref_dem: str,
+                                   gcps: str = '', 
+                                   max_disp: float = None, 
+                                   downsample: int = None,
+                                   dem_gsd: float = 1.0, 
+                                   img_gsd: float = 0.25, 
+                                   max_ba_iterations: int = 200,
                                    alignment_method = 'rigid', step_kwargs = None, working_dir ='./', out_notebook=None, **kwargs):
         """
         First step in HiRISE DEM pipeline that uses papermill to persist log
@@ -1360,7 +1367,7 @@ class HiRISE(object):
         if 'postfix' in kwargs.keys():
             nbfile = f'{here}/asap_hirise_workflow_hiproc.ipynb'
         else:
-            nbfile = f'{here}/asap_hirise_workflow.ipynb'
+            nbfile = f'{here}/asap_hirise_workflow_nomap.ipynb'
         pm.execute_notebook(
             nbfile,
             out_notebook,
