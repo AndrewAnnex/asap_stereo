@@ -664,6 +664,7 @@ class CommonSteps(object):
 
         :param vargs: any number of additional positional arguments (including GCPs)
         :param postfix: postfix of images to bundle adjust
+        :param camera_postfix: postfix for cameras to use 
         :param bundle_adjust_prefix: where to save out bundle adjust results
         :param kwargs: kwargs to pass to bundle_adjust
         :return: RunningCommand
@@ -694,6 +695,7 @@ class CommonSteps(object):
         :param refdem: optional reference DEM for 2nd pass stereo
         :param posargs: additional positional args 
         :param postfix: postfix(s) to use for input images
+        :param camera_postfix: postfix for cameras to use 
         :param stereo_conf: stereo config file
         :param kwargs: keyword arguments for parallel_stereo
         """
@@ -772,6 +774,39 @@ class CommonSteps(object):
                     point_cloud = next(Path.cwd().glob(f'*{pc_suffix}')).absolute()
                 pre_args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
                 return self.point2dem(*pre_args, str(point_cloud), *post_args)
+            
+    @rich_logger
+    def mapproject_both(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', bundle_adjust_prefix='adjust/ba'):
+        """
+        Mapproject the left and right images against a reference DEM
+
+        :param run: name of run
+        :param refdem: reference dem to map project using
+        :param mpp: target GSD
+        :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use 
+        :param bundle_adjust_prefix: where to save out bundle adjust results
+        """
+        left, right, both = self.parse_stereopairs()
+        if not refdem:
+            refdem = str(next((Path.cwd() / both / run / 'dem').glob('*-DEM.tif')))
+        else:
+            refdem = Path(refdem).absolute()
+        with cd(Path.cwd() / both):
+            # double check provided gsd
+            _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
+            self.check_mpp_against_true_gsd(_left, mpp)
+            self.check_mpp_against_true_gsd(_right, mpp)
+            # map project both ctx images against the reference dem
+            # might need to do par do here
+            args = ['--mpp', mpp]
+            ext = 'map.tif'
+            if bundle_adjust_prefix:
+                args.extend(('--bundle-adjust-prefix', bundle_adjust_prefix))
+                ext = f'ba.{ext}'
+            self.mapproject(refdem, _left, _leftcam, f'{left}.{ext}', *args)
+            self.mapproject(refdem, _right, _rightcam, f'{right}.{ext}', *args)
         
     @rich_logger
     def geoid_adjust(self, run, output_folder, **kwargs):
@@ -1132,7 +1167,7 @@ class CTX(object):
         :param refdem: reference dem to map project using
         :param mpp: target GSD
         :param postfix: postfix for cub files to use
-        :param camera_postfix: postfix for cameras to use # TODO: use .adjusted_state.json?
+        :param camera_postfix: postfix for cameras to use 
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
@@ -1384,7 +1419,7 @@ class HiRISE(object):
                 'alignment_method': alignment_method,
                 'downsample': downsample,
                 'max_ba_iterations': max_ba_iterations,
-                'postfix': kwargs.pop('postfix', '_RED.map.cub'),
+                'postfix': kwargs.pop('postfix', '_RED.cub'),
                 'step_kwargs' : step_kwargs
             },
             request_save_on_cell_execute=True,
@@ -1460,11 +1495,11 @@ class HiRISE(object):
         both = Path(both)
         left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
         right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
-        sh.ln('-s', left_file, both / left_file.name)
-        sh.ln('-s', right_file, both / right_file.name)
+        sh.ln('-s', left_file, both / f'{left}.cub')
+        sh.ln('-s', right_file, both / f'{right}.cub')
 
     @rich_logger
-    def step_5(self, gsd: float = None, postfix='*.mos_hijitreged.norm.cub'):
+    def step_5(self, gsd: float = None, postfix='*.cub'):
         """
         Map project HiRISE data for stereo processing
 
@@ -1499,48 +1534,53 @@ class HiRISE(object):
             _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_6(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
+    def step_6(self, *vargs, postfix='_RED.cub', camera_postfix='_RED.json', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
         """
         Bundle Adjust HiRISE
 
         Run bundle adjustment on the HiRISE map projected data
 
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use 
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
-        return self.cs.bundle_adjust(*vargs, postfix=postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
     @rich_logger
-    def step_7(self, stereo_conf,  postfix='_RED.map.cub', run='results_ba', posargs='', **kwargs):
+    def step_7(self, stereo_conf,  postfix='_RED.cub', camera_postfix='_RED.json', run='results_ba', posargs='', **kwargs):
         """
         Parallel Stereo Part 1
 
         Run first part of parallel_stereo
-
+    
+        :param run: folder for results of run
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use 
         """
-        return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps1, **kwargs})
 
     @rich_logger
-    def step_8(self, stereo_conf, postfix='_RED.map.cub', run='results_ba', posargs='', **kwargs):
+    def step_8(self, stereo_conf, postfix='_RED.cub', camera_postfix='_RED.json', run='results_ba', posargs='', **kwargs):
         """
         Parallel Stereo Part 2
 
         Run second part of parallel_stereo, stereo is completed after this step
 
+        :param run: folder for results of run
         :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use 
         """
-        return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
+        return self.cs.stereo_asap(stereo_conf, run=run, postfix=postfix, camera_postfix=camera_postfix, posargs=posargs, **{**self.cs.defaults_ps2, **kwargs})
 
     @rich_logger
-    def step_9(self, mpp=2, just_dem=True, postfix='_RED.map.cub', run='results_ba', **kwargs):
+    def step_9(self, mpp=2, just_dem=True, postfix='_RED.cub', run='results_ba', **kwargs):
         """
         Produce preview DEMs/Orthos
 
         Produce dem from point cloud, by default 2mpp for hirise for max-disparity estimation
 
-        :param run: 
+        :param run: folder for results of run
         :param postfix: postfix for cub files to use
         :param just_dem: set to True if you only want the DEM and no other products like the ortho and error images
         :param mpp:
@@ -1555,7 +1595,7 @@ class HiRISE(object):
                                     use_proj=self.proj, 
                                     **kwargs)
 
-    def _gdal_hirise_rescale(self, mpp, postfix='_RED.map.cub', run='results_ba', **kwargs):
+    def _gdal_hirise_rescale(self, mpp, postfix='_RED.cub', run='results_ba', **kwargs):
         """
         resize hirise image using gdal_translate
 
@@ -1617,7 +1657,7 @@ class HiRISE(object):
         return '--initial-transform hillshade_align/out-transform.txt'
 
     @rich_logger
-    def pre_step_10_pedr(self, pedr_list=None, postfix='_RED.map.cub')-> str:
+    def pre_step_10_pedr(self, pedr_list=None, postfix='_RED.cub')-> str:
         """
         Use MOLA PEDR data to align the HiRISE DEM to in case no CTX DEM is available
 
@@ -1642,7 +1682,7 @@ class HiRISE(object):
         """
         # run any pre-step 10 steps needed
         if 'with_pedr' in kwargs:
-            refdem = self.pre_step_10_pedr(pedr_list=kwargs.get('pedr_list', None), postfix=kwargs.get('postfix', '_RED.map.cub'))
+            refdem = self.pre_step_10_pedr(pedr_list=kwargs.get('pedr_list', None), postfix=kwargs.get('postfix', '_RED.cub'))
         elif 'with_hillshade_align' in kwargs:
             cmd = self.pre_step_10(refdem, **kwargs) #todo check that this blocks until finished
             kwargs['--initial_transform'] = 'hillshade_align/out-transform.txt'
@@ -1653,7 +1693,7 @@ class HiRISE(object):
 
 
     @rich_logger
-    def step_11(self, mpp=1.0, just_ortho=False, postfix='_RED.map.cub', run='results_ba', output_folder='dem_align', **kwargs):
+    def step_11(self, mpp=1.0, just_ortho=False, postfix='_RED.cub', run='results_ba', output_folder='dem_align', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -2063,7 +2103,6 @@ class Georef(object):
             eoid=eoid,
             out_name=out_name
         )
-
 
 
 class ASAP(object):
