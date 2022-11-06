@@ -656,7 +656,7 @@ class CommonSteps(object):
         return f'{str(cwd)}/{out_name}_pedr4align.csv'
 
     @rich_logger
-    def bundle_adjust(self, *vargs, postfix='_RED.map.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', **kwargs)-> sh.RunningCommand:
+    def bundle_adjust(self, *vargs, postfix='_RED.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', **kwargs)-> sh.RunningCommand:
         """
         Bundle adjustment wrapper
 
@@ -1495,8 +1495,8 @@ class HiRISE(object):
         both = Path(both)
         left_file = next(Path(f'./{left}/').glob(f'{left}{postfix}'))
         right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}'))
-        sh.ln('-s', left_file, both / f'{left}.cub')
-        sh.ln('-s', right_file, both / f'{right}.cub')
+        sh.ln('-s', left_file, both / f'{left}_RED.cub')
+        sh.ln('-s', right_file, both / f'{right}_RED.cub')
 
     @rich_logger
     def step_5(self, gsd: float = None, postfix='*.cub'):
