@@ -1437,7 +1437,7 @@ class HiRISE(object):
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
             pool.acquire()
-            return self.hiedr(*im, '--threads', _threads_singleprocess, _bg=True, _done=done)
+            return self.hiedr(*im, '--threads', _threads_multiprocess, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
