@@ -429,6 +429,10 @@ class CommonSteps(object):
 
     @staticmethod
     def get_image_band_stats(img)-> dict:
+        """
+        :param img: 
+        :return: 
+        """
         gdalinfocmd = Command('gdalinfo')
         gdal_info = json.loads(str(gdalinfocmd('-json', '-stats', img)))
         return gdal_info['bands']
@@ -869,15 +873,26 @@ class CommonSteps(object):
         left, right, both = self.parse_stereopairs()
         ref_dem = Path(ref_dem).absolute()
         with cd(Path.cwd() / both):
+            # todo reproject to match srs exactly
             args = []
             if not src_dem:
                 src_dem = next(Path.cwd().glob('*_pedr4align.csv'))
             src_dem = str(src_dem)
             if src_dem.endswith('.csv'):
                 args.extend(['--csv-format', '1:lat 2:lon 3:height_above_datum'])
-            res = self.geodiff(*args, ref_dem, src_dem)
-            res = str(res).splitlines()
-            res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
+            res = self.geodiff(*args, ref_dem, src_dem, '-o', 'geodiff/o')
+            # if both are dems I need to use gdalinfo for diff
+            if src_dem.endswith('.csv'):
+                res = str(res).splitlines()
+                res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
+            else:
+                stats = self.get_image_band_stats('./geodiff/o-diff.tif')
+                res = {'Max difference': stats["maximum"], 
+                       'Min difference': stats["minimum"],
+                       'Mean difference': stats["mean"], 
+                       'StdDev of difference': stats['stdDev'],
+                       'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us and asp changed
+                       }
             return res
     
     def estimate_max_disparity(self, ref_dem, src_dem=None):
@@ -1472,7 +1487,7 @@ class HiRISE(object):
         def hiedr2mosaic(*im):
             # hiedr2moasic is given a glob of tifs
             pool.acquire()
-            return self.hiedr(*im, '--threads', _threads_multiprocess, _bg=True, _done=done)
+            return self.hiedr(*im, '--threads', _threads_singleprocess, _bg=True, _done=done)
 
         left, right, both = self.cs.parse_stereopairs()
         procs = []
