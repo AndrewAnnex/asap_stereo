@@ -774,7 +774,7 @@ class CommonSteps(object):
                 return self.point2dem(*pre_args, str(point_cloud), *post_args)
             
     @rich_logger
-    def mapproject_both(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', bundle_adjust_prefix='adjust/ba'):
+    def mapproject_both(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Mapproject the left and right images against a reference DEM
 
@@ -789,7 +789,9 @@ class CommonSteps(object):
         if not refdem:
             refdem = str(next((Path.cwd() / both / run / 'dem').glob('*-DEM.tif')))
         else:
-            refdem = Path(refdem).absolute()
+            # todo you can map project against the datum, check if there is a suffix
+            refpath = Path(refdem)
+            refdem = refdem if refpath.suffix == '' else refpath.absolute()
         with cd(Path.cwd() / both):
             # double check provided gsd
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
@@ -803,8 +805,8 @@ class CommonSteps(object):
             if bundle_adjust_prefix:
                 args.extend(('--bundle-adjust-prefix', bundle_adjust_prefix))
                 ext = f'ba.{ext}'
-            self.mapproject(refdem, _left, _leftcam, f'{left}.{ext}', *args)
-            self.mapproject(refdem, _right, _rightcam, f'{right}.{ext}', *args)
+            self.mapproject(refdem, _left, _leftcam, f'{left}.{ext}', *args, *kwargs_to_args(clean_kwargs(kwargs)))
+            self.mapproject(refdem, _right, _rightcam, f'{right}.{ext}', *args, *kwargs_to_args(clean_kwargs(kwargs)))
         
     @rich_logger
     def geoid_adjust(self, run, output_folder, **kwargs):
