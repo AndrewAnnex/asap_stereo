@@ -741,6 +741,7 @@ class CommonSteps(object):
             '--output-prefix'   : f'dem_align/{both}_{kind}'
         }
         with cd(Path.cwd() / both / run):
+            # todo allow both to be DEMs
             kwargs.pop('postfix', None)
             kwargs.pop('with_pedr', None)
             kwargs.pop('with_hillshade_align', None)
@@ -880,12 +881,16 @@ class CommonSteps(object):
             src_dem = str(src_dem)
             if src_dem.endswith('.csv'):
                 args.extend(['--csv-format', '1:lat 2:lon 3:height_above_datum'])
-            res = self.geodiff(*args, ref_dem, src_dem, '-o', 'geodiff/o')
-            # if both are dems I need to use gdalinfo for diff
+            args.extend([ref_dem, src_dem])
+            if not src_dem.endswith('.csv'):
+                args.extend(['-o', 'geodiff/o'])
+            res = self.geodiff(*args)
             if src_dem.endswith('.csv'):
+                # geodiff stats in std out for CSV
                 res = str(res).splitlines()
                 res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
             else:
+                # if both are dems I need to use gdalinfo for diff
                 stats = self.get_image_band_stats('./geodiff/o-diff.tif')
                 if isinstance(stats, list):
                     stats = stats[0]
@@ -895,7 +900,7 @@ class CommonSteps(object):
                     'Min difference': stats["minimum"],
                     'Mean difference': stats["mean"], 
                     'StdDev of difference': stats['stdDev'],
-                    'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us and asp changed
+                    'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us
                 }
             return res
     
@@ -920,7 +925,6 @@ class CommonSteps(object):
         vals = self.get_geo_diff(ref_dem, src_dem)
         med_d = float(vals['Median difference'])       
         return med_d, abs(med_d)
-    
     
     def compute_footprints(self, *imgs):
         """
