@@ -887,12 +887,16 @@ class CommonSteps(object):
                 res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
             else:
                 stats = self.get_image_band_stats('./geodiff/o-diff.tif')
-                res = {'Max difference': stats["maximum"], 
-                       'Min difference': stats["minimum"],
-                       'Mean difference': stats["mean"], 
-                       'StdDev of difference': stats['stdDev'],
-                       'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us and asp changed
-                       }
+                if isinstance(stats, list):
+                    stats = stats[0]
+                assert isinstance(stats, dict)
+                res = {
+                    'Max difference': stats["maximum"], 
+                    'Min difference': stats["minimum"],
+                    'Mean difference': stats["mean"], 
+                    'StdDev of difference': stats['stdDev'],
+                    'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us and asp changed
+                }
             return res
     
     def estimate_max_disparity(self, ref_dem, src_dem=None):
