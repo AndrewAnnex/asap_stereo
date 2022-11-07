@@ -352,7 +352,7 @@ class CommonSteps(object):
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
-        self.point2dem   = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr)
+        self.point2dem   = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
         self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
         self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
