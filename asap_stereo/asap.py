@@ -711,14 +711,6 @@ class CommonSteps(object):
             kwargs['--stereo-file'] = stereo_conf
             _kwargs = kwargs_to_args(clean_kwargs(kwargs))
             _posargs = posargs.split(' ')
-            #if isinstance(postfix, str):
-            #    postfix = [postfix]
-            #imgs = list(itertools.chain([[f'{left}{px}', f'{right}{px}', csm(f'{left}{px}'), csm(f'{right}{px}')] for px in postfix]))
-            # why did I do it that way? implies I can have N pairs?
-            # okay the reason why I sometimes pass in a list of postfixes is that for the 2 pass stereo, 
-            # the original lev1eo.cub files were the camera models for the two map projected tif files
-            # since I now always produce the csm models, I don't really need to worry about the logic above
-            # other EO missions have cameras in xml files for example so this is norm
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
             _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
             return self.parallel_stereo(*optional(_posargs), *_kwargs, _left, _right, _leftcam, _rightcam, output_file_prefix, *optional(refdem))
@@ -735,6 +727,7 @@ class CommonSteps(object):
             maxd, _, _, _ = self.estimate_max_disparity(dem, refdem)
         defaults = {
             '--num-iterations'  : 4000,
+            '--alignment-method': 'fgr',
             '--threads'         : _threads_singleprocess,
             '--datum'           : datum,
             '--max-displacement': maxd,
