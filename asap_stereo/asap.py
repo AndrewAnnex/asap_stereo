@@ -658,6 +658,23 @@ class CommonSteps(object):
             # todo: this fails sometimes on the projection string, a proj issue... trying again in command line seems to fix it
             sh.ogr2ogr('-t_srs', projection, '-sql', sql_query, f'./{out_name}_pedr4align.shp', shpfile.name)
         return f'{str(cwd)}/{out_name}_pedr4align.csv'
+    
+    def generate_csm(self, postfix='_RED.cub', camera_postfix='_RED.json'):
+        """
+        generate CSM models for both images
+        :param postfix: 
+        :param camera_postfix: 
+        :return: 
+        """
+        left, right, both = self.parse_stereopairs()
+        with cd(Path.cwd() / both):
+            _left, _right = f'{left}{postfix}', f'{right}{postfix}'
+            _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
+            # generate csm models
+            self.gen_csm(_left, _right)
+            # test CSMs
+            print(str(self.cam_test(_left, _leftcam)))
+            print(str(self.cam_test(_right, _rightcam)))
 
     @rich_logger
     def bundle_adjust(self, *vargs, postfix='_RED.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', **kwargs)-> sh.RunningCommand:
@@ -673,6 +690,9 @@ class CommonSteps(object):
         :param kwargs: kwargs to pass to bundle_adjust
         :return: RunningCommand
         """
+        # generate the csm models first
+        self.generate_csm(postfix=postfix, camera_postfix=camera_postfix)
+        # setup defaults
         defaults = {
             '--datum': "D_MARS",
             '--max-iterations': 100
@@ -682,11 +702,6 @@ class CommonSteps(object):
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
             _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
-            # generate csm models todo move to own command/step
-            self.gen_csm(_left, _right)
-            # test CSMs
-            print(str(self.cam_test(_left, _leftcam)))
-            print(str(self.cam_test(_right, _rightcam)))
             return self.ba(_left, _right, _leftcam, _rightcam, *vargs, '-o', bundle_adjust_prefix, '--save-cnet-as-csv', *args)
 
     @rich_logger
@@ -774,11 +789,10 @@ class CommonSteps(object):
                 return self.point2dem(*pre_args, str(point_cloud), *post_args)
             
     @rich_logger
-    def mapproject_both(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', bundle_adjust_prefix='adjust/ba', **kwargs):
+    def mapproject_both(self, refdem=None, mpp=6,  postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', bundle_adjust_prefix='adjust/ba', **kwargs):
         """
         Mapproject the left and right images against a reference DEM
 
-        :param run: name of run
         :param refdem: reference dem to map project using
         :param mpp: target GSD
         :param postfix: postfix for cub files to use
@@ -787,7 +801,7 @@ class CommonSteps(object):
         """
         left, right, both = self.parse_stereopairs()
         if not refdem:
-            refdem = str(next((Path.cwd() / both / run / 'dem').glob('*-DEM.tif')))
+            refdem = 'D_MARS'
         else:
             # todo you can map project against the datum, check if there is a suffix
             refpath = Path(refdem)
@@ -796,9 +810,7 @@ class CommonSteps(object):
             # double check provided gsd
             _left, _right = f'{left}{postfix}', f'{right}{postfix}'
             _leftcam, _rightcam = f'{left}{camera_postfix}', f'{right}{camera_postfix}'
-            self.check_mpp_against_true_gsd(_left, mpp)
-            self.check_mpp_against_true_gsd(_right, mpp)
-            # map project both ctx images against the reference dem
+            # map project both images against the reference dem
             # might need to do par do here
             args = ['--mpp', mpp]
             ext = 'map.tif'
@@ -1501,7 +1513,7 @@ class HiRISE(object):
         _ = [p.wait() for p in procs]
 
     @rich_logger
-    def step_4(self, postfix='*.mos_hijitreged.norm.cub'):
+    def step_4(self, postfix='*.mos_hijitreged.norm.cub', camera_postfix='_RED.json'):
         """
         Copy hieder2mosaic files
 
@@ -1515,41 +1527,24 @@ class HiRISE(object):
         right_file = next(Path(f'./{right}/').glob(f'{right}{postfix}')).absolute()
         sh.ln('-s', left_file, (both / f'{left}_RED.cub').absolute())
         sh.ln('-s', right_file, (both / f'{right}_RED.cub').absolute())
+        self.cs.generate_csm(postfix='_RED.cub', camera_postfix=camera_postfix)
 
     @rich_logger
-    def step_5(self, gsd: float = None, postfix='*.cub'):
+    def step_5(self, refdem=None, gsd: float = None, postfix='_RED.cub', camera_postfix='_RED.json', bundle_adjust_prefix=None, **kwargs):
         """
+        # todo this no longer makes sense for step 5, needs to run after bundle adjust but before stereo
+        # todo need cameras by this point, currently done in BA
         Map project HiRISE data for stereo processing
 
         Note this step is optional.
 
+        :param bundle_adjust_prefix: 
+        :param camera_postfix: 
         :param postfix: postfix for cub files to use
         :param gsd: override for final resolution in meters per pixel (mpp)
         """
+        return self.cs.mapproject_both(refdem=refdem, mpp=gsd, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
 
-        def par_cam2map(argstring):
-            pool.acquire()
-            return self.cam2map(argstring.split(' '), _bg=True, _done=done)
-
-        left, right, both = self.cs.parse_stereopairs()
-        with cd(both):
-            left_im  = next(Path('.').glob(f'{left}{postfix}'))
-            right_im = next(Path('.').glob(f'{right}{postfix}'))
-            cam2map_args = ['-n', left_im, right_im]
-            if gsd is not None:
-                cam2map_args = ['--pixres', 'MPP', '--resolution', str(gsd), *cam2map_args]
-            response = str(self.cam2map4stereo(*cam2map_args))
-            left_cam2map_call, right_cam2map_call = response.split('\n')[-4:-2]
-            print(left_cam2map_call, flush=True)
-            print(right_cam2map_call, flush=True)
-            # double check to make sure we got the right lines, maybe replace above with regex sometime
-            if 'cam2map from=' not in left_cam2map_call or 'cam2map from=' not in right_cam2map_call:
-                raise RuntimeError(f'Got bad call responses for cam2map from cam2map4stereo.py, \n see left_cam2map_call: {left_cam2map_call}, right_cam2map_call: {right_cam2map_call}')
-            # we are good now, call the cam2map simultaneously
-            left_cam2map_call  =  left_cam2map_call.strip('cam2map ')
-            right_cam2map_call = right_cam2map_call.strip('cam2map ')
-            procs = [par_cam2map(left_cam2map_call), par_cam2map(right_cam2map_call)]
-            _ = [p.wait() for p in procs]
 
     @rich_logger
     def step_6(self, *vargs, postfix='_RED.cub', camera_postfix='_RED.json', bundle_adjust_prefix='adjust/ba', **kwargs)-> sh.RunningCommand:
