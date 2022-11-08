@@ -29,13 +29,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from string import Template
 
-import affine
+import logging
+logging.basicConfig(level=logging.INFO)
 import struct
 import csv
 import fire
-import rasterio
 import sh
-import tqdm
 from sh import Command
 from contextlib import contextmanager
 import functools
@@ -53,6 +52,9 @@ import json
 import warnings
 import pyproj
 import papermill as pm
+
+def custom_log(ran, call_args, pid=None):
+    return ran
 
 here = os.path.dirname(__file__)
 
@@ -183,6 +185,7 @@ def kwarg_parse(kwargs: Dict, key: str)-> str:
 
 
 def get_affine_from_file(file):
+    import affine
     md = json.loads(str(sh.gdalinfo(file, '-json')))
     gt = md['geoTransform']
     return affine.Affine.from_gdal(*gt)
@@ -351,25 +354,25 @@ class CommonSteps(object):
     }
 
     def __init__(self):
-        self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr)
-        self.point2dem   = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr)
-        self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr)
-        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr)
-        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True)
-        self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr)
-        self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr)
-        self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr)
-        self.cubreduce   = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr)
-        self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr)
-        self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr)
-        self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr)
-        self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr)
+        self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.point2dem   = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True, _log_msg=custom_log)
+        self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.cubreduce   = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ba = Command('parallel_bundle_adjust').bake(
                 '--threads', _threads_singleprocess,
-                _out=sys.stdout, _err=sys.stderr
+                _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log
             )
 
     @staticmethod
@@ -380,14 +383,14 @@ class CommonSteps(object):
         args = {}
         if meta_kernal:
             args['-k'] = meta_kernal
-        cmd = sh.isd_generate('-v', *kwargs_to_args(args), '--max_workers', max_workers, *cubs, _out=sys.stdout, _err=sys.stderr)
+        cmd = sh.isd_generate('-v', *kwargs_to_args(args), '--max_workers', max_workers, *cubs, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         return cmd
 
     @staticmethod
     def cam_test(cub: str, camera: str,  sample_rate: int = 1000, subpixel_offset=0.25)-> str:
         """
         """
-        return sh.cam_test('--image', cub, '--cam1', cub, '--cam2', camera, '--sample-rate', sample_rate, '--subpixel-offset', subpixel_offset)
+        return sh.cam_test('--image', cub, '--cam1', cub, '--cam2', camera, '--sample-rate', sample_rate, '--subpixel-offset', subpixel_offset, _log_msg=custom_log)
 
     @staticmethod
     def get_stereo_quality_report(cub1, cub2) -> str:
@@ -422,7 +425,7 @@ class CommonSteps(object):
             # currently have to cd into the directory to minify the length
             # of the file name parameter, isis3 inserts additional new lines to wrap
             # words in the terminal that will mess up isis3 to dict without management
-            camrange = Command('camrange')
+            camrange = Command('camrange').bake(_log_msg=custom_log)
             out = str(camrange(f'from={str(Path(img).name)}').stdout)
             out_dict = isis3_to_dict(out)
         return out_dict
@@ -433,7 +436,7 @@ class CommonSteps(object):
         :param img: 
         :return: 
         """
-        gdalinfocmd = Command('gdalinfo')
+        gdalinfocmd = Command('gdalinfo').bake(_log_msg=custom_log)
         gdal_info = json.loads(str(gdalinfocmd('-json', '-stats', img)))
         return gdal_info['bands']
     
@@ -460,7 +463,7 @@ class CommonSteps(object):
         else: 
             nmax *= (1 - scale_bound)
         # run gdal translate
-        return sh.gdal_translate(*gdal_options,'-of', 'COG', '-ot', 'Byte', '-scale', nmin, nmax, 1, 255, '-a_nodata', 0, img, out_name, _out=sys.stdout, _err=sys.stderr)
+        return sh.gdal_translate(*gdal_options,'-of', 'COG', '-ot', 'Byte', '-scale', nmin, nmax, 1, 255, '-a_nodata', 0, img, out_name, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
 
 
     @staticmethod
@@ -605,7 +608,7 @@ class CommonSteps(object):
         img2_path = Path(src).absolute()
         if img_out == None:
             img_out = img2_path.stem + '_clipped.tif'
-        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, img_out)
+        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, img_out, _log_msg=custom_log)
 
     def check_mpp_against_true_gsd(self, path, mpp):
         """
@@ -650,13 +653,13 @@ class CommonSteps(object):
             shpfile = next(Path.cwd().glob('*z.shp'))
             sql_query = f'SELECT Lat, Lon, Planet_Rad - 3396190.0 AS Datum_Elev, Topography FROM "{shpfile.stem}"'
             # create the minified file just for pc_align
-            sh.ogr2ogr('-f', 'CSV', '-sql', sql_query, f'./{out_name}_pedr4align.csv', shpfile.name)
+            sh.ogr2ogr('-f', 'CSV', '-sql', sql_query, f'./{out_name}_pedr4align.csv', shpfile.name, _log_msg=custom_log)
             # get projection info
             projection = self.get_srs_info(cub_path, use_eqc=proj)
             print(projection)
             # reproject to image coordinates for some gis tools
             # todo: this fails sometimes on the projection string, a proj issue... trying again in command line seems to fix it
-            sh.ogr2ogr('-t_srs', projection, '-sql', sql_query, f'./{out_name}_pedr4align.shp', shpfile.name)
+            sh.ogr2ogr('-t_srs', projection, '-sql', sql_query, f'./{out_name}_pedr4align.shp', shpfile.name, _log_msg=custom_log)
         return f'{str(cwd)}/{out_name}_pedr4align.csv'
     
     def generate_csm(self, postfix='_RED.cub', camera_postfix='_RED.json'):
@@ -768,7 +771,7 @@ class CommonSteps(object):
             '--nodata'            : -32767,
             '--output-prefix'     : f'{both}_{kind}_{mpp_postfix}',
             '--dem-spacing'       : mpp,
-            '--t_srs'             : proj
+            '--t_srs'             : proj,
         }
         post_args = []
         if just_ortho:
@@ -939,21 +942,22 @@ class CommonSteps(object):
         :param imgs: gdal rasters with nodata defined
         :return: 
         """
-        poly = sh.Command('gdal_polygonize.py')
+        import tqdm
+        poly = sh.Command('gdal_polygonize.py').bake(_log_msg=custom_log)
         for img in tqdm.tqdm(imgs):
-            md = json.loads(str(sh.gdalinfo(img, '-json')))
+            md = json.loads(str(sh.gdalinfo(img, '-json', _log_msg=custom_log)))
             if not 'noDataValue' in md['bands'][0]:
                 print('no noDataValue in image: ', img)
                 continue
             # downsample to 10% size
             ds_out_name = Path(img).stem + f'_ds.vrt'
-            _ = sh.gdal_translate(img, ds_out_name, '-of', 'vrt', '-outsize', '10%', '10%', '-r', 'cubic')
+            _ = sh.gdal_translate(img, ds_out_name, '-of', 'vrt', '-outsize', '10%', '10%', '-r', 'cubic', _log_msg=custom_log)
             # scale to binary
             eb_out_name = Path(img).stem + f'_eb.vrt'
-            _ = sh.gdal_translate(ds_out_name, eb_out_name, '-of', 'vrt', '-scale', '-ot', 'byte')
+            _ = sh.gdal_translate(ds_out_name, eb_out_name, '-of', 'vrt', '-scale', '-ot', 'byte', _log_msg=custom_log)
             # scale to mask
             vp_out_name = Path(img).stem + f'_vp.vrt'
-            _ = sh.gdal_translate(eb_out_name, vp_out_name, '-of', 'vrt', '-scale', '1', '255', '100', '100')
+            _ = sh.gdal_translate(eb_out_name, vp_out_name, '-of', 'vrt', '-scale', '1', '255', '100', '100', _log_msg=custom_log)
             # make polygon
             g_out_name = Path(img).stem + f'_footprint.geojson'
             _ = poly('-of', 'geojson', '-8', vp_out_name, g_out_name)
@@ -1332,9 +1336,9 @@ class HiRISE(object):
         self.https = https
         self.cs = CommonSteps()
         self.datum = datum
-        self.hiedr = sh.Command('hiedr2mosaic.py')
-        self.cam2map = sh.Command('cam2map')
-        self.cam2map4stereo = sh.Command('cam2map4stereo.py')
+        self.hiedr = sh.Command('hiedr2mosaic.py').bake(_log_msg=custom_log)
+        self.cam2map = sh.Command('cam2map').bake(_log_msg=custom_log)
+        self.cam2map4stereo = sh.Command('cam2map4stereo.py').bake(_log_msg=custom_log)
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
         self.proj = self.cs.projections.get(proj, proj)
@@ -1974,6 +1978,7 @@ class Georef(object):
         # convert matches to csv
         match_csv = self.matches_to_csv(matches[0])
         # loop through all the mobile data
+        import tqdm
         for i, mobile in tqdm.tqdm(enumerate([mobile_image, *other_mobile])):
             # transform matches # todo: make sure I don't overwrite anything here
             new_match_csv = self.transform_matches(match_csv, mobile_image, mobile, outname=f'{i}_{Path(ref_img).stem}__{Path(mobile).stem}.csv')
@@ -2008,6 +2013,7 @@ class Georef(object):
 
 
     def ref_in_crs(self, common, ref_img, cr=True):
+        import rasterio
         with rasterio.open(ref_img) as src:
             for _ in common:
                 # rasterio xy expects row, col always
@@ -2040,6 +2046,7 @@ class Georef(object):
                      lr_right_name,
                      eoid='+proj=longlat +R=3396190 +no_defs',
                      out_name=None):
+        import rasterio
         # get common points
         common_ref_left, common_ref_right, common_left, common_right = self.get_common_matches(ref_left_match, ref_right_match)
         common_ref_left_crs = list(self.ref_in_crs(common_ref_left, ref_img))
