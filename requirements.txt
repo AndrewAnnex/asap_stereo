@@ -6,3 +6,5 @@ pvl
 papermill
 rasterio
 pyproj
+tqdm
+affine

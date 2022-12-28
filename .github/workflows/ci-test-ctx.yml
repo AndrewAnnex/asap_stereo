@@ -1,9 +1,9 @@
 # Trigger the workflow on push or pull request
-on: [workflow_dispatch]
+on: [pull_request]
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 3
-  ASAP_CACHE_NUMBER: 2
+  ASAP_CACHE_NUMBER: 4
   ASP_CACHE_NUMBER: 1
 jobs:
   cache_asp:
@@ -13,10 +13,10 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Cache ASP tarball
         id: cache-asap
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -31,10 +31,10 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Cache ISIS conda env
         id: cache-isis
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -100,16 +100,16 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Cache ASAP conda env
         id: cache-asap
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.1.0
+        uses: conda-incubator/setup-miniconda@v2.1.1
         with:
           mamba-version: "*"
           use-mamba: true
@@ -140,19 +140,20 @@ jobs:
           pwd
           ls -lahtr
   
-  test_runner:
-    name: ASAP test CTX pipeline
-    needs: [cache_asp, cache_isis_env, cache_asap_env]
+
+  test_basic:
+    name: Basic ASAP Tests
+    needs: [ cache_asp, cache_isis_env, cache_asap_env ]
     runs-on: "ubuntu-latest"
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.1.0
+        uses: conda-incubator/setup-miniconda@v2.1.1
       - name: Get ASP from cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -163,7 +164,85 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xvf isis-env.tar.gz -C /
+          rm isis-env.tar.gz
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
+      - name: Install asap
+        run: |
+          conda activate asap
+          pip install -e .
+      - name: Conda info for asap
+        run: |
+          conda activate asap
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: Check isis shared libraries
+        run: |
+          conda activate asap
+          ldd `which qview`
+      - name: Test for asap
+        run: |
+          conda activate asap
+          asap
+          asap ctx
+          asap hirise
+          asap common
+      - name: Test readme rendering
+        run: |
+          conda activate asap
+          python -m readme_renderer README.rst
+
+
+  test_runner:
+    name: ASAP test CTX pipeline
+    needs: [cache_asp, cache_isis_env, cache_asap_env]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.1
+      - name: Get ASP from cache
+        uses: actions/cache@v3
+        with:
+          path: "/tmp/sp.tar.bz2"
+          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
+          ls /tmp/sp
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v3
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -173,7 +252,7 @@ jobs:
           tar -xzf "isis-env.tar.gz" -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -235,7 +314,6 @@ jobs:
         run: |
           conda activate asap
           asap ctx step-3
-          asap common rescale_and_overwrite 8 
       - name: asap step 4
         run: |
           conda activate asap
@@ -253,7 +331,7 @@ jobs:
       - name: asap step 7-8
         run: |
           conda activate asap
-          asap ctx step-7 --mpp 240 --dem_hole_fill_len 50
+          asap ctx step-7 --mpp 100 --dem_hole_fill_len 50
           asap ctx step-8
       - name: asap 1st round previews
         run: |
@@ -261,9 +339,9 @@ jobs:
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM-hillshade.tif ./hillshade_1.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM-hillshade.tif ./hillshade_1.png
       - name: Archive First Round Previews
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: first-round
           path: |
@@ -272,13 +350,13 @@ jobs:
       - name: asap step 9
         run: |
           conda activate asap
-          asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif --mpp 48
+          asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif --mpp 25
       - name: asap step 10-11
         run: |
           conda activate asap
-          asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_240_0-DEM.tif ./stereo.map
-          asap ctx step-7 --mpp 144 --run results_map_ba
+          asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
+          asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
+          asap ctx step-7 --mpp 50 --run results_map_ba
           asap ctx step-8 --run results_map_ba
       - name: asap step 12
         run: |
@@ -288,9 +366,9 @@ jobs:
         run: |
           conda activate asap
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_144_0-DEM-hillshade.tif ./hillshade_2.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_50_0-DEM-hillshade.tif ./hillshade_2.png
       - name: Archive 2nd Round Previews
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: second-round
           path: |
@@ -303,19 +381,124 @@ jobs:
         run: |
           conda activate asap
           asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
-          asap ctx step-14 --mpp 144
+          asap ctx step-14 --mpp 50
           asap ctx step-15
           asap ctx step_8 --run results_map_ba --output_folder dem_align
-          asap ctx step_14 --mpp 48 --just_ortho True
+          asap ctx step_14 --mpp 25 --just_ortho True
       - name: asap final previews
         run: |
           conda activate asap
-          gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_48_0-DRG.tif ./vis_f.png
-          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_144_0-DEM-hillshade.tif ./hillshade_f.png
+          gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_25_0-DRG.tif ./vis_f.png
+          gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_50_0-DEM-hillshade.tif ./hillshade_f.png
+      - name: LS directories to see what was made
+        continue-on-error: true
+        if: always()
+        run: |
+          ls -lahtr
+          ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
+          ls ./*/*/* -lahtr
       - name: Archive Final Previews
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
+        if: always()
         with:
-          name: final
+          name: final_ctx
           path: |
+            *.log
             hillshade_f.png
             vis_f.png
+            ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json
+
+  test_notebook:
+    name: ASAP test Notebook CTX pipeline
+    needs: [cache_asp, cache_isis_env, cache_asap_env]
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup default miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.1
+      - name: Get ASP from cache
+        uses: actions/cache@v3
+        with:
+          path: "/tmp/sp.tar.bz2"
+          key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Extract ASP tarball to tmp
+        run: |
+          mkdir /tmp/sp
+          tar -xf /tmp/sp.tar.bz2 -C /tmp/sp --strip-components 1
+          rm /tmp/sp.tar.bz2
+          ls /tmp/sp
+      - name: Get ISIS Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "isis-env.tar.gz"
+          key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
+      - name: Unpack ISIS Conda environment
+        run: |
+          mkdir -p $CONDA/envs/isis_for_asp
+          tar -xvf isis-env.tar.gz -C /
+          rm isis-env.tar.gz
+      - name: Get ASAP Conda environment from cache
+        uses: actions/cache@v3
+        with:
+          path: "asap-env.tar.gz"
+          key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
+      - name: Unpack ASAP Conda environment
+        run: |
+          mkdir -p $CONDA/envs/asap
+          tar -xvf asap-env.tar.gz -C /
+          rm asap-env.tar.gz
+      - name: Check contents of isis env
+        run: |
+          pwd
+          echo $CONDA
+          ls -lahtr
+          ls $CONDA/
+          ls $CONDA/envs/isis_for_asp -lahtr
+          ls $CONDA/envs/isis_for_asp/bin -lahtr
+      - name: Install asap
+        run: |
+          conda activate asap
+          pip install -e .
+      - name: Conda info for asap
+        run: |
+          conda activate asap
+          echo $PATH
+          conda env config vars list
+          conda info
+          conda list
+      - name: Check isis shared libraries
+        run: |
+          conda activate asap
+          ldd `which qview`
+      - name: Test for asap
+        run: |
+          conda activate asap
+          asap
+      - name: Download stereo parameter files
+        run:  |
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
+          wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
+      - name: Asap notebook run
+        timeout-minutes: 30
+        run: |
+          conda activate asap
+          asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --img_gsd 25 --dem_gsd 50 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
+      - name: LS directories to see what was made
+        continue-on-error: true
+        if: always()
+        run: |
+          ls -lahtr   
+          ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
+          ls ./*/*/* -lahtr  
+      - name: Archive Final Notebook from Papermill
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: final_notebook
+          path: |
+            *.log
+            *.ipynb
+            ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json

@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'ASAP-Stereo'
-copyright = '2020, Andrew M. Annex'
+copyright = '2022, Andrew M. Annex'
 author = 'Andrew M. Annex'
 
 # The full version, including alpha/beta/rc tags
