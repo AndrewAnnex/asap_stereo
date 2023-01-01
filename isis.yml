@@ -5,3 +5,4 @@ channels:
   - defaults
 dependencies:
   - isis==7.1.0
+  - rclone
