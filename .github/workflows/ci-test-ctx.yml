@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 4
+  ISIS_CACHE_NUMBER: 5
   ASAP_CACHE_NUMBER: 5
   ASP_CACHE_NUMBER: 2
 jobs:
@@ -58,8 +58,8 @@ jobs:
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          rsync -azv --exclude='kernels' --exclude "dems" --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base $CONDA/envs/isis_for_asp/data/
-          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/base/ $CONDA/envs/isis_for_asp/data/base
+          downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/"
+          downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="*.db"  --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
@@ -72,8 +72,8 @@ jobs:
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          rsync -azv --exclude='kernels' --exclude "testData" --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro $CONDA/envs/isis_for_asp/data/
-          rsync -azv --include '*/' --include "*.db"  --exclude "*"  --delete --partial isisdist.astrogeology.usgs.gov::isis3data/data/mro/ $CONDA/envs/isis_for_asp/data/mro
+          downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
+          downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="*.db" --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
