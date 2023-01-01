@@ -3,7 +3,7 @@ on: [pull_request]
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 4
-  ASAP_CACHE_NUMBER: 4
+  ASAP_CACHE_NUMBER: 5
   ASP_CACHE_NUMBER: 2
 jobs:
   cache_asp:
@@ -115,7 +115,7 @@ jobs:
           use-mamba: true
           activate-environment: asap
           environment-file: asap.yml
-          python-version: 3.9
+          python-version: '3.11'
           channels: conda-forge,defaults
           use-only-tar-bz2: true
       - name: add ASP and ISIS to PATH of asap conda

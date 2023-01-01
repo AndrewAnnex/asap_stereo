@@ -27,29 +27,30 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from typing import Optional, Dict, List, Tuple, Union, Callable
 from string import Template
-
-import logging
-logging.basicConfig(level=logging.INFO)
+from contextlib import contextmanager
+from importlib.resources import as_file, files, Package
 import struct
 import csv
-import fire
-import sh
-from sh import Command
-from contextlib import contextmanager
 import functools
 import os
 import sys
 import datetime
 import itertools
-from typing import Optional, Dict, List, Tuple, Union, Callable
-import moody
+import logging
 import re
 from pathlib import Path
 from threading import Semaphore
 import math
 import json
 import warnings
+logging.basicConfig(level=logging.INFO)
+
+import fire
+import sh
+from sh import Command
+import moody
 import pyproj
 import papermill as pm
 
@@ -1051,25 +1052,26 @@ class CTX(object):
         """
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem.ipynb'
-        pm.execute_notebook(
-            f'{here}/asap_ctx_workflow.ipynb',
-            out_notebook,
-            parameters={
-                'left' : left,
-                'right': right,
-                'peder_list': pedr_list,
-                'config1': config1,
-                'config2': config2,
-                'output_path' : working_dir,
-                'max_disp': max_disp,
-                'dem_gsd' : dem_gsd,
-                'img_gsd' : img_gsd,
-                'downsample' : downsample,
-                'step_kwargs' : step_kwargs
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
+        with as_file(files('asap_stereo').joinpath('asap_ctx_workflow.ipynb')) as src:
+            pm.execute_notebook(
+                src,
+                out_notebook,
+                parameters={
+                    'left' : left,
+                    'right': right,
+                    'peder_list': pedr_list,
+                    'config1': config1,
+                    'config2': config2,
+                    'output_path' : working_dir,
+                    'max_disp': max_disp,
+                    'dem_gsd' : dem_gsd,
+                    'img_gsd' : img_gsd,
+                    'downsample' : downsample,
+                    'step_kwargs' : step_kwargs
+                },
+                request_save_on_cell_execute=True,
+                **kwargs
+            )
 
     @rich_logger
     def step_1(self, one: str, two: str, cwd: Optional[str] = None) -> None:
@@ -1434,31 +1436,32 @@ class HiRISE(object):
         if not out_notebook:
             out_notebook = f'{working_dir}/log_asap_notebook_pipeline_make_dem_hirise.ipynb'
         if 'postfix' in kwargs.keys():
-            nbfile = f'{here}/asap_hirise_workflow_hiproc.ipynb'
+            resource = 'asap_hirise_workflow_hiproc.ipynb'
         else:
-            nbfile = f'{here}/asap_hirise_workflow_nomap.ipynb'
-        pm.execute_notebook(
-            nbfile,
-            out_notebook,
-            parameters={
-                'left' : left,
-                'right': right,
-                'config': config,
-                'output_path' : working_dir,
-                'ref_dem'          : ref_dem,
-                'gcps'            : gcps,
-                'max_disp'         : max_disp,
-                'dem_gsd'          : dem_gsd,
-                'img_gsd'          : img_gsd,
-                'alignment_method': alignment_method,
-                'downsample': downsample,
-                'max_ba_iterations': max_ba_iterations,
-                'postfix': kwargs.pop('postfix', '_RED.cub'),
-                'step_kwargs' : step_kwargs
-            },
-            request_save_on_cell_execute=True,
-            **kwargs
-        )
+            resource = 'asap_hirise_workflow_nomap.ipynb'
+        with as_file(files('asap_stereo').joinpath(resource)) as src:
+            pm.execute_notebook(
+                src,
+                out_notebook,
+                parameters={
+                    'left' : left,
+                    'right': right,
+                    'config': config,
+                    'output_path' : working_dir,
+                    'ref_dem'          : ref_dem,
+                    'gcps'            : gcps,
+                    'max_disp'         : max_disp,
+                    'dem_gsd'          : dem_gsd,
+                    'img_gsd'          : img_gsd,
+                    'alignment_method': alignment_method,
+                    'downsample': downsample,
+                    'max_ba_iterations': max_ba_iterations,
+                    'postfix': kwargs.pop('postfix', '_RED.cub'),
+                    'step_kwargs' : step_kwargs
+                },
+                request_save_on_cell_execute=True,
+                **kwargs
+            )
 
     @rich_logger
     def step_1(self, one, two, cwd: Optional[str] = None):
