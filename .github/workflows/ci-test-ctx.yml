@@ -132,7 +132,6 @@ jobs:
           conda env config vars list
           conda info
           conda list
-          ldd `which qview`
       - name: pack asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
         run: |
