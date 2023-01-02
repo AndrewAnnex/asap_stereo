@@ -47,6 +47,7 @@ jobs:
           environment-file: isis.yml
           auto-update-conda: true
           use-only-tar-bz2: true
+          channel-priority: flexible
           python-version: '3.11'
       - name: conda info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
