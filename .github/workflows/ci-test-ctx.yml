@@ -45,7 +45,7 @@ jobs:
           use-mamba: false
           activate-environment: isis_for_asp
           environment-file: isis.yml
-          auto-update-conda: true
+          auto-update-conda: false
           use-only-tar-bz2: true
           clean-patched-environment-file: false
       - name: conda info for isis
