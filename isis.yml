@@ -4,5 +4,5 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - isis==7.2.0
+  - isis==7.1.0
   - rclone
