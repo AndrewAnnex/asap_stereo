@@ -3,5 +3,5 @@ channels:
   - usgs-astrogeology
   - conda-forge
 dependencies:
-  - isis==7.1.0
+  - isis==7.0.0
   - rclone
