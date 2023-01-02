@@ -2,6 +2,7 @@ name: isis_for_asap
 channels:
   - usgs-astrogeology
   - conda-forge
+  - defaults
 dependencies:
-  - isis==7.0.0
+  - isis==7.2.0_RC1
   - rclone
