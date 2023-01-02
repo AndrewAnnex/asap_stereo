@@ -42,7 +42,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v2.1.1
         with:
-          use-mamba: false
+          use-mamba: true
           activate-environment: isis_for_asp
           environment-file: isis.yml
           auto-update-conda: true
