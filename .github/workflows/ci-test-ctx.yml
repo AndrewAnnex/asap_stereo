@@ -52,7 +52,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           echo $PATH
-          conda install cspice=67=h166bdaf_4 -c conda-forge
+          mamba install cspice=67=h166bdaf_4 -c conda-forge
           conda env config vars list
           conda info
           conda list
