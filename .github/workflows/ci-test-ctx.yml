@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 9
+  ISIS_CACHE_NUMBER: 10
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
@@ -59,11 +59,15 @@ jobs:
           conda env config vars list
           conda info
           conda list
+      - name: synce base kernels 1
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="kernels.*.db" 
+      - name: synce base kernels 2
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/" 
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/"
-          downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
@@ -73,11 +77,15 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
+      - name: synce mro kernels 1
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
+      - name: synce mro kernels 2
+        if: steps.cache-isis.outputs.cache-hit != 'true'
+        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
-          downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
