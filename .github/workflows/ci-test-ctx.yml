@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 33
+  ISIS_CACHE_NUMBER: 34
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
@@ -97,6 +97,7 @@ jobs:
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
+          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/pck/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/iak/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/fk/
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA/envs/isis_for_asp/data/mro/kernels/fk/mro_v15.tf
@@ -106,9 +107,11 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/mro/kernels/pck/pck00009.tpc
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/spk/ -lahtr
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/ -lahtr
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/ck/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/pck/ -lahtr
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/iak/ -lahtr
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/fk/ -lahtr
       - name: show contents of data
