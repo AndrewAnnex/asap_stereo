@@ -52,7 +52,6 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           echo $PATH
-          conda install 'cspice=67=h166bdaf_4' -c conda-forge
           conda env config vars list
           conda info
           conda list
@@ -151,6 +150,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          miniforge-variant: Mambaforge
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
@@ -229,6 +230,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          miniforge-variant: Mambaforge
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
@@ -418,6 +421,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          miniforge-variant: Mambaforge
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
