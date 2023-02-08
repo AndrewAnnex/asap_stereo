@@ -206,6 +206,8 @@ jobs:
           mkdir -p $CONDA/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
+      - name: show contents of data
+        run: ls -R $CONDA/envs/isis_for_asp/data/
       - name: Check contents of isis env
         run: |
           pwd
@@ -287,6 +289,8 @@ jobs:
           mkdir -p $CONDA/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
+      - name: show contents of data
+        run: ls -R $CONDA/envs/isis_for_asp/data/
       - name: Check contents of isis env
         run: |
           pwd
@@ -479,6 +483,8 @@ jobs:
           mkdir -p $CONDA/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
+      - name: show contents of data
+        run: ls -R $CONDA/envs/isis_for_asp/data/
       - name: Check contents of isis env
         run: |
           pwd
