@@ -913,6 +913,14 @@ class CommonSteps(object):
                     'StdDev of difference': stats['stdDev'],
                     'Median difference': stats["mean"], # yes I know this isn't correct but gdal doens't compute this for us
                 }
+            for k, v in res.items():
+                try:
+                    res[k] = float(v)
+                except ValueError:
+                    try:
+                        res[k] = float(''.join(re.findall(r'-?\d+\.?\d+', v))) # this won't grab all floats like Nans or si notation
+                    except ValueError:
+                        res[k] = 0.0 
             return res
     
     def estimate_max_disparity(self, ref_dem, src_dem=None):
