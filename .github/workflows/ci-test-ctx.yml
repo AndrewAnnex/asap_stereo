@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 31
+  ISIS_CACHE_NUMBER: 32
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
@@ -62,7 +62,7 @@ jobs:
           conda list
       - name: synce base kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="kernels.*.db" 
+        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" 
       - name: synce base kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/" 
@@ -87,7 +87,7 @@ jobs:
         run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
       - name: synce mro kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
+        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
