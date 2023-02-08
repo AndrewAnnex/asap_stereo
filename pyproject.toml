@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools >=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name     = 'asap_stereo'
+dynamic = ["version", "readme"]
+requires-python = ">=3.9"
+license  = {text = "BSD 3-Clause License"}
+description = 'A high level CLI and reproducible workflow for the Ames Stereo Pipeline'
+keywords = ['mars', 'nasa', 'asp', 'ames', 'stereo', 'pipeline', 'cli', 'tool', 'workflow']
+# Author details
+authors = [
+    {name = 'Andrew M. Annex', email='ama6fy@virginia.edu'}
+]
+dependencies = [
+    'requests',
+    'fire',
+    'moody>=0.2.0',
+    'sh',
+    'papermill',
+    'rasterio',
+    'pyproj'
+]
+classifiers=[
+    'Natural Language :: English',
+    'License :: OSI Approved :: BSD License',
+    'Development Status :: 3 - Alpha',
+    'Environment :: Console',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Science/Research',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Topic :: Scientific/Engineering :: Astronomy',
+    'Topic :: Scientific/Engineering :: GIS'
+]
+
+[project.urls]
+repository = 'https://github.com/AndrewAnnex/asap_stereo/'
+
+[project.scripts]
+asap = 'asap_stereo.asap:main'
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"*" = ["*.ipynb"]
+
+[tool.setuptools.dynamic]
+version = {attr = "asap_stereo.__version__"}
+readme = {file = "README.rst"}
