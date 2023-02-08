@@ -1,5 +1,9 @@
 # Trigger the workflow on push or pull request
-on: [pull_request]
+on: 
+  pull_request:
+  push:
+    branches:
+      - main
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 34
