@@ -40,9 +40,10 @@ jobs:
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: setup isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: conda-incubator/setup-miniconda@v2.2.0
         with:
-          use-mamba: false
+          miniforge-variant: Mambaforge
+          channels: usgs-astrogeology,conda-forge,defaults
           activate-environment: isis_for_asp
           environment-file: isis.yml
           auto-update-conda: true
@@ -51,8 +52,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           echo $PATH
-          conda install mamba -c conda-forge
-          mamba install cspice=67=h166bdaf_4 -c conda-forge
+          conda install 'cspice=67=h166bdaf_4' -c conda-forge
           conda env config vars list
           conda info
           conda list
@@ -110,14 +110,13 @@ jobs:
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: conda-incubator/setup-miniconda@v2.2.0
         with:
-          mamba-version: "*"
-          use-mamba: true
           activate-environment: asap
+          miniforge-variant: Mambaforge
+          channels: conda-forge
           environment-file: asap.yml
           python-version: '3.11'
-          channels: conda-forge,defaults
           use-only-tar-bz2: true
       - name: add ASP and ISIS to PATH of asap conda
         if: steps.cache-asap.outputs.cache-hit != 'true'
@@ -151,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: conda-incubator/setup-miniconda@v2.2.0
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
@@ -229,7 +228,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: conda-incubator/setup-miniconda@v2.2.0
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
@@ -418,7 +417,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: conda-incubator/setup-miniconda@v2.2.0
       - name: Get ASP from cache
         uses: actions/cache@v3
         with:
