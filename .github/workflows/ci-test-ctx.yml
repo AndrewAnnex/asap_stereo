@@ -2,9 +2,9 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 7
-  ASAP_CACHE_NUMBER: 5
-  ASP_CACHE_NUMBER: 2
+  ISIS_CACHE_NUMBER: 8
+  ASAP_CACHE_NUMBER: 6
+  ASP_CACHE_NUMBER: 3
 jobs:
   cache_asp:
     name: Cache ASP distribution
@@ -22,7 +22,7 @@ jobs:
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Download ASP tarball to tmp
         run: |
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/2023-01-01-daily-build/StereoPipeline-3.2.0-2023-01-01-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.2.0/StereoPipeline-3.2.0-2023-01-01-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           ls /tmp/sp.tar.bz2
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -48,6 +48,10 @@ jobs:
           environment-file: isis.yml
           auto-update-conda: true
           use-only-tar-bz2: true
+      - name: patch cspice so file
+        run: |
+          ls $CONDA/envs/isis_for_asp/lib/
+          ln -s $CONDA/envs/isis_for_asp/lib/libcspice.so $CONDA/envs/isis_for_asp/lib/libcspice.so.66
       - name: conda info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
