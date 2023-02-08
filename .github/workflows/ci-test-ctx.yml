@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 10
+  ISIS_CACHE_NUMBER: 30
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
@@ -203,6 +203,7 @@ jobs:
           ls $CONDA/
           ls $CONDA/envs/isis_for_asp -lahtr
           ls $CONDA/envs/isis_for_asp/bin -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
           conda activate asap
@@ -283,6 +284,7 @@ jobs:
           ls $CONDA/
           ls $CONDA/envs/isis_for_asp -lahtr
           ls $CONDA/envs/isis_for_asp/bin -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
           conda activate asap
@@ -474,6 +476,7 @@ jobs:
           ls $CONDA/
           ls $CONDA/envs/isis_for_asp -lahtr
           ls $CONDA/envs/isis_for_asp/bin -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
           conda activate asap
