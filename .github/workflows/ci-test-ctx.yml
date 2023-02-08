@@ -2,13 +2,13 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 30
+  ISIS_CACHE_NUMBER: 31
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
   cache_asp:
     name: Cache ASP distribution
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     defaults:
       run:
         shell: bash -l {0}
@@ -26,7 +26,7 @@ jobs:
           ls /tmp/sp.tar.bz2
   cache_isis_env:
     name: Cache ISIS conda environment
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     defaults:
       run:
         shell: bash -l {0}
@@ -77,6 +77,10 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/spk/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/kernels/pck/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/base/dems/ -lahtr
       - name: synce mro kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
@@ -98,6 +102,13 @@ jobs:
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
           wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/spk/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/ck/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/iak/ -lahtr
+          ls $CONDA/envs/isis_for_asp/data/mro/kernels/fk/ -lahtr
+      - name: show contents of data
+        run: ls -R $CONDA/envs/isis_for_asp/data/
       - name: pack isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
