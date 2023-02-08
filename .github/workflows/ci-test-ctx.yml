@@ -109,6 +109,7 @@ jobs:
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/iak/ -lahtr
           ls $CONDA/envs/isis_for_asp/data/mro/kernels/fk/ -lahtr
       - name: show contents of data
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: ls -R $CONDA/envs/isis_for_asp/data/
       - name: pack isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
