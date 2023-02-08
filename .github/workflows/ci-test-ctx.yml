@@ -2,7 +2,7 @@
 on: [pull_request]
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 8
+  ISIS_CACHE_NUMBER: 9
   ASAP_CACHE_NUMBER: 6
   ASP_CACHE_NUMBER: 3
 jobs:
@@ -63,7 +63,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/"
-          downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="*.db"  --exclude="*"
+          downloadIsisData base $CONDA/envs/isis_for_asp/data/base --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
           mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
@@ -77,7 +77,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
-          downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="*.db" --exclude="*"
+          downloadIsisData mro $CONDA/envs/isis_for_asp/data/mro --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
           mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
