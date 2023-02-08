@@ -49,6 +49,7 @@ jobs:
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: patch cspice so file
+        if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
           ls $CONDA/envs/isis_for_asp/lib/
           ln -s $CONDA/envs/isis_for_asp/lib/libcspice.so $CONDA/envs/isis_for_asp/lib/libcspice.so.66
