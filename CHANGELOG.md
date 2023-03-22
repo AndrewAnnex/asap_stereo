@@ -4,6 +4,32 @@ All notable changes to ASAP-Stereo will be documented here
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+
+## [0.3.0] - 2023-03-22
+Release with lots of changes due to ISIS and ASP developments.
+### Added
+- HiPROC workflow
+- use of ALE/CSM camera models for ISIS
+- compute footprints function to common tools
+- drg to cog command to common tools
+- lots of caches to github workflows for speed
+- better command logging
+- full ctx notebook test
+
+### Changed
+- all steps use numeric order in names (#28)
+- bumped moody version
+- assumed ISIS >= 7.1.0
+- assumed ASP >= 3.1.0
+- Now uses CSM camera models
+- simplifcations for pc_align 
+
+### Fixed
+- various issues in github CI workflows
+- various upgrades for ISIS >= 7.1.0
+- various upgrades for ASP >= 3.2.0
+- missing affine import 
+
 ## [0.2.1] - 2021-06-28
 ### Added
 - Georef module for making GCPs for georegistration and bundle adjustment
