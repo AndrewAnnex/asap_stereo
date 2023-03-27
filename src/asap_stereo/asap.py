@@ -1846,6 +1846,7 @@ class Georef(object):
         out_name = Path(image).stem + '_normalized.vrt'
         # get bands scaling iterable, multiply by 1.001 for a little lower range
         scales = itertools.chain(((f'-scale_{bandif["band"]}', float(bandif["minimum"])*1.001, float(bandif["maximum"])*1.001, 1, 255) for bandif in band_stats))
+        scales = [str(_).strip("'()\"") for _ in scales]
         # run gdal translate
         _ = sh.gdal_translate(image, out_name, '-of', 'vrt', '-ot', 'Byte', *scales, '-a_nodata', 0, _out=sys.stdout, _err=sys.stderr)
         return out_name
