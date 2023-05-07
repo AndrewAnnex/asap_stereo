@@ -55,6 +55,9 @@ import pyproj
 import papermill as pm
 import pvl
 
+# get the help for paralle bundle adjust which changed between 3.x versions
+pba_help = sh.parallel_bundle_adjust('--help')
+
 def custom_log(ran, call_args, pid=None):
     return ran
 
@@ -366,8 +369,11 @@ class CommonSteps(object):
         self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        pk = '--threads'
+        if hasattr(pba_help, '--threads-singleprocess'):
+            pk = '--threads-singleprocess'
         self.ba = Command('parallel_bundle_adjust').bake(
-                '--threads-singleprocess', _threads_singleprocess,
+                pk, _threads_singleprocess,
                 _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log
             )
 
