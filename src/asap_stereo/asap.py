@@ -433,7 +433,7 @@ class CommonSteps(object):
                 out = str(cam_res.stdout)
             elif isinstance(cam_res, str):
                 out = cam_res
-            out_dict = isis3_to_dict(out.replace("'",""))
+            out_dict = isis3_to_dict(out.replace("\\n","\n").replace("\'",""))
         return out_dict
 
     @staticmethod
