@@ -53,6 +53,7 @@ from sh import Command
 import moody
 import pyproj
 import papermill as pm
+import pvl
 
 def custom_log(ran, call_args, pid=None):
     return ran
@@ -162,18 +163,12 @@ def kwargs_to_args(kwargs: Dict)-> List:
 
 def isis3_to_dict(instr: str)-> Dict:
     """
-    Given a stdout string from ISIS3, return a Dict version
+    Given a stdout string from ISIS3, return a PVL version
     
     :param instr:
     :return: dictionary of isis output
     """
-    groups = re.findall(r'Group([\S\s]*?)End_Group', instr)
-    out = {}
-    for group in groups:
-        lines = [x.replace('=', '').split() for x in group.split('\\n')]
-        group_name = lines[0][0]
-        out[group_name] = {t[0]: t[1] for t in lines[1:-1]}
-    return out
+    return pvl.loads(instr)
 
 
 def kwarg_parse(kwargs: Dict, key: str)-> str:
@@ -427,7 +422,11 @@ class CommonSteps(object):
             # of the file name parameter, isis3 inserts additional new lines to wrap
             # words in the terminal that will mess up isis3 to dict without management
             camrange = Command('camrange').bake(_log_msg=custom_log)
-            out = str(camrange(f'from={str(Path(img).name)}').stdout)
+            cam_res = camrange(f'from={str(Path(img).name)}')
+            if hasattr(cam_res, 'stdout'):
+                out = str(cam_res.stdout)
+            elif isinstance(cam_res, str):
+                out = cam_res
             out_dict = isis3_to_dict(out)
         return out_dict
 
