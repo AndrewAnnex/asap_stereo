@@ -151,6 +151,7 @@ jobs:
           channels: conda-forge
           environment-file: asap.yml
           python-version: '3.11'
+          auto-update-conda: true
           use-only-tar-bz2: true
       - name: add ASP and ISIS to PATH of asap conda
         if: steps.cache-asap.outputs.cache-hit != 'true'
