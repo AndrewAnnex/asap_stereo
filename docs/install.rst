@@ -43,7 +43,7 @@ The ASPROOT directory similarly points to the unzipped archive of the Ames Stere
      - pip
      - pip:
        - moody>=0.2.0
-       - asap_stereo=0.3.0
+       - asap_stereo=0.3.1
    variables:
      ISISROOT: /path/to/your/isis/conda/env/
      ISISDATA: /path/to/your/isis/data/dir/

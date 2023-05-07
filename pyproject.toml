@@ -17,7 +17,7 @@ dependencies = [
     'requests',
     'fire',
     'moody>=0.2.0',
-    'sh',
+    'sh>=2.0.0',
     'papermill',
     'rasterio',
     'pyproj'

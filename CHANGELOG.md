@@ -4,6 +4,16 @@ All notable changes to ASAP-Stereo will be documented here
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## [0.3.1] - 2023-05-07
+Bugfix release for dependency updates
+
+## Changed
+- sh version now required to be newer than or equal to 2.0.0
+
+### Fixed
+- thread parameter for parallel_bundle_adjust, now checks the help to use an available parameter name 
+- changes in sh py 2.0.0 that affected camrange parsing, now using pvl only
+
 
 ## [0.3.0] - 2023-03-22
 Release with lots of changes due to ISIS and ASP developments.

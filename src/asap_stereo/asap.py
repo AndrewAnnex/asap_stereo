@@ -55,8 +55,7 @@ import pyproj
 import papermill as pm
 import pvl
 
-# get the help for paralle bundle adjust which changed between 3.x versions
-pba_help = sh.parallel_bundle_adjust('--help')
+
 
 def custom_log(ran, call_args, pid=None):
     return ran
@@ -164,15 +163,6 @@ def kwargs_to_args(kwargs: Dict)-> List:
             keys.append(key)
     return [x for x in itertools.chain.from_iterable(itertools.zip_longest(keys, kwargs.values())) if x is not None]
 
-def isis3_to_dict(instr: str)-> Dict:
-    """
-    Given a stdout string from ISIS3, return a PVL version
-    
-    :param instr:
-    :return: dictionary of isis output
-    """
-    return pvl.loads(instr)
-
 
 def kwarg_parse(kwargs: Dict, key: str)-> str:
     if kwargs is None:
@@ -266,7 +256,7 @@ class CommonSteps(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.2.0)
+          asap_stereo (0.3.1)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
           Cite: https://doi.org/10.5281/zenodo.4171570
@@ -369,6 +359,8 @@ class CommonSteps(object):
         self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        # get the help for paralle bundle adjust which changed between 3.x versions
+        pba_help = sh.parallel_bundle_adjust('--help')
         pk = '--threads'
         if hasattr(pba_help, '--threads-singleprocess'):
             pk = '--threads-singleprocess'
@@ -991,7 +983,7 @@ class CTX(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.2.0)
+          asap_stereo (0.3.1)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
           Cite: https://doi.org/10.5281/zenodo.4171570
@@ -1337,7 +1329,7 @@ class HiRISE(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.2.0)
+          asap_stereo (0.3.1)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
           Cite: https://doi.org/10.5281/zenodo.4171570
@@ -1773,7 +1765,7 @@ class Georef(object):
            / ___ |___/ / ___ |/ ____/
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
 
-          asap_stereo (0.2.0)
+          asap_stereo (0.3.1)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
           Cite: https://doi.org/10.5281/zenodo.4171570
@@ -2152,7 +2144,7 @@ class ASAP(object):
            / ___ |___/ / ___ |/ ____/                            
           /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂               
 
-          asap_stereo (0.2.0)
+          asap_stereo (0.3.1)
 
           Github: https://github.com/AndrewAnnex/asap_stereo
           Cite: https://doi.org/10.5281/zenodo.4171570
