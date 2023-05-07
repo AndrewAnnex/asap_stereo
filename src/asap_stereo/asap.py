@@ -509,7 +509,7 @@ class CommonSteps(object):
             out_dict = CommonSteps.get_cam_info(img)
             lon = circ_mean(float(out_dict['UniversalGroundRange']['MinimumLongitude']), float(out_dict['UniversalGroundRange']['MaximumLongitude']))
             lat = (float(out_dict['UniversalGroundRange']['MinimumLatitude']) + float(out_dict['UniversalGroundRange']['MaximumLatitude'])) / 2
-            proj4str = f"+proj=ortho +lon_0={lon} +lat_0={lat} +x_0=0 +y_0=0 +a={out_dict['Target']['RadiusA']} +b={out_dict['Target']['RadiusB']} +units=m +no_defs"
+            proj4str = f"+proj=ortho +lon_0={lon} +lat_0={lat} +x_0=0 +y_0=0 +a={float(out_dict['Target']['RadiusA'])} +b={float(out_dict['Target']['RadiusB'])} +units=m +no_defs"
         return str(proj4str).rstrip('\n\' ').lstrip('\'')
 
     @staticmethod
