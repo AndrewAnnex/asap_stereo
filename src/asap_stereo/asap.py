@@ -428,12 +428,10 @@ class CommonSteps(object):
             # of the file name parameter, isis3 inserts additional new lines to wrap
             # words in the terminal that will mess up isis3 to dict without management
             camrange = Command('camrange').bake(_log_msg=custom_log)
-            cam_res = camrange(f'from={str(Path(img).name)}')
-            if hasattr(cam_res, 'stdout'):
-                out = str(cam_res.stdout)
-            elif isinstance(cam_res, str):
-                out = cam_res
-            out_dict = isis3_to_dict(out.replace("\\n","\n").replace("\'",""))
+            from_path = str(Path(img).name)
+            to_path = f'{str(Path(img).stem}_camrange'
+            cam_res = camrange(f'from={from_path} to={to_path}')
+            out_dict = pvl.load(f'{to_path}.txt')
         return out_dict
 
     @staticmethod
