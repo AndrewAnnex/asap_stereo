@@ -429,7 +429,7 @@ class CommonSteps(object):
             # words in the terminal that will mess up isis3 to dict without management
             camrange = Command('camrange').bake(_log_msg=custom_log)
             from_path = str(Path(img).name)
-            to_path = f'{str(Path(img).stem}_camrange'
+            to_path = f'{str(Path(img).stem)}_camrange'
             cam_res = camrange(f'from={from_path} to={to_path}')
             out_dict = pvl.load(f'{to_path}.txt')
         return out_dict
