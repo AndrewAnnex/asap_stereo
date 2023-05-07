@@ -372,7 +372,7 @@ class CommonSteps(object):
         self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ba = Command('parallel_bundle_adjust').bake(
-                '--threads', _threads_singleprocess,
+                '--threads-singleprocess', _threads_singleprocess,
                 _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log
             )
 
