@@ -1,4 +1,4 @@
-ASAP-Stereo (Ames Stereo Automated Pipeline)
+.ASAP-Stereo (Ames Stereo Automated Pipeline)
 =============================================
 
 .. image:: https://readthedocs.org/projects/asap-stereo/badge/?version=main

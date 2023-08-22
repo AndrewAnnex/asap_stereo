@@ -8,7 +8,7 @@ env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 34
   ASAP_CACHE_NUMBER: 6
-  ASP_CACHE_NUMBER: 3
+  ASP_CACHE_NUMBER: 4
 jobs:
   cache_asp:
     name: Cache ASP distribution
@@ -26,7 +26,7 @@ jobs:
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Download ASP tarball to tmp
         run: |
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.2.0/StereoPipeline-3.2.0-2023-01-01-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.3.0/StereoPipeline-3.3.0-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           ls /tmp/sp.tar.bz2
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -127,7 +127,6 @@ jobs:
           tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
           pwd
           ls -lahtr
-
   cache_asap_env:
     name: Cache ASAP conda environment
     runs-on: ubuntu-latest
@@ -173,8 +172,6 @@ jobs:
           tar -cvzf asap-env.tar.gz $CONDA/envs/asap
           pwd
           ls -lahtr
-  
-
   test_basic:
     name: Basic ASAP Tests
     needs: [ cache_asp, cache_isis_env, cache_asap_env ]
@@ -256,8 +253,6 @@ jobs:
         run: |
           conda activate asap
           python -m readme_renderer README.rst
-
-
   test_runner:
     name: ASAP test CTX pipeline
     needs: [cache_asp, cache_isis_env, cache_asap_env]
@@ -451,7 +446,6 @@ jobs:
             hillshade_f.png
             vis_f.png
             ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/*.json
-
   test_notebook:
     name: ASAP test Notebook CTX pipeline
     needs: [cache_asp, cache_isis_env, cache_asap_env]
