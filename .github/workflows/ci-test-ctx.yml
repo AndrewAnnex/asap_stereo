@@ -7,7 +7,7 @@ on:
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 34
-  ASAP_CACHE_NUMBER: 6
+  ASAP_CACHE_NUMBER: 7
   ASP_CACHE_NUMBER: 4
 jobs:
   cache_asp:
