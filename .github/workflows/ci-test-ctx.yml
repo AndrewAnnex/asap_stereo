@@ -336,6 +336,7 @@ jobs:
         run: |
           conda activate asap
           ls ./* -lahtr
+          head -n 20 ./*.IMG
           env | grep ISIS
           pwd
       - name: asap step 2
