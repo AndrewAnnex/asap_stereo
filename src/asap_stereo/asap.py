@@ -342,7 +342,7 @@ class CommonSteps(object):
         "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
     }
 
-    def __init__(self):
+    def __init__(self, propogate_errors: bool = True):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.point2dem   = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
@@ -368,7 +368,10 @@ class CommonSteps(object):
                 pk, _threads_singleprocess,
                 _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log
             )
-
+        if propogate_errors:
+            self.parallel_stereo = self.parallel_stereo.bake('--propagate-errors')
+            self.point2dem = self.point2dem.bake('--propagate-errors')
+            
     @staticmethod
     def gen_csm(*cubs, meta_kernal=None, max_workers=_threads_singleprocess):
         """
