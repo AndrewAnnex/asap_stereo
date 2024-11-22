@@ -226,6 +226,8 @@ jobs:
         run: |
           echo "micromamba activate asap" >> ~/.bashrc
           echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
           echo $PATH
@@ -311,6 +313,8 @@ jobs:
         run: |
           echo "micromamba activate asap" >> ~/.bashrc
           echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
           echo $PATH
@@ -493,6 +497,8 @@ jobs:
         run: |
           echo "micromamba activate asap" >> ~/.bashrc
           echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
           echo $PATH
