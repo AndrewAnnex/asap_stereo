@@ -46,11 +46,13 @@ jobs:
           micromamba-version: '2.0.2-2'
           environment-file: isis.yml
           init-shell: bash
-          channel-priority: flexible
           condarc: |
             channels:
               - usgs-astrogeology
               - conda-forge
+      - name: add ISIS to PATH
+        run: |
+          echo "micromamba activate isis_for_asp" >> ~/.bashrc
       - name: micromamba info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
@@ -81,19 +83,13 @@ jobs:
           ls /home/runner/micromamba/envs/isis_for_asp/data/base/dems/ -lahtr
       - name: synce mro kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: |
-          micromamba activate isis_for_asp
-          downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
       - name: synce mro kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: |
-          micromamba activate isis_for_asp
-          downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
       - name: synce mro kernels 3
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: |
-          micromamba activate isis_for_asp
-          downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include="*pck/*" 
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include="*pck/*" 
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
