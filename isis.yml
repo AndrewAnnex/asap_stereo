@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - isis==8.3.0
+  - usgs-astrogeology/label/LTS::isis==8.0.3
   - cspice
   - rclone
+  - python=3.9
