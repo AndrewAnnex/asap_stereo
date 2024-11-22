@@ -8,3 +8,4 @@ dependencies:
   - cspice
   - rclone
   - python=3.9
+  - usgs-astrogeology::kakadu
