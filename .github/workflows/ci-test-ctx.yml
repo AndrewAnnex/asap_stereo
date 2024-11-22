@@ -7,8 +7,8 @@ on:
 env:
   # Increase this value to reset cache
   ISIS_CACHE_NUMBER: 35
-  ASAP_CACHE_NUMBER: 8
-  ASP_CACHE_NUMBER: 5
+  ASAP_CACHE_NUMBER: 9
+  ASP_CACHE_NUMBER: 6
 jobs:
   cache_asp:
     name: Cache ASP distribution
@@ -26,7 +26,7 @@ jobs:
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Download ASP tarball to tmp
         run: |
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.3.0/StereoPipeline-3.3.0-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.4.0/StereoPipeline-3.4.0-2024-06-19-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           ls /tmp/sp.tar.bz2
   cache_isis_env:
     name: Cache ISIS conda environment
@@ -47,6 +47,10 @@ jobs:
           environment-file: isis.yml
           init-shell: bash
           channel-priority: flexible
+          condarc: |
+            channels:
+              - usgs-astrogeology
+              - conda-forge
       - name: micromamba info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
