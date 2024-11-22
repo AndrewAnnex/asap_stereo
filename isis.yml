@@ -1,6 +1,6 @@
 name: isis_for_asap
 channels:
-  - usgs-astrogeology/label/LTS
+  - usgs-astrogeology
   - conda-forge
   - defaults
 dependencies:
