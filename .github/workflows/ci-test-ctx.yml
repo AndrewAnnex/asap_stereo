@@ -6,9 +6,9 @@ on:
       - main
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 34
-  ASAP_CACHE_NUMBER: 7
-  ASP_CACHE_NUMBER: 4
+  ISIS_CACHE_NUMBER: 35
+  ASAP_CACHE_NUMBER: 8
+  ASP_CACHE_NUMBER: 5
 jobs:
   cache_asp:
     name: Cache ASP distribution
@@ -17,10 +17,10 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ASP tarball
         id: cache-asap
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -35,10 +35,10 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ISIS conda env
         id: cache-isis
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -134,16 +134,16 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ASAP conda env
         id: cache-asap
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: asap
           miniforge-variant: Mambaforge
@@ -180,13 +180,13 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Mambaforge
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -197,7 +197,7 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -207,7 +207,7 @@ jobs:
           tar -xvf isis-env.tar.gz -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -261,13 +261,13 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Mambaforge
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -278,7 +278,7 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -288,7 +288,7 @@ jobs:
           tar -xzf "isis-env.tar.gz" -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -381,7 +381,7 @@ jobs:
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM-hillshade.tif ./hillshade_1.png
       - name: Archive First Round Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: first-round
           path: |
@@ -408,7 +408,7 @@ jobs:
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_50_0-DEM-hillshade.tif ./hillshade_2.png
       - name: Archive 2nd Round Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: second-round
           path: |
@@ -438,7 +438,7 @@ jobs:
           ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr
       - name: Archive Final Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: final_ctx
@@ -455,13 +455,13 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v2.2.0
         with:
           miniforge-variant: Mambaforge
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -472,7 +472,7 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
@@ -482,7 +482,7 @@ jobs:
           tar -xvf isis-env.tar.gz -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -538,7 +538,7 @@ jobs:
           ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr  
       - name: Archive Final Notebook from Papermill
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: final_notebook
