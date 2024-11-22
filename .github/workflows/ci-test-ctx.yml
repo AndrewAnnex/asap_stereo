@@ -6,9 +6,9 @@ on:
       - main
 env:
   # Increase this value to reset cache
-  ISIS_CACHE_NUMBER: 34
-  ASAP_CACHE_NUMBER: 7
-  ASP_CACHE_NUMBER: 4
+  ISIS_CACHE_NUMBER: 35
+  ASAP_CACHE_NUMBER: 9
+  ASP_CACHE_NUMBER: 6
 jobs:
   cache_asp:
     name: Cache ASP distribution
@@ -17,114 +17,119 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ASP tarball
         id: cache-asap
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Download ASP tarball to tmp
         run: |
-          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.3.0/StereoPipeline-3.3.0-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
+          wget -c https://github.com/NeoGeographyToolkit/StereoPipeline/releases/download/3.4.0/StereoPipeline-3.4.0-2024-06-19-x86_64-Linux.tar.bz2 -O /tmp/sp.tar.bz2 --progress=dot:giga
           ls /tmp/sp.tar.bz2
   cache_isis_env:
     name: Cache ISIS conda environment
     runs-on: "ubuntu-latest"
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ISIS conda env
         id: cache-isis
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: setup isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-variant: Mambaforge
-          channels: usgs-astrogeology,conda-forge,defaults
-          activate-environment: isis_for_asp
+          micromamba-version: '2.0.2-2'
           environment-file: isis.yml
-          auto-update-conda: true
-          use-only-tar-bz2: true
-      - name: patch cspice so file
-        if: steps.cache-isis.outputs.cache-hit != 'true'
+          environment-name: isis_for_asp
+          generate-run-shell: true
+          init-shell: bash
+          condarc: |
+            channels:
+              - usgs-astrogeology
+              - conda-forge
+      - name: add ISIS to PATH
         run: |
-          ls $CONDA/envs/isis_for_asp/lib/
-          ln -s $CONDA/envs/isis_for_asp/lib/libcspice.so $CONDA/envs/isis_for_asp/lib/libcspice.so.66
-      - name: conda info for isis
+          echo "micromamba activate isis_for_asp" >> ~/.bashrc
+      - name: micromamba info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
           echo $PATH
-          conda env config vars list
-          conda info
-          conda list
-      - name: synce base kernels 1
+          micromamba info
+          micromamba list
+      - name: sync base kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" 
-      - name: synce base kernels 2
+        shell: micromamba-shell {0}
+        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --include "*/" "kernels.*.db" "*.db" 
+      - name: sync base kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData base $CONDA/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/" 
+        shell: micromamba-shell {0}
+        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --exclude "kernels/" "dems/" "testData/"
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
-          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/spk/
-          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/lsk/
-          mkdir -p $CONDA/envs/isis_for_asp/data/base/kernels/pck/
-          mkdir -p $CONDA/envs/isis_for_asp/data/base/dems/
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/de430.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/de430.bsp
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mar097.bsp -O $CONDA/envs/isis_for_asp/data/base/kernels/spk/mar097.bsp
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O $CONDA/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O $CONDA/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/spk/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/pck/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/dems/ -lahtr
-      - name: synce mro kernels 1
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/spk/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/pck/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/dems/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/de430.bsp -O /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/spk/de430.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mar097.bsp -O /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/spk/mar097.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/naif0012.tls -O /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/naif0012.tls
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/pck/pck00009.tpc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/molaMarsPlanetaryRadius0005_cropped.cub -O /home/runner/micromamba/envs/isis_for_asp/data/base/dems/molaMarsPlanetaryRadius0005.cub
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/spk/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/pck/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/dems/ -lahtr
+      - name: sync mro kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
+        shell: micromamba-shell {0}
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude "spk/" "sclk/" "ck/" "fk/" "iak/" "testData"
       - name: synce mro kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
+        shell: micromamba-shell {0}
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include '*/' "kernels.*.db" "*.db" 
       - name: synce mro kernels 3
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: downloadIsisData mro $CONDA/envs/isis_for_asp/data/ --include="*pck/*" 
+        shell: micromamba-shell {0}
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include "*pck/*" 
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/spk/
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/ck/
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/pck/
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/iak/
-          mkdir -p $CONDA/envs/isis_for_asp/data/mro/kernels/fk/
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O $CONDA/envs/isis_for_asp/data/mro/kernels/fk/mro_v15.tf
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O $CONDA/envs/isis_for_asp/data/mro/kernels/iak/mroctxAddendum005.ti
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O $CONDA/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O $CONDA/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
-          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O $CONDA/envs/isis_for_asp/data/mro/kernels/pck/pck00009.tpc
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/spk/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/sclk/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/ck/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/pck/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/iak/ -lahtr
-          ls $CONDA/envs/isis_for_asp/data/mro/kernels/fk/ -lahtr
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/spk/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/sclk/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/ck/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/pck/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/iak/
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/fk/
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_v15.tf -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/fk/mro_v15.tf
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/MRO_SCLKSCET.00090.65536.tsc -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/sclk/MRO_SCLKSCET.00090.65536.tsc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mroctxAddendum005.ti -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/iak/mroctxAddendum005.ti
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_061219_061225_subset.bc -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_061219_061225.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_sc_psp_081028_081103_subset.bc -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/ck/mro_sc_psp_081028_081103.bc
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp1_ssd_mro110c_subset.bsp -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/spk/mro_psp1_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/mro_psp9_ssd_mro110c_subset.bsp -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/spk/mro_psp9_ssd_mro110c.bsp
+          wget https://github.com/AndrewAnnex/asap_stereo_test_data/raw/master/pck00009.tpc -O /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/pck/pck00009.tpc
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/spk/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/sclk/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/ck/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/pck/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/iak/ -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/fk/ -lahtr
       - name: show contents of data
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        run: ls -R $CONDA/envs/isis_for_asp/data/
+        run: ls -R /home/runner/micromamba/envs/isis_for_asp/data/
       - name: pack isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
         run: |
-          tar -czf isis-env.tar.gz $CONDA/envs/isis_for_asp
+          tar -czf isis-env.tar.gz /home/runner/micromamba/envs/isis_for_asp
           pwd
           ls -lahtr
   cache_asap_env:
@@ -132,61 +137,60 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -leo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache ASAP conda env
         id: cache-asap
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: setup asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: mamba-org/setup-micromamba@v1
         with:
-          activate-environment: asap
-          miniforge-variant: Mambaforge
-          channels: conda-forge
+          micromamba-version: '2.0.2-2'
           environment-file: asap.yml
-          python-version: '3.11'
-          auto-update-conda: true
-          use-only-tar-bz2: false
-      - name: add ASP and ISIS to PATH of asap conda
-        if: steps.cache-asap.outputs.cache-hit != 'true'
+          environment-name: asap
+          init-shell: bash
+      - name: add ASP and ISIS to PATH
         run: |
-          conda env config vars set ISISROOT=$CONDA/envs/isis_for_asp
-          conda env config vars set ISISDATA=$CONDA/envs/isis_for_asp/data
-          conda env config vars set ISISTESTDATA=$CONDA/envs/isis_for_asp/testdata
-          conda env config vars set PATH=$PATH:/tmp/sp/bin:$CONDA/envs/isis_for_asp/bin
-      - name: conda info
+          echo "micromamba activate asap" >> ~/.bashrc
+          echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+      - name: micromamba info
         if: steps.cache-asap.outputs.cache-hit != 'true'
         run: |
           echo $PATH
-          conda env config vars list
-          conda info
-          conda list
+          micromamba info
+          micromamba list
       - name: pack asap conda env
         if: steps.cache-asap.outputs.cache-hit != 'true'
         run: |
-          tar -cvzf asap-env.tar.gz $CONDA/envs/asap
+          tar -cvzf asap-env.tar.gz /home/runner/micromamba/envs/asap
           pwd
           ls -lahtr
   test_basic:
     name: Basic ASAP Tests
     needs: [ cache_asp, cache_isis_env, cache_asap_env ]
     runs-on: "ubuntu-latest"
+    env:
+      ISISROOT: /home/runner/micromamba/envs/isis_for_asp
+      ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
+      ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -leo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
+      - uses: actions/checkout@v4
+      - name: Setup default micromamba
+        uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-variant: Mambaforge
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -197,77 +201,83 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: Unpack ISIS Conda environment
         run: |
-          mkdir -p $CONDA/envs/isis_for_asp
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp
           tar -xvf isis-env.tar.gz -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Unpack ASAP Conda environment
         run: |
-          mkdir -p $CONDA/envs/asap
+          mkdir -p /home/runner/micromamba/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
       - name: show contents of data
-        run: ls -R $CONDA/envs/isis_for_asp/data/
+        run: ls -R /home/runner/micromamba/envs/isis_for_asp/data/
+      - name: Set PATH and auto activation
+        run: |
+          echo "micromamba activate asap" >> ~/.bashrc
+          echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
+          echo $PATH
           pwd
-          echo $CONDA
           ls -lahtr
-          ls $CONDA/
-          ls $CONDA/envs/isis_for_asp -lahtr
-          ls $CONDA/envs/isis_for_asp/bin -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
+          ls /home/runner/micromamba/envs/
+          ls /home/runner/micromamba/envs/isis_for_asp -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/bin -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
-          conda activate asap
           pip install -e .
-      - name: Conda info for asap
+      - name: micromamba info for asap
         run: |
-          conda activate asap
           echo $PATH
-          conda env config vars list
-          conda info
-          conda list
+          micromamba info
+          micromamba list
       - name: Check isis shared libraries
         run: |
-          conda activate asap
           ldd `which qview`
       - name: Test for asap
         run: |
-          conda activate asap
           asap
           asap ctx
           asap hirise
           asap common
       - name: Test readme rendering
         run: |
-          conda activate asap
           python -m readme_renderer README.rst
   test_runner:
     name: ASAP test CTX pipeline
     needs: [cache_asp, cache_isis_env, cache_asap_env]
     runs-on: "ubuntu-latest"
+    env:
+      ISISROOT: /home/runner/micromamba/envs/isis_for_asp
+      ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
+      ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -leo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-variant: Mambaforge
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -278,63 +288,61 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: Unpack ISIS Conda environment
         run: |
-          mkdir -p $CONDA/envs/isis_for_asp
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp
           tar -xzf "isis-env.tar.gz" -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Unpack ASAP Conda environment
         run: |
-          mkdir -p $CONDA/envs/asap
+          mkdir -p /home/runner/micromamba/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
       - name: show contents of data
-        run: ls -R $CONDA/envs/isis_for_asp/data/
+        run: ls -R /home/runner/micromamba/envs/isis_for_asp/data/
+      - name: Set PATH and auto activation
+        run: |
+          echo "micromamba activate asap" >> ~/.bashrc
+          echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
+          echo $PATH
           pwd
-          echo $CONDA
           ls -lahtr
-          ls $CONDA/
-          ls $CONDA/envs/isis_for_asp -lahtr
-          ls $CONDA/envs/isis_for_asp/bin -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
+          ls /home/runner/micromamba/envs/
+          ls /home/runner/micromamba/envs/isis_for_asp -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/bin -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
-          conda activate asap
           pip install -e .
-      - name: conda info for asap
+      - name: micromamba info for asap
         run: |
-          conda activate asap
-          echo $PATH
-          conda env config vars list
-          conda info
-          conda list
+          micromamba info
+          micromamba list
       - name: check isis shared libraries
         run: |
-          conda activate asap
           ldd `which qview`
       - name: test for asap
         run: |
-          conda activate asap
           asap
       - name: asap step 1
         timeout-minutes: 5
         run: |
-          conda activate asap
           asap ctx step-1 B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W
       - name: look before you leap
         run: |
-          conda activate asap
           ls ./* -lahtr
           head -n 20 ./*.IMG
           env | grep ISIS
@@ -342,46 +350,38 @@ jobs:
       - name: asap step 2
         timeout-minutes: 1
         run: |
-          conda activate asap
           asap ctx step-2
       - name: asap stereo quality report 
         run: |
-          conda activate asap
           ls
           asap common get_stereo_quality_report ./B03_010644_1889_XN_08N001W.lev1eo.cub ./P02_001902_1889_XI_08N001W.lev1eo.cub
           ls
       - name: asap 4 & rescale images for test
         run: |
-          conda activate asap
           asap ctx step-3
       - name: asap step 4
         run: |
-          conda activate asap
           asap ctx step-4
       - name: asap step 5 (and get stereo conf files)
         run: |
-          conda activate asap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.nonmap
           wget https://raw.githubusercontent.com/NeoGeographyToolkit/StereoPipeline/master/examples/CTX/stereo.map
           asap ctx step-5 ./stereo.nonmap
       - name: asap step 6
         run: |
-          conda activate asap 
           asap ctx step-6 ./stereo.nonmap
       - name: asap step 7-8
         run: |
-          conda activate asap
           asap ctx step-7 --mpp 100 --dem_hole_fill_len 50
           asap ctx step-8
       - name: asap 1st round previews
         run: |
-          conda activate asap
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_1.png
           ls -lahtr $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM-hillshade.tif ./hillshade_1.png
       - name: Archive First Round Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: first-round
           path: |
@@ -389,26 +389,22 @@ jobs:
             hillshade_1.png
       - name: asap step 9
         run: |
-          conda activate asap
           asap ctx step-9 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif --mpp 25
       - name: asap step 10-11
         run: |
-          conda activate asap
           asap ctx step-10 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
           asap ctx step-11 --refdem $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_100_0-DEM.tif ./stereo.map
           asap ctx step-7 --mpp 50 --run results_map_ba
           asap ctx step-8 --run results_map_ba
       - name: asap step 12
         run: |
-          conda activate asap
           asap ctx step-12 None
       - name: asap 2nd round previews
         run: |
-          conda activate asap
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba-GoodPixelMap.tif ./good_pixel_map_2.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_ba_50_0-DEM-hillshade.tif ./hillshade_2.png
       - name: Archive 2nd Round Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: second-round
           path: |
@@ -419,7 +415,6 @@ jobs:
       - name: asap step 13-17
         timeout-minutes: 2
         run: |
-          conda activate asap
           asap ctx step-13 --highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000
           asap ctx step-14 --mpp 50
           asap ctx step-15
@@ -427,7 +422,6 @@ jobs:
           asap ctx step_14 --mpp 25 --just_ortho True
       - name: asap final previews
         run: |
-          conda activate asap
           gdal_translate -ot Byte -scale 0 1 -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_25_0-DRG.tif ./vis_f.png
           gdal_translate -of PNG $(pwd)/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/results_map_ba/dem_align/B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W_map_ba_align_50_0-DEM-hillshade.tif ./hillshade_f.png
       - name: LS directories to see what was made
@@ -438,7 +432,7 @@ jobs:
           ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr
       - name: Archive Final Previews
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: final_ctx
@@ -451,17 +445,23 @@ jobs:
     name: ASAP test Notebook CTX pipeline
     needs: [cache_asp, cache_isis_env, cache_asap_env]
     runs-on: "ubuntu-latest"
+    env:
+      ISISROOT: /home/runner/micromamba/envs/isis_for_asp
+      ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
+      ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -leo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-variant: Mambaforge
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "/tmp/sp.tar.bz2"
           key: asp-env-${{ runner.os }}-${{ env.ASP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
@@ -472,54 +472,55 @@ jobs:
           rm /tmp/sp.tar.bz2
           ls /tmp/sp
       - name: Get ISIS Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "isis-env.tar.gz"
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: Unpack ISIS Conda environment
         run: |
-          mkdir -p $CONDA/envs/isis_for_asp
+          mkdir -p /home/runner/micromamba/envs/isis_for_asp
           tar -xvf isis-env.tar.gz -C /
           rm isis-env.tar.gz
       - name: Get ASAP Conda environment from cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: "asap-env.tar.gz"
           key: asap-env-${{ runner.os }}-${{ env.ASAP_CACHE_NUMBER }}-${{ hashFiles('asap.yml') }}
       - name: Unpack ASAP Conda environment
         run: |
-          mkdir -p $CONDA/envs/asap
+          mkdir -p /home/runner/micromamba/envs/asap
           tar -xvf asap-env.tar.gz -C /
           rm asap-env.tar.gz
       - name: show contents of data
-        run: ls -R $CONDA/envs/isis_for_asp/data/
+        run: ls -R /home/runner/micromamba/envs/isis_for_asp/data/
+      - name: add ASP and ISIS to PATH
+        run: |
+          echo "micromamba activate asap" >> ~/.bashrc
+          echo "export PATH=$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> ~/.bashrc
+          micromamba activate asap
+          echo "$PATH:/tmp/sp/bin:/home/runner/micromamba/envs/isis_for_asp/bin" >> $GITHUB_PATH
       - name: Check contents of isis env
         run: |
+          echo $PATH
           pwd
-          echo $CONDA
           ls -lahtr
-          ls $CONDA/
-          ls $CONDA/envs/isis_for_asp -lahtr
-          ls $CONDA/envs/isis_for_asp/bin -lahtr
-          ls $CONDA/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
+          ls /home/runner/micromamba/envs/
+          ls /home/runner/micromamba/envs/isis_for_asp -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/bin -lahtr
+          ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
       - name: Install asap
         run: |
-          conda activate asap
           pip install -e .
-      - name: Conda info for asap
+      - name: micromamba info for asap
         run: |
-          conda activate asap
           echo $PATH
-          conda env config vars list
-          conda info
-          conda list
+          micromamba info
+          micromamba list
       - name: Check isis shared libraries
         run: |
-          conda activate asap
           ldd `which qview`
       - name: Test for asap
         run: |
-          conda activate asap
           asap
       - name: Download stereo parameter files
         run:  |
@@ -528,7 +529,6 @@ jobs:
       - name: Asap notebook run
         timeout-minutes: 30
         run: |
-          conda activate asap
           asap ctx notebook_pipeline_make_dem B03_010644_1889_XN_08N001W P02_001902_1889_XI_08N001W ./stereo.nonmap --config2 ./stereo.map --img_gsd 25 --dem_gsd 50 --step_kwargs '{"step_13": "--highest_accuracy False --max-num-reference-points 100000 --max-num-source-points 10000"}'
       - name: LS directories to see what was made
         continue-on-error: true
@@ -538,7 +538,7 @@ jobs:
           ls ./B03_010644_1889_XN_08N001W_P02_001902_1889_XI_08N001W/* -lahtr
           ls ./*/*/* -lahtr  
       - name: Archive Final Notebook from Papermill
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: final_notebook
