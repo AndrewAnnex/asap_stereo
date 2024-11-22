@@ -68,9 +68,11 @@ jobs:
         run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" 
       - name: synce base kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/" 
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
           mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/spk/
           mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/
@@ -87,15 +89,19 @@ jobs:
           ls /home/runner/micromamba/envs/isis_for_asp/data/base/dems/ -lahtr
       - name: synce mro kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
       - name: synce mro kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
       - name: synce mro kernels 3
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include="*pck/*" 
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
           mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/spk/
           mkdir -p /home/runner/micromamba/envs/isis_for_asp/data/mro/kernels/sclk/
@@ -129,6 +135,9 @@ jobs:
   cache_asap_env:
     name: Cache ASAP conda environment
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - name: Cache ASAP conda env
@@ -143,6 +152,7 @@ jobs:
         with:
           micromamba-version: '2.0.2-2'
           environment-file: asap.yml
+          environment-name: asap
           init-shell: bash
       - name: add ASP and ISIS to PATH
         run: |
@@ -168,10 +178,17 @@ jobs:
       ISISROOT: /home/runner/micromamba/envs/isis_for_asp
       ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
       ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - name: Setup default micromamba
         uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -246,12 +263,17 @@ jobs:
       ISISROOT: /home/runner/micromamba/envs/isis_for_asp
       ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
       ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-version: latest
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -423,12 +445,17 @@ jobs:
       ISISROOT: /home/runner/micromamba/envs/isis_for_asp
       ISISDATA: /home/runner/micromamba/envs/isis_for_asp/data
       ISISTESTDATA: /home/runner/micromamba/envs/isis_for_asp/testdata
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: mamba-org/setup-micromamba@v1
         with:
-          miniforge-version: latest
+          micromamba-version: '2.0.2-2'
+          environment-name: asap
+          init-shell: bash
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
