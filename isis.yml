@@ -9,3 +9,5 @@ dependencies:
   - rclone
   - python=3.9
   - usgs-astrogeology::kakadu
+  - conda-forge::xorg-libice 
+  - conda-forge::xorg-libx11

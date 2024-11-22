@@ -47,7 +47,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
-          channels: usgs-astrogeology/label/LTS,conda-forge,defaults
+          channels: usgs-astrogeology,conda-forge,defaults
           activate-environment: isis_for_asp
           environment-file: isis.yml
           channel-priority: flexible
