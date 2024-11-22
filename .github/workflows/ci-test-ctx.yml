@@ -62,14 +62,14 @@ jobs:
           echo $PATH
           micromamba info
           micromamba list
-      - name: synce base kernels 1
+      - name: sync base kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
-        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" 
-      - name: synce base kernels 2
+        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --include "*/" "kernels.*.db" "*.db" 
+      - name: sync base kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
-        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='kernels/' --exclude="dems/" --exclude="testData/" 
+        run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --exclude "kernels/" "dems/" "testData/"
       - name: rsync base kernels
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
@@ -87,18 +87,18 @@ jobs:
           ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/lsk/ -lahtr
           ls /home/runner/micromamba/envs/isis_for_asp/data/base/kernels/pck/ -lahtr
           ls /home/runner/micromamba/envs/isis_for_asp/data/base/dems/ -lahtr
-      - name: synce mro kernels 1
+      - name: sync mro kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
-        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude='spk/' --exclude="sclk/" --exclude="ck/" --exclude="fk/" --exclude="iak/" --exclude="testData"
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --exclude "spk/" "sclk/" "ck/" "fk/" "iak/" "testData"
       - name: synce mro kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
-        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" --include="*.db" --exclude="*"
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include '*/' "kernels.*.db" "*.db" 
       - name: synce mro kernels 3
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
-        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include="*pck/*" 
+        run: downloadIsisData mro /home/runner/micromamba/envs/isis_for_asp/data/ --include "*pck/*" 
       - name: rsync mro data
         if: steps.cache-isis.outputs.cache-hit != 'true'
         shell: micromamba-shell {0}
