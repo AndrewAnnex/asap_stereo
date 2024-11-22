@@ -45,6 +45,8 @@ jobs:
         with:
           micromamba-version: '2.0.2-2'
           environment-file: isis.yml
+          environment-name: isis_for_asp
+          generate-run-shell: true
           init-shell: bash
           condarc: |
             channels:
@@ -55,12 +57,14 @@ jobs:
           echo "micromamba activate isis_for_asp" >> ~/.bashrc
       - name: micromamba info for isis
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: |
           echo $PATH
           micromamba info
           micromamba list
       - name: synce base kernels 1
         if: steps.cache-isis.outputs.cache-hit != 'true'
+        shell: micromamba-shell {0}
         run: downloadIsisData base /home/runner/micromamba/envs/isis_for_asp/data/ --include='*/' --include="kernels.*.db" 
       - name: synce base kernels 2
         if: steps.cache-isis.outputs.cache-hit != 'true'
