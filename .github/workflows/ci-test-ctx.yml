@@ -46,6 +46,7 @@ jobs:
         if: steps.cache-isis.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           channels: usgs-astrogeology,conda-forge,defaults
           activate-environment: isis_for_asp
           environment-file: isis.yml
@@ -145,6 +146,7 @@ jobs:
         if: steps.cache-asap.outputs.cache-hit != 'true'
         uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           activate-environment: asap
           channels: conda-forge
           environment-file: asap.yml
@@ -182,6 +184,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -261,6 +265,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -453,6 +459,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
