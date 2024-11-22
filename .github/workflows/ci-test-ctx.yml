@@ -44,12 +44,12 @@ jobs:
           key: isis-env-${{ runner.os }}-${{ env.ISIS_CACHE_NUMBER }}-${{ hashFiles('isis.yml') }}
       - name: setup isis conda env
         if: steps.cache-isis.outputs.cache-hit != 'true'
-        uses: conda-incubator/setup-miniconda@v2.2.0
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
           channels: usgs-astrogeology,conda-forge,defaults
           activate-environment: isis_for_asp
           environment-file: isis.yml
+          channel-priority: flexible
           auto-update-conda: true
           use-only-tar-bz2: true
       - name: patch cspice so file
@@ -146,7 +146,6 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: asap
-          miniforge-variant: Mambaforge
           channels: conda-forge
           environment-file: asap.yml
           python-version: '3.11'
@@ -183,8 +182,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniforge-variant: Mambaforge
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -264,8 +261,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
         uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniforge-variant: Mambaforge
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
@@ -457,9 +452,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup default miniconda
-        uses: conda-incubator/setup-miniconda@v2.2.0
-        with:
-          miniforge-variant: Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
       - name: Get ASP from cache
         uses: actions/cache@v4
         with:
