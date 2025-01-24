@@ -1092,7 +1092,7 @@ class CTX(object):
             moody.ODE(self.https).ctx_edr(two)
 
     @rich_logger
-    def step_2(self, with_web=False):
+    def step_2(self, with_web=True):
         """
         ISIS3 CTX preprocessing, replaces ctxedr2lev1eo.sh
 
