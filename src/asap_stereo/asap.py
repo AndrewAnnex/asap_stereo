@@ -615,8 +615,8 @@ class CommonSteps(object):
         """
         true_gsd = self.get_image_gsd(path)
         if mpp < true_gsd * 3:
-            warnings.warn(f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd * 3})",
-                          category=RuntimeWarning)
+            message = f"True image GSD is possibly too big for provided mpp value of {mpp} (compare to 3xGSD={true_gsd * 3})"
+            warnings.warn(message, category=RuntimeWarning)
 
     @staticmethod
     def get_mpp_postfix(mpp: Union[int, float, str]) -> str:
@@ -753,6 +753,8 @@ class CommonSteps(object):
             kwargs.pop('with_pedr', None)
             kwargs.pop('with_hillshade_align', None)
             args = kwargs_to_args({**defaults, **clean_kwargs(kwargs)})
+            if str(refdem).endswith('.csv'):
+                args.extend(['--csv-format', '1:lat 2:lon 3:height_above_datum'])
             hq = ['--highest-accuracy'] if highest_accuracy else []
             return self.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
@@ -894,7 +896,7 @@ class CommonSteps(object):
             if src_dem.endswith('.csv'):
                 # geodiff stats in std out for CSV
                 res = str(res).splitlines()
-                res = {k.strip(): v.strip() for k, v in [l.split(':') for l in res]}
+                res = {k.strip(): v.strip() for k, v in [_ for _ in (l.split(':') for l in res) if len(_) == 2]}
             else:
                 # if both are dems I need to use gdalinfo for diff
                 stats = self.get_image_band_stats('./geodiff/o-diff.tif')
