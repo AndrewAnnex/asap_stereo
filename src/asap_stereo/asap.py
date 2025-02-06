@@ -52,6 +52,8 @@ import sh
 from sh import Command
 import moody
 import pyproj
+from pyproj.crs import ProjectedCRS
+from pyproj.crs.coordinate_operation import StereographicConversion
 import papermill as pm
 import pvl
 
@@ -339,25 +341,30 @@ class CommonSteps(object):
     projections = {
         "IAU_Mars": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=3396190 +b=3396190 +units=m +no_defs",
         "IAU_Moon": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=1737400 +b=1737400 +units=m +no_defs",
+        "IAU_Moon_NP": "+proj=stere +lat_0=90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs +type=crs",
+        "IAU_Moon_SP": "+proj=stere +lat_0=-90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs +type=crs",
         "IAU_Mercury": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=2439700 +b=2439700 +units=m +no_defs"
     }
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.point2dem   = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.pc_align    = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.dem_geoid   = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.geodiff     = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True, _log_msg=custom_log)
-        self.mroctx2isis = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.spiceinit   = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.spicefit    = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.cubreduce   = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.ctxcal      = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.ctxevenodd  = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.hillshade   = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.mapproject  = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.ipfind      = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.ipmatch     = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.point2dem     = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.pc_align      = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.dem_geoid     = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.geodiff       = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True, _log_msg=custom_log)
+        self.mroctx2isis   = Command('mroctx2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.spiceinit     = Command('spiceinit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.spicefit      = Command('spicefit').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.cubreduce     = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ctxcal        = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ctxevenodd    = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.lrocnac2isis  = Command('lronac2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.lronaccal     = Command('lronaccal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.lronacecho    = Command('lronacecho').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.hillshade     = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.mapproject    = Command('mapproject').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ipfind        = Command('ipfind').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.ipmatch       = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         # get the help for paralle bundle adjust which changed between 3.x versions
         pba_help = sh.parallel_bundle_adjust('--help')
@@ -676,7 +683,7 @@ class CommonSteps(object):
             print(str(self.cam_test(_right, _rightcam)))
 
     @rich_logger
-    def bundle_adjust(self, *vargs, postfix='_RED.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', **kwargs)-> sh.RunningCommand:
+    def bundle_adjust(self, *vargs, postfix='_RED.cub', bundle_adjust_prefix='adjust/ba', camera_postfix='.json', datum='D_MARS', **kwargs)-> sh.RunningCommand:
         """
         Bundle adjustment wrapper
 
@@ -693,7 +700,7 @@ class CommonSteps(object):
         self.generate_csm(postfix=postfix, camera_postfix=camera_postfix)
         # setup defaults
         defaults = {
-            '--datum': "D_MARS",
+            '--datum': datum,
             '--max-iterations': 100
         }
         left, right, both = self.parse_stereopairs()
@@ -757,13 +764,13 @@ class CommonSteps(object):
             return self.pc_align(*args, *hq, f'{both}_ba-PC.tif', refdem)
 
     @rich_logger
-    def point_to_dem(self, mpp, pc_suffix, just_ortho=False, just_dem=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', reference_spheroid='mars', **kwargs):
+    def point_to_dem(self, mpp, pc_suffix, just_ortho=False, just_dem=False, use_proj=None, postfix='.lev1eo.cub', run='results_ba', kind='map_ba_align', output_folder='dem', datum='D_MARS', **kwargs):
         left, right, both = self.parse_stereopairs()
         assert both is not None
         mpp_postfix = self.get_mpp_postfix(mpp)
         proj = self.get_srs_info(f'./{both}/{left}{postfix}', use_eqc=self.projections.get(use_proj, use_proj))
         defaults = {
-            '--reference-spheroid': reference_spheroid,
+            '--datum'             : datum,
             '--nodata'            : -32767,
             '--output-prefix'     : f'{both}_{kind}_{mpp_postfix}',
             '--dem-spacing'       : mpp,
@@ -998,30 +1005,31 @@ class CTX(object):
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
         self.proj = self.cs.projections.get(proj, proj)
+        self.first_pass_mpp: int = 100
 
     def get_first_pass_refdem(self, run='results_ba')-> str:
         left, right, both = self.cs.parse_stereopairs()
-        refdem = Path.cwd() / both / run / 'dem' / f'{both}_ba_100_0-DEM.tif'
+        refdem = Path.cwd() / both / run / 'dem' / f'{both}_ba_{self.first_pass_mpp}_0-DEM.tif'
         return str(refdem)
 
-    def get_full_ctx_id(self, pid):
+    def get_full_id(self, pid):
         res = str(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'ProductURL'))
         return res.split('=')[1].split('&')[0]
 
-    def get_ctx_emission_angle(self, pid):
+    def get_emission_angle(self, pid):
         return float(moody.ODE(self.https).get_ctx_meta_by_key(pid, 'Emission_angle'))
 
-    def get_ctx_order(self, one, two):
-        em_one = self.get_ctx_emission_angle(one)
-        em_two = self.get_ctx_emission_angle(two)
+    def get_order(self, one, two):
+        em_one = self.get_emission_angle(one)
+        em_two = self.get_emission_angle(two)
         if em_one <= em_two:
             return one, two
         else:
             return two, one
 
-    def generate_ctx_pair_list(self, one, two):
-        order = self.get_ctx_order(one, two)
-        full_ids = [self.get_full_ctx_id(pid) for pid in order]
+    def generate_pair_list(self, one, two):
+        order = self.get_order(one, two)
+        full_ids = [self.get_full_id(pid) for pid in order]
         with open('pair.lis', 'w', encoding='utf') as o:
             for pid in full_ids:
                 o.write(pid)
@@ -1076,23 +1084,33 @@ class CTX(object):
                 **kwargs
             )
 
+    def download_edr(self, name: str):
+        """
+        Download EDR product
+
+        :param name: _description_
+        :return: _description_
+        """
+        moody.ODE(self.https).ctx_edr(name)
+
     @rich_logger
     def step_1(self, one: str, two: str, cwd: Optional[str] = None) -> None:
         """
-        Download CTX EDRs from the PDS
+        Download EDRs from the PDS
 
-        :param one: first CTX image id
-        :param two: second CTX image id
+        :param one: first image id
+        :param two: second image id
         :param cwd:
         """
         with cd(cwd):
-            self.generate_ctx_pair_list(one, two)
+            self.generate_pair_list(one, two)
             # download files
-            moody.ODE(self.https).ctx_edr(one)
-            moody.ODE(self.https).ctx_edr(two)
+            self.download_edr(one)
+            self.download_edr(two)
+
 
     @rich_logger
-    def step_2(self, with_web=False):
+    def step_2(self, with_web=True):
         """
         ISIS3 CTX preprocessing, replaces ctxedr2lev1eo.sh
 
@@ -1137,7 +1155,7 @@ class CTX(object):
         :param postfix: postfix for cub files to use
         :param camera_postfix: postfix for cameras 
         """
-        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, datum=self.datum, **kwargs)
 
     @rich_logger
     def step_5(self, stereo_conf, posargs='', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json',  **kwargs):
@@ -1181,6 +1199,7 @@ class CTX(object):
                                     run=run,
                                     kind='ba',
                                     use_proj=self.proj,
+                                    datum=self.datum,
                                     **kwargs)
 
     @rich_logger
@@ -1198,7 +1217,7 @@ class CTX(object):
             self.cs.hillshade(dem.name, f'./{dem.stem}-hillshade.tif')
 
     @rich_logger
-    def step_9(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json'):
+    def step_9(self, refdem=None, mpp=6, run='results_ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', **kwargs):
         """
         Mapproject the left and right ctx images against the reference DEM
 
@@ -1210,7 +1229,7 @@ class CTX(object):
         """
         left, right, both = self.cs.parse_stereopairs()
         if not refdem:
-            refdem = Path.cwd() / both / run / 'dem' / f'{both}_ba_100_0-DEM.tif'
+            refdem = Path.cwd() / both / run / 'dem' / f'{both}_ba_{self.first_pass_mpp}_0-DEM.tif'
         else:
             refdem = Path(refdem).absolute()
         with cd(Path.cwd() / both):
@@ -1257,7 +1276,7 @@ class CTX(object):
     @rich_logger
     def step_12(self, pedr_list=None, postfix='.lev1eo'):
         """
-        Get MOLA PEDR data to align the CTX DEM to
+        Get MOLA PEDR data to align the DEM 
 
         :param postfix: postfix for file, minus extension
         :param pedr_list: path local PEDR file list, default None to use REST API
@@ -1267,7 +1286,7 @@ class CTX(object):
     @rich_logger
     def step_13(self, run='results_map_ba', maxd: float = None, refdem = None, highest_accuracy = True, **kwargs):
         """
-        PC Align CTX
+        PC Align 
 
         Run pc_align using provided max disparity and reference dem
         optionally accept an initial transform via kwargs
@@ -1279,7 +1298,6 @@ class CTX(object):
         :param kwargs:
         """
         return self.cs.point_cloud_align(self.datum, maxd=maxd, refdem=refdem, highest_accuracy=highest_accuracy, run=run, kind='map_ba_align', **kwargs)
-        
         
     @rich_logger
     def step_14(self, mpp=24.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
@@ -1303,6 +1321,7 @@ class CTX(object):
                                     kind='map_ba_align',
                                     use_proj=self.proj, 
                                     output_folder=output_folder, 
+                                    datum=self.datum,
                                     **kwargs)
 
     @rich_logger
@@ -1568,7 +1587,7 @@ class HiRISE(object):
         :param vargs: variable length additional positional arguments to pass to bundle adjust
         :param bundle_adjust_prefix:
         """
-        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, **kwargs)
+        return self.cs.bundle_adjust(*vargs, postfix=postfix, camera_postfix=camera_postfix, bundle_adjust_prefix=bundle_adjust_prefix, datum=self.datum, **kwargs)
 
     @rich_logger
     def step_7(self, stereo_conf,  postfix='_RED.cub', camera_postfix='_RED.json', run='results_ba', posargs='', **kwargs):
@@ -2132,6 +2151,143 @@ class Georef(object):
         )
 
 
+class LROCNAC(CTX):
+    r"""
+    ASAP Stereo Pipeline - LROCNAC workflow
+
+    █████████████████████████████████████████████████████████████
+
+              ___   _____ ___    ____
+             /   | / ___//   |  / __ \
+            / /| | \__ \/ /| | / /_/ /
+           / ___ |___/ / ___ |/ ____/
+          /_/  |_/____/_/  |_/_/      𝑆 𝑇 𝐸 𝑅 𝐸 𝑂
+
+          asap_stereo (0.3.1)
+
+          Github: https://github.com/AndrewAnnex/asap_stereo
+          Cite: https://doi.org/10.5281/zenodo.4171570
+
+    █████████████████████████████████████████████████████████████
+    """
+
+    def __init__(self, https=False, datum="D_MOON", proj: Optional[str] = None):
+        self.cs = CommonSteps()
+        self.https = https
+        self.datum = datum
+        # if proj is not none, get the corresponding proj or else override with proj,
+        # otherwise it's a none so remain a none
+        self.proj = self.cs.projections.get(proj, proj)
+        self.first_pass_mpp: int = 48
+        self.crs_ge = pyproj.CRS.from_user_input('IAU_2015:30100')
+
+    def make_stereographic_projection(self, lon, lat):
+        conversion = StereographicConversion(lat, lon)
+        proj_crs = ProjectedCRS(conversion, geodetic_crs=self.crs_ge)
+        return proj_crs.to_proj4()
+
+
+    def get_full_id(self, pid):
+        res = str(moody.ODE(self.https).get_lrocnac_meta_by_key(pid, 'ProductURL'))
+        res = res.split('=')[1].split('&')[0].upper().replace('NAC.', '')
+        return res
+
+    def get_emission_angle(self, pid):
+        return float(moody.ODE(self.https).get_lrocnac_meta_by_key(pid, 'Emission_angle'))
+
+    def download_edr(self, name):
+        moody.ODE(self.https).lrocnac_edr(name)
+
+    @rich_logger
+    def step_2(self, with_web=True):
+        """
+        ISIS3 LROC preprocessing, replaces ctxedr2lev1eo.sh
+
+        :param with_web: if true attempt to use webservices for SPICE kernel data
+        """
+        imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
+        par_do(self.cs.lrocnac2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        cubs = list(Path.cwd().glob('*.cub'))
+        par_do(self.cs.spiceinit, [f'from={c.name} shape=ellipsoid{" web=yes" if with_web else ""}' for c in cubs])
+        par_do(self.cs.lronaccal, [f'from={c.name} to={c.stem}.cal.cub' for c in cubs])
+        par_do(self.cs.lronacecho, [f'from={c.name} to={c.stem}.lev1eo.cub' for c in cubs])
+        for cub in cubs:
+            cub.unlink()
+        calcubs = list(Path.cwd().glob('*.cal.cub'))
+        for lc in calcubs:
+            lc.unlink()
+
+    @rich_logger
+    def step_7(self, mpp=24, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
+        """
+        Produce preview DEMs/Orthos
+
+        Produce dem from point cloud, by default 24mpp just for smaller data
+
+        :param run: folder for results
+        :param just_ortho: set to True if you only want the ortho image, else make dem and error image
+        :param mpp: resolution in meters per pixel
+        :param postfix: postfix for cub files to use
+        """
+        return self.cs.point_to_dem(mpp, 'PC.tif',
+                                    just_ortho=just_ortho,
+                                    postfix=postfix,
+                                    run=run,
+                                    kind='ba',
+                                    use_proj=self.proj,
+                                    datum=self.datum,
+                                    **kwargs)
+
+
+    def step_9(self, mpp=4, **kwargs):
+        """
+        Mapproject the left and right LRONAC images against the reference DEM
+
+        :param run: name of run
+        :param refdem: reference dem to map project using
+        :param mpp: target GSD
+        :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras to use 
+        """
+        super().step_9(mpp=mpp, **kwargs)
+
+    @rich_logger
+    def step_12(self,  postfix='.lev1eo'):
+        """
+        Get LOLA data to align the CTX DEM to
+
+        :param postfix: postfix for file, minus extension
+        :param pedr_list: path local PEDR file list, default None to use REST API
+        """
+        # TODO implement this later
+        pass
+        #self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
+
+    @rich_logger
+    def step_14(self, mpp=6.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
+        """
+        Produce final DEMs/Orthos
+
+        Run point2dem on the aligned output to produce final science ready products
+
+        :param run: folder used for this processing run
+        :param mpp:
+        :param just_ortho:
+        :param output_folder:
+        :param postfix: postfix for cub files to use
+        :param kwargs:
+        """
+        return self.cs.point_to_dem(mpp,
+                                    'trans_reference.tif',
+                                    just_ortho=just_ortho, 
+                                    postfix=postfix,
+                                    run=run, 
+                                    kind='map_ba_align',
+                                    use_proj=self.proj, 
+                                    output_folder=output_folder, 
+                                    datum=self.datum,
+                                    **kwargs)
+
 class ASAP(object):
     r"""
     ASAP Stereo Pipeline
@@ -2152,14 +2308,56 @@ class ASAP(object):
     █████████████████████████████████████████████████████████████
     """
 
-    def __init__(self, https=False, datum="D_MARS"):
+    def __init__(self, https=False):
         self.https  = https
-        self.hirise = HiRISE(self.https, datum=datum)
-        self.ctx    = CTX(self.https, datum=datum)
+        self.hirise = HiRISE(self.https, datum="D_MARS")
+        self.ctx    = CTX(self.https, datum="D_MARS")
+        self.lrocnac = LROCNAC(self.https, datum="D_MOON")
         self.common = CommonSteps()
         self.georef = Georef()
         self.get_srs_info = self.common.get_srs_info
         self.get_map_info = self.common.get_map_info
+
+    def lrocnac_one(self, left, right, cwd: Optional[str] = None):
+        """
+        Run first stage of LROCNAC pipeline
+
+        This command runs steps 1-3 of the LROCNAC pipeline
+
+        :param left: left image id
+        :param right: right image id
+        :param cwd: directory to run process within (default to CWD)
+        """
+        with cd(cwd):
+            self.lrocnac.step_1(left, right)
+            # ctxedr2lev1eo steps
+            self.lrocnac.step_2()
+            # move things
+            self.lrocnac.step_3()
+    
+    def lrocnac_two(self, stereo: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
+        """
+        Run Second stage of LROCNAC pipeline
+
+        This command runs steps 4-12 of the LROCNAC pipeline
+
+        :param stereo: ASP stereo config file to use
+        :param stereo2: 2nd ASP stereo config file to use, if none use first stereo file again
+        :param cwd: directory to run process within (default to CWD)
+        """
+        with cd(cwd):
+            self.lrocnac.step_4()
+            self.lrocnac.step_5(stereo)
+            self.lrocnac.step_6(stereo)
+            self.lrocnac.step_7(mpp=48, just_ortho=False, dem_hole_fill_len=50)
+            self.lrocnac.step_8()
+            self.lrocnac.step_9(mpp=4)
+            self.lrocnac.step_10(stereo2 if stereo2 else stereo)
+            self.lrocnac.step_11(stereo2 if stereo2 else stereo)
+            self.lrocnac.step_7(run='results_map_ba')
+            self.lrocnac.step_8(run='results_map_ba')
+            # TODO implement LOLA stuff
+            #self.lrocnac.step_12(pedr_list)
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         """
