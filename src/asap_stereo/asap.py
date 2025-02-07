@@ -2186,7 +2186,6 @@ class LROCNAC(CTX):
         proj_crs = ProjectedCRS(conversion, geodetic_crs=self.crs_ge)
         return proj_crs.to_proj4()
 
-
     def get_full_id(self, pid):
         res = str(moody.ODE(self.https).get_lrocnac_meta_by_key(pid, 'ProductURL'))
         res = res.split('=')[1].split('&')[0].upper().replace('NAC.', '')
@@ -2199,16 +2198,23 @@ class LROCNAC(CTX):
         moody.ODE(self.https).lrocnac_edr(name)
 
     @rich_logger
-    def step_2(self, with_web=True):
+    def step_2(self, with_web=True, custom_shape=None, spkrecon=True):
         """
         ISIS3 LROC preprocessing, replaces ctxedr2lev1eo.sh
 
         :param with_web: if true attempt to use webservices for SPICE kernel data
         """
+        if custom_shape and with_web:
+            raise Exception('Cannot spiceinit LROC with both web_true and with a custom shape! Set web False and try again')
+
         imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
         par_do(self.cs.lrocnac2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
-        par_do(self.cs.spiceinit, [f'from={c.name} shape=ellipsoid{" web=yes" if with_web else ""}' for c in cubs])
+        if custom_shape:
+            spice_init_params = [f'from={c.name} shape=user model={custom_shape} spksmithed=true spkrecod={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
+        else:
+            spice_init_params = [f'from={c.name} spksmithed=true spkrecod={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
+        par_do(self.cs.spiceinit, spice_init_params)
         par_do(self.cs.lronaccal, [f'from={c.name} to={c.stem}.cal.cub' for c in cubs])
         par_do(self.cs.lronacecho, [f'from={c.name} to={c.stem}.lev1eo.cub' for c in cubs])
         for cub in cubs:
