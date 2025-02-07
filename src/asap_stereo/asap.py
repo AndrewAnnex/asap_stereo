@@ -367,10 +367,10 @@ class CommonSteps(object):
         self.ipmatch       = Command('ipmatch').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.gdaltranslate = Command('gdal_translate').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         # get the help for paralle bundle adjust which changed between 3.x versions
-        pba_help = sh.parallel_bundle_adjust('--help')
+        #pba_help = sh.parallel_bundle_adjust('--help')
         pk = '--threads'
-        if hasattr(pba_help, '--threads-singleprocess'):
-            pk = '--threads-singleprocess'
+        #if hasattr(pba_help, '--threads-singleprocess'):
+        #    pk = '--threads-singleprocess'
         self.ba = Command('parallel_bundle_adjust').bake(
                 pk, _threads_singleprocess,
                 _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log
@@ -2211,12 +2211,12 @@ class LROCNAC(CTX):
         par_do(self.cs.lrocnac2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
         if custom_shape:
-            spice_init_params = [f'from={c.name} shape=user model={custom_shape} spksmithed=true spkrecod={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
+            spice_init_params = [f'from={c.name} shape=user model={custom_shape} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
         else:
-            spice_init_params = [f'from={c.name} spksmithed=true spkrecod={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
+            spice_init_params = [f'from={c.name} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
         par_do(self.cs.spiceinit, spice_init_params)
         par_do(self.cs.lronaccal, [f'from={c.name} to={c.stem}.cal.cub' for c in cubs])
-        par_do(self.cs.lronacecho, [f'from={c.name} to={c.stem}.lev1eo.cub' for c in cubs])
+        par_do(self.cs.lronacecho, [f'from={c.stem}.cal.cub to={c.stem}.lev1eo.cub' for c in cubs])
         for cub in cubs:
             cub.unlink()
         calcubs = list(Path.cwd().glob('*.cal.cub'))
