@@ -58,15 +58,13 @@ import papermill as pm
 import pvl
 
 
-
-def custom_log(ran, call_args, pid=None):
-    return ran
-
 here = os.path.dirname(__file__)
 
 cores = os.cpu_count()
 if not cores:
     cores = 16
+
+cores = min(cores, 64)
 
 _threads_singleprocess = cores # 24, 16
 _threads_multiprocess  = _threads_singleprocess // 2 if _threads_singleprocess > 1 else 1 # 12, 8
@@ -77,6 +75,10 @@ pool = Semaphore(cores)
 
 def done(cmd, success, exit_code):
     pool.release()
+
+def custom_log(ran, call_args, pid=None):
+    return ran
+
     
 def circ_mean(*vargs, low=-180.0, high=180.0):
     lowr, highr = math.radians(low), math.radians(high)
@@ -348,7 +350,7 @@ class CommonSteps(object):
 
     def __init__(self):
         self.parallel_stereo = Command('parallel_stereo').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.point2dem     = Command('point2dem').bake('--threads', _threads_singleprocess, _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.point2dem     = Command('point2dem').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.pc_align      = Command('pc_align').bake('--save-inv-transform', _out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.dem_geoid     = Command('dem_geoid').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.geodiff       = Command('geodiff').bake('--float', _out=sys.stdout, _err=sys.stderr, _tee=True, _log_msg=custom_log)
@@ -599,7 +601,7 @@ class CommonSteps(object):
         ymax_img2 = img1_center_t[1] + buffer_radius
         return xmin_img2, ymin_img2, xmax_img2, ymax_img2
 
-    def crop_by_buffer(self, ref, src, img_out=None, factor=2.0):
+    def crop_by_buffer(self, ref, src, img_out=None, factor=2.0, to_vrt=False, use_warp=True, *args):
         """
         use gdal warp to crop img2 by a buffer around img1
 
@@ -610,9 +612,13 @@ class CommonSteps(object):
         xmin, ymin, xmax, ymax = self.transform_bounds_and_buffer(ref, src, factor=factor)
         img2_path = Path(src).absolute()
         if img_out == None:
-            img_out = img2_path.stem + '_clipped.tif'
-        return sh.gdalwarp('-te', xmin, ymin, xmax, ymax, img2_path, img_out, _log_msg=custom_log)
-
+            img_out = img2_path.stem + f'_clipped.{"vrt" if to_vrt else "tif"}'
+        if use_warp:
+            # use gdalwarp
+            return sh.gdalwarp(*args,'-te', xmin, ymin, xmax, ymax, img2_path, img_out, _log_msg=custom_log)
+        else:
+            # use gdal_translate, uses ll,lr instead of normal extent
+            return sh.gdal_translate(*args, '-unscale', '-projwin', xmin, ymax, xmax, ymin, img2_path, img_out, _log_msg=custom_log)
     def check_mpp_against_true_gsd(self, path, mpp):
         """
         Get the GSD of the image, and warn if it is less than 3 * the gsd
@@ -775,6 +781,7 @@ class CommonSteps(object):
             '--output-prefix'     : f'{both}_{kind}_{mpp_postfix}',
             '--dem-spacing'       : mpp,
             '--t_srs'             : proj,
+            '--threads'           : min(_threads_singleprocess, 64),
         }
         post_args = []
         if just_ortho:
@@ -2178,7 +2185,7 @@ class LROCNAC(CTX):
         # if proj is not none, get the corresponding proj or else override with proj,
         # otherwise it's a none so remain a none
         self.proj = self.cs.projections.get(proj, proj)
-        self.first_pass_mpp: int = 48
+        self.first_pass_mpp: int = 12
         self.crs_ge = pyproj.CRS.from_user_input('IAU_2015:30100')
 
     def make_stereographic_projection(self, lon, lat):
@@ -2248,17 +2255,19 @@ class LROCNAC(CTX):
 
 
     @rich_logger
-    def step_7(self, mpp=24, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
+    def step_7(self, mpp=None, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
 
-        Produce dem from point cloud, by default 24mpp just for smaller data
+        Produce dem from point cloud, by default 12mpp just for smaller data
 
         :param run: folder for results
         :param just_ortho: set to True if you only want the ortho image, else make dem and error image
         :param mpp: resolution in meters per pixel
         :param postfix: postfix for cub files to use
         """
+        if not mpp:
+            mpp = self.first_pass_mpp
         return self.cs.point_to_dem(mpp, 'PC.tif',
                                     just_ortho=just_ortho,
                                     postfix=postfix,
@@ -2269,7 +2278,7 @@ class LROCNAC(CTX):
                                     **kwargs)
 
 
-    def step_9(self, mpp=4, **kwargs):
+    def step_9(self, mpp=1.0, **kwargs):
         """
         Mapproject the left and right LRONAC images against the reference DEM
 
@@ -2282,19 +2291,42 @@ class LROCNAC(CTX):
         super().step_9(mpp=mpp, **kwargs)
 
     @rich_logger
-    def step_12(self,  postfix='.lev1eo'):
+    def step_12(self, refdem, srcimg=None, kind='map_ba_align'):
         """
-        Get LOLA data to align the CTX DEM to
+        Get LOLA data to align the LROC NAC DEM to
 
-        :param postfix: postfix for file, minus extension
-        :param pedr_list: path local PEDR file list, default None to use REST API
+        makes a VRT from the refdem that is assumed to be lola
         """
-        # TODO implement this later
-        pass
-        #self.cs.get_pedr_4_pcalign_common(postfix, self.proj, self.https, pedr_list=pedr_list)
+        # IDEA: make a GDAL VRT that crops a reference LOLA DEM .tif file to 
+        # a buffered extent of the current DEM to account for pointing uncertainty
+        # get Goodpixel map for extent
+        left, right, both = self.parse_stereopairs()
+        with cd( Path.cwd() / both / kind ):
+            if not srcimg:
+                srcimg = str(next(Path.cwd().glob('*GoodPixelMap.tif')).absolute())
+            # crop the refdem by the extent of the good pixel map using gdal_translate
+            return self.cs.crop_by_buffer(refdem, srcimg, to_vrt=True)
+        
+    @rich_logger
+    def step_13(self, refdem: str | None = None, run: str = 'results_map_ba', maxd: float = None, highest_accuracy = True, **kwargs):
+        """
+        PC Align 
+
+        Run pc_align using provided max disparity and reference dem
+        optionally accept an initial transform via kwargs
+        
+        :param run: folder used for this processing run
+        :param highest_accuracy: Use the maximum accuracy mode
+        :param maxd: Maximum expected displacement in meters
+        :param refdem: path to reference DEM/PC, must be provided
+        :param kwargs:
+        """
+        if not refdem:
+            refdem = str(next(Path.cwd().glob('*_clipped.vrt')).absolute())
+        return self.cs.point_cloud_align(self.datum, maxd=maxd, refdem=refdem, highest_accuracy=highest_accuracy, run=run, kind='map_ba_align', **kwargs)
 
     @rich_logger
-    def step_14(self, mpp=6.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
+    def step_14(self, mpp=4.0, just_ortho=False, run='results_map_ba', output_folder='dem_align', postfix='.lev1eo.cub', **kwargs):
         """
         Produce final DEMs/Orthos
 
@@ -2365,7 +2397,7 @@ class ASAP(object):
             # move things
             self.lrocnac.step_3()
     
-    def lrocnac_two(self, stereo: str, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
+    def lrocnac_two(self, stereo: str, LOLA_DEM: str,stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         """
         Run Second stage of LROCNAC pipeline
 
@@ -2379,15 +2411,34 @@ class ASAP(object):
             self.lrocnac.step_4()
             self.lrocnac.step_5(stereo)
             self.lrocnac.step_6(stereo)
-            self.lrocnac.step_7(mpp=48, just_ortho=False, dem_hole_fill_len=50)
+            self.lrocnac.step_7(mpp=12, just_ortho=False, dem_hole_fill_len=50)
             self.lrocnac.step_8()
-            self.lrocnac.step_9(mpp=4)
+            self.lrocnac.step_9(mpp=1)
             self.lrocnac.step_10(stereo2 if stereo2 else stereo)
             self.lrocnac.step_11(stereo2 if stereo2 else stereo)
             self.lrocnac.step_7(run='results_map_ba')
             self.lrocnac.step_8(run='results_map_ba')
-            # TODO implement LOLA stuff
-            #self.lrocnac.step_12(pedr_list)
+            self.lrocnac.step_12(LOLA_DEM)
+
+    def lrocnac_three(self, max_disp: float = None, demgsd: float = 4, imggsd: float = 1, cwd: Optional[str] = None, **kwargs) -> None:
+        """
+        Run third and final stage of the LROCNAC pipeline
+
+        This command runs steps 13-15 of the LROCNAC pipeline
+
+        :param max_disp: Maximum expected displacement in meters
+        :param demgsd: GSD of final Dem, default is 1 mpp
+        :param imggsd: GSD of full res image
+        :param cwd: directory to run process within (default to CWD)
+        :param kwargs:
+        """
+        with cd(cwd):
+            self.lrocnac.step_13(max_disp, **kwargs)
+            self.lrocnac.step_14(mpp=demgsd, **kwargs)
+            self.lrocnac.step_15(**kwargs)
+            # go back and make final orthos and such
+            self.lrocnac.step_14(mpp=imggsd, just_ortho=True, **kwargs)
+            self.lrocnac.step_8(run='results_map_ba', output_folder='dem_align')
 
     def ctx_one(self, left, right, cwd: Optional[str] = None):
         """
