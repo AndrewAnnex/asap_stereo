@@ -2496,7 +2496,7 @@ class ASAP(object):
         with cd(cwd):
             self.ctx.step_13(max_disp, **kwargs)
             self.ctx.step_14(mpp=demgsd, **kwargs)
-            self.ctx.step_15(**kwargs)
+            #self.ctx.step_15(**kwargs)
             # go back and make final orthos and such
             self.ctx.step_14(mpp=imggsd, just_ortho=True, **kwargs)
             self.ctx.step_8(run='results_map_ba', output_folder='dem_align')
