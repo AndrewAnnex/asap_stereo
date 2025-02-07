@@ -2186,6 +2186,7 @@ class LROCNAC(CTX):
         # otherwise it's a none so remain a none
         self.proj = self.cs.projections.get(proj, proj)
         self.first_pass_mpp: int = 12
+        self.final_pass_mpp: float = 1.0
         self.crs_ge = pyproj.CRS.from_user_input('IAU_2015:30100')
 
     def make_stereographic_projection(self, lon, lat):
@@ -2300,7 +2301,7 @@ class LROCNAC(CTX):
         # IDEA: make a GDAL VRT that crops a reference LOLA DEM .tif file to 
         # a buffered extent of the current DEM to account for pointing uncertainty
         # get Goodpixel map for extent
-        left, right, both = self.parse_stereopairs()
+        left, right, both = self.cs.parse_stereopairs()
         with cd( Path.cwd() / both / kind ):
             if not srcimg:
                 srcimg = str(next(Path.cwd().glob('*GoodPixelMap.tif')).absolute())
@@ -2397,7 +2398,7 @@ class ASAP(object):
             # move things
             self.lrocnac.step_3()
     
-    def lrocnac_two(self, stereo: str, LOLA_DEM: str,stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
+    def lrocnac_two(self, stereo: str, LOLA_DEM: str, imggsd: float = 1.0, stereo2: Optional[str] = None, cwd: Optional[str] = None) -> None:
         """
         Run Second stage of LROCNAC pipeline
 
@@ -2411,12 +2412,12 @@ class ASAP(object):
             self.lrocnac.step_4()
             self.lrocnac.step_5(stereo)
             self.lrocnac.step_6(stereo)
-            self.lrocnac.step_7(mpp=12, just_ortho=False, dem_hole_fill_len=50)
+            self.lrocnac.step_7(mpp=self.lrocnac.final_pass_mpp, just_ortho=False, dem_hole_fill_len=50)
             self.lrocnac.step_8()
-            self.lrocnac.step_9(mpp=1)
+            self.lrocnac.step_9(mpp=imggsd)
             self.lrocnac.step_10(stereo2 if stereo2 else stereo)
             self.lrocnac.step_11(stereo2 if stereo2 else stereo)
-            self.lrocnac.step_7(run='results_map_ba')
+            self.lrocnac.step_7(mpp=imggsd, run='results_map_ba')
             self.lrocnac.step_8(run='results_map_ba')
             self.lrocnac.step_12(LOLA_DEM)
 
