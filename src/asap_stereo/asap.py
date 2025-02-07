@@ -2224,6 +2224,30 @@ class LROCNAC(CTX):
             lc.unlink()
 
     @rich_logger
+    def step_4(self, *vargs, bundle_adjust_prefix='adjust/ba', postfix='.lev1eo.cub', camera_postfix='.lev1eo.json', **kwargs)-> sh.RunningCommand:
+        """
+        Bundle Adjust LROCNAC
+
+        Run bundle adjustment on the LROCNAC data
+
+        :param vargs: variable length additional positional arguments to pass to bundle adjust
+        :param bundle_adjust_prefix: prefix for bundle adjust output
+        :param postfix: postfix for cub files to use
+        :param camera_postfix: postfix for cameras 
+        """
+        return self.cs.bundle_adjust(
+            *vargs, 
+            postfix=postfix, 
+            camera_postfix=camera_postfix, 
+            bundle_adjust_prefix=bundle_adjust_prefix, 
+            datum=self.datum, 
+            ip_per_tile=400, 
+            ip_per_image=20000, 
+            nodata_value=0.001,
+            **kwargs)
+
+
+    @rich_logger
     def step_7(self, mpp=24, just_ortho=False, run='results_ba', postfix='.lev1eo.cub', **kwargs):
         """
         Produce preview DEMs/Orthos
