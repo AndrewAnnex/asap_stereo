@@ -584,16 +584,17 @@ class CommonSteps(object):
         :param factor: how big we want it (radius is longest dim in img1)
         :return: xmin_img2, ymin_img2, xmax_img2, ymax_img2
         """
-        from pyproj import transform
+        from pyproj import Transformer
         img1_bounds = self.get_img_bounds(img1)
         img1_crs    = self.get_img_crs(img1)
         img2_crs    = self.get_img_crs(img2)
+        transform = Transformer.from_crs(img1_crs, img2_crs)
         # get the buffer radius
         buffer_radius = max((abs(img1_bounds.top-img1_bounds.bottom), abs(img1_bounds.left - img1_bounds.right))) * factor
         # get the centroid of img1
         img1_center = (0.0, (img1_bounds.top + img1_bounds.bottom)/2)
         # transform the centroid
-        img1_center_t = transform(img1_crs, img2_crs, *img1_center)
+        img1_center_t = transform(*img1_center)
         # use the transformed center to get new xmin ymin xmax ymax
         xmin_img2 = img1_center_t[0] - buffer_radius
         ymin_img2 = img1_center_t[1] - buffer_radius
