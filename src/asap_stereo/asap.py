@@ -2292,7 +2292,7 @@ class LROCNAC(CTX):
         super().step_9(mpp=mpp, **kwargs)
 
     @rich_logger
-    def step_12(self, refdem, srcimg=None, kind='map_ba_align'):
+    def step_12(self, refdem, srcimg=None, run='results_map_ba'):
         """
         Get LOLA data to align the LROC NAC DEM to
 
@@ -2302,7 +2302,7 @@ class LROCNAC(CTX):
         # a buffered extent of the current DEM to account for pointing uncertainty
         # get Goodpixel map for extent
         left, right, both = self.cs.parse_stereopairs()
-        with cd( Path.cwd() / both / kind ):
+        with cd( Path.cwd() / both / run ):
             if not srcimg:
                 srcimg = str(next(Path.cwd().glob('*GoodPixelMap.tif')).absolute())
             # crop the refdem by the extent of the good pixel map using gdal_translate
