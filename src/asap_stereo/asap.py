@@ -2323,8 +2323,9 @@ class LROCNAC(CTX):
         :param refdem: path to reference DEM/PC, must be provided
         :param kwargs:
         """
+        left, right, both = self.cs.parse_stereopairs()
         if not refdem:
-            refdem = str(next(Path.cwd().glob('*_clipped.vrt')).absolute())
+            refdem = str(next((Path.cwd() / both / run ).glob('*_clipped.vrt')).absolute())
         return self.cs.point_cloud_align(self.datum, maxd=maxd, refdem=refdem, highest_accuracy=highest_accuracy, run=run, kind='map_ba_align', **kwargs)
 
     @rich_logger
