@@ -2307,7 +2307,7 @@ class LROCNAC(CTX):
             if not srcimg:
                 srcimg = str(next(Path.cwd().glob('*GoodPixelMap.tif')).absolute())
             # crop the refdem by the extent of the good pixel map using gdal_translate
-            return self.cs.crop_by_buffer(refdem, srcimg, to_vrt=True)
+            return self.cs.crop_by_buffer(srcimg, refdem, to_vrt=True)
         
     @rich_logger
     def step_13(self, refdem: str | None = None, run: str = 'results_map_ba', maxd: float = None, highest_accuracy = True, **kwargs):
