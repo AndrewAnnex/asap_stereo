@@ -2221,20 +2221,20 @@ class LROCNAC(CTX):
         if custom_shape and with_web:
             raise Exception('Cannot spiceinit LROC with both web_true and with a custom shape! Set web False and try again')
         src_img_path = Path(src_img_path).resolve()
-        out_cub_path = src_img_path.with_suffix('.cub')
+        out_cub_path = src_img_path.with_suffix('').with_suffix('.cub')
         # lronac2isis
-        _ = self.cs.lronac2isis(f'from={src_img_path} to={out_cub_path}')
+        _ = self.cs.lronac2isis(*(f'from={src_img_path} to={out_cub_path}'.split(' ')))
         # spiceinit
         model = f' shape=user model={custom_shape}' if custom_shape else ''
-        _ = self.cs.spiceinit(f'from={out_cub_path} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}{model}')
+        _ = self.cs.spiceinit(*(f'from={out_cub_path} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}{model}'.split(' ')))
         # lroncal
-        out_cal_path = out_cub_path.with_suffix('.cal.cub')
-        _ = self.cs.lronaccal(f'from={out_cub_path} to={out_cal_path}')
+        out_cal_path = out_cub_path.with_suffix('').with_suffix('.cal.cub')
+        _ = self.cs.lronaccal(*(f'from={out_cub_path} to={out_cal_path}'.split(' ')))
         ## remove first cub
         out_cub_path.unlink()
-        # lronacecho
-        out_echo_path = out_cal_path.with_suffix('.ech.cub')
-        _ = self.cs.lronacecho(f'from={out_cal_path} to={out_echo_path}')
+        # lronacecho make sure to strip off the cal here as it's too nested to keep
+        out_echo_path = out_cal_path.with_suffix('').with_suffix('.ech.cub')
+        _ = self.cs.lronacecho(*(f'from={out_cal_path} to={out_echo_path}'.split(' ')))
         ## remove the cal cub
         out_cal_path.unlink()
         return out_echo_path
