@@ -360,7 +360,7 @@ class CommonSteps(object):
         self.cubreduce     = Command('reduce').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ctxcal        = Command('ctxcal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.ctxevenodd    = Command('ctxevenodd').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
-        self.lrocnac2isis  = Command('lronac2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
+        self.lronac2isis  = Command('lronac2isis').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.lronaccal     = Command('lronaccal').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.lronacecho    = Command('lronacecho').bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
         self.hillshade     = Command('gdaldem').hillshade.bake(_out=sys.stdout, _err=sys.stderr, _log_msg=custom_log)
@@ -2207,6 +2207,40 @@ class LROCNAC(CTX):
         moody.ODE(self.https).lrocnac_edr(name)
 
     @rich_logger
+    def calibrate_edr(self, src_img_path, with_web=False, custom_shape=None, spkrecon=True):
+        """
+        ISIS3 LROC preprocessing, up to ISD generation 
+
+        :param img_path: _description_
+        :param with_web: _description_, defaults to False
+        :param custom_shape: _description_, defaults to None
+        :param spkrecon: _description_, defaults to True
+        :raises Exception: _description_
+        :return: _description_
+        """
+        if custom_shape and with_web:
+            raise Exception('Cannot spiceinit LROC with both web_true and with a custom shape! Set web False and try again')
+        src_img_path = Path(src_img_path).resolve()
+        out_cub_path = src_img_path.with_suffix('.cub')
+        # lronac2isis
+        _ = self.cs.lronac2isis(f'from={src_img_path} to={out_cub_path}')
+        # spiceinit
+        model = f' shape=user model={custom_shape}' if custom_shape else ''
+        _ = self.cs.spiceinit(f'from={out_cub_path} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}{model}')
+        # lroncal
+        out_cal_path = out_cub_path.with_suffix('.cal.cub')
+        _ = self.cs.lronaccal(f'from={out_cub_path} to={out_cal_path}')
+        ## remove first cub
+        out_cub_path.unlink()
+        # lronacecho
+        out_echo_path = out_cal_path.with_suffix('.ech.cub')
+        _ = self.cs.lronacecho(f'from={out_cal_path} to={out_echo_path}')
+        ## remove the cal cub
+        out_cal_path.unlink()
+        return out_echo_path
+
+
+    @rich_logger
     def step_2(self, with_web=True, custom_shape=None, spkrecon=True):
         """
         ISIS3 LROC preprocessing, replaces ctxedr2lev1eo.sh
@@ -2217,7 +2251,7 @@ class LROCNAC(CTX):
             raise Exception('Cannot spiceinit LROC with both web_true and with a custom shape! Set web False and try again')
 
         imgs = [*Path.cwd().glob('*.IMG'), *Path.cwd().glob('*.img')]
-        par_do(self.cs.lrocnac2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
+        par_do(self.cs.lronac2isis, [f'from={i.name} to={i.stem}.cub' for i in imgs])
         cubs = list(Path.cwd().glob('*.cub'))
         if custom_shape:
             spice_init_params = [f'from={c.name} shape=user model={custom_shape} spksmithed=true spkrecon={str(spkrecon).lower()} web={str(with_web).lower()}' for c in cubs]
